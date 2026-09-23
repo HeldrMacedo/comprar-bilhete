@@ -4,5 +4,8 @@ export type Cart = {
   raffleId: string
   raffleTitle: string
   priceInCents: number
-  cards: RaffleCard[]
+  selection: CartSelection
 }
+
+export type CartSelection =
+  { mode: 'manual'; cards: RaffleCard[] } | { mode: 'random'; quantity: number }

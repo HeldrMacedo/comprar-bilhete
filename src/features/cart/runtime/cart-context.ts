@@ -1,12 +1,12 @@
 import { createContext, useContext } from 'react'
 import type { Raffle } from '../../raffle/domain/types'
-import type { Cart } from '../domain/types'
+import type { Cart, CartSelection } from '../domain/types'
 
 export type CartContextValue = {
   cart: Cart | null
   itemCount: number
   totalInCents: number
-  setSelection: (raffle: Raffle, cards: Raffle['cards']) => void
+  setSelection: (raffle: Raffle, selection: CartSelection) => void
   removeCard: (cardId: string) => void
   clearCart: () => void
 }

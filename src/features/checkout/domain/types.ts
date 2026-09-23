@@ -19,9 +19,7 @@ export type LookupCriteria = { cpf?: string; phone?: string }
 
 export type ExternalCustomer = Customer & { externalId: string }
 
-export type CustomerLookupResult =
-  | { found: false }
-  | { found: true; customer: ExternalCustomer }
+export type CustomerLookupResult = { found: false } | { found: true; customer: ExternalCustomer }
 
 export interface CustomerRepository {
   lookup(criteria: LookupCriteria, signal?: AbortSignal): Promise<CustomerLookupResult>
@@ -29,7 +27,7 @@ export interface CustomerRepository {
 
 export type CreateOrderInput = {
   raffleId: string
-  cardIds: string[]
+  selection: { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number }
   customer: Customer
 }
 
@@ -39,10 +37,13 @@ export type PaymentStatus =
 export type Order = {
   id: string
   status: PaymentStatus
+  selectionMode?: 'manual' | 'random'
+  unitPriceInCents?: number
   totalInCents: number
+  items?: Array<{ id: string; code: string; numbers: number[] }>
   receiptUrl?: string
+  expiresAt?: string
+  message?: string
 }
 
-export type Checkout = {
-  checkoutUrl: string
-}
+export type Checkout = { checkoutUrl: string }

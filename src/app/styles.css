@@ -634,6 +634,19 @@ main {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
+.address-fields {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.address-fields h3 {
+  margin: 0;
+}
+.lookup-status {
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 .field {
   display: grid;
   gap: 7px;

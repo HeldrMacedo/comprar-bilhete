@@ -19,7 +19,12 @@ const mockRepository: CheckoutRepository = {
     const order: Order = {
       id,
       status: 'pending',
-      totalInCents: input.cardIds.length * 1000,
+      selectionMode: input.selection.mode,
+      unitPriceInCents: 1000,
+      totalInCents:
+        (input.selection.mode === 'manual'
+          ? input.selection.cardIds.length
+          : input.selection.quantity) * 1000,
     }
     mockOrders.set(id, { order, checks: 0 })
     sessionStorage.setItem(`mock-order:${id}`, JSON.stringify({ order, checks: 0 }))

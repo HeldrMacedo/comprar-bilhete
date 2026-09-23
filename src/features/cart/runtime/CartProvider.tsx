@@ -4,12 +4,15 @@ import { raffleCardSchema } from '../../raffle/api/schemas'
 import type { Cart } from '../domain/types'
 import { CartContext, type CartContextValue } from './cart-context'
 
-const storageKey = 'bilhete-da-sorte:cart:v1'
+const storageKey = 'bilhete-da-sorte:cart:v2'
 const cartSchema = z.object({
   raffleId: z.string(),
   raffleTitle: z.string(),
   priceInCents: z.number().int().positive(),
-  cards: z.array(raffleCardSchema),
+  selection: z.discriminatedUnion('mode', [
+    z.object({ mode: z.literal('manual'), cards: z.array(raffleCardSchema).min(1) }),
+    z.object({ mode: z.literal('random'), quantity: z.number().int().min(1).max(50) }),
+  ]),
 })
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -23,20 +26,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CartContextValue>(
     () => ({
       cart,
-      itemCount: cart?.cards.length ?? 0,
-      totalInCents: (cart?.cards.length ?? 0) * (cart?.priceInCents ?? 0),
-      setSelection: (raffle, cards) =>
+      itemCount: cart
+        ? cart.selection.mode === 'manual'
+          ? cart.selection.cards.length
+          : cart.selection.quantity
+        : 0,
+      totalInCents: cart
+        ? (cart.selection.mode === 'manual'
+            ? cart.selection.cards.length
+            : cart.selection.quantity) * cart.priceInCents
+        : 0,
+      setSelection: (raffle, selection) =>
         setCart({
           raffleId: raffle.id,
           raffleTitle: raffle.title,
           priceInCents: raffle.priceInCents,
-          cards,
+          selection,
         }),
       removeCard: (cardId) =>
         setCart((current) => {
-          if (!current) return null
-          const cards = current.cards.filter((card) => card.id !== cardId)
-          return cards.length ? { ...current, cards } : null
+          if (!current || current.selection.mode !== 'manual') return current
+          const cards = current.selection.cards.filter((card) => card.id !== cardId)
+          return cards.length ? { ...current, selection: { mode: 'manual', cards } } : null
         }),
       clearCart: () => setCart(null),
     }),

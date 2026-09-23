@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, ChevronRight, Dices, ShieldCheck, Ticket } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useCart } from '../features/cart/runtime/cart-context'
 import type { RaffleCard } from '../features/raffle/domain/types'
 import { raffleRepository } from '../features/raffle/repository/raffle-repository'
-import { selectRandomCards } from '../features/raffle/service/card-selection'
 import { RaffleCardOption } from '../features/raffle/ui/RaffleCardOption'
 import { formatCurrency } from '../shared/lib/currency'
 import { formatDate } from '../shared/lib/date'
@@ -16,6 +15,8 @@ type SelectionMode = 'random' | 'manual'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const notice = (location.state as { notice?: string } | null)?.notice
   const { setSelection } = useCart()
   const [mode, setMode] = useState<SelectionMode>('random')
   const [quantity, setQuantity] = useState(1)
@@ -59,14 +60,23 @@ export function HomePage() {
   }
 
   function continueToCart() {
-    const cards = mode === 'random' ? selectRandomCards(raffle.cards, quantity) : manualSelection
-    if (!cards.length) return
-    setSelection(raffle, cards)
+    if (mode === 'random') {
+      if (!effectiveQuantity) return
+      setSelection(raffle, { mode: 'random', quantity: effectiveQuantity })
+    } else {
+      if (!manualSelection.length) return
+      setSelection(raffle, { mode: 'manual', cards: manualSelection })
+    }
     navigate('/carrinho')
   }
 
   return (
     <>
+      {notice ? (
+        <div className="container inline-error" role="alert">
+          {notice}
+        </div>
+      ) : null}
       <section className="hero">
         <div className="container hero__content">
           <div className="hero__copy">
