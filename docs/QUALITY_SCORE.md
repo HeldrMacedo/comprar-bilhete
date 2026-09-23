@@ -1,14 +1,9 @@
-# Placar de qualidade
-
-Atualizado em 20/09/2026. Escala: A (pronto), B (funcional com lacunas), C (fundação), D (bloqueado).
-
-| Domínio         | Nota | Evidência                                      | Próximo passo                          |
-| --------------- | ---- | ---------------------------------------------- | -------------------------------------- |
-| Sorteio/seleção | C    | concurso real mapeado; item de bilhete ausente | obter estabelecimento e bilhete ativo  |
-| Carrinho        | B    | persistência validada e remoção                | teste de componente                    |
-| Checkout        | B    | pedido, reserva, SQLite e checkout próprios    | validar credenciais InfinitePay live   |
-| Pagamento       | B    | webhook, fila, payment_check e revisão manual  | teste sandbox/live controlado          |
-| Segurança       | B    | reconciliação e preço no servidor              | HTTPS, headers e auditoria operacional |
-| E2E             | B    | full-stack aprovado em desktop e Pixel 7       | ampliar cenários de falha live         |
-
-Uma nota só sobe com evidência automatizada ou contrato externo validado.
+[
+{"Domínio":"Sorteio/seleção","Nota":"B","Evidência":"concurso e filtro regional/estabelecimento implementados; inventário live não verificado","Próximo passo":"validar concurso ativo live"},
+{"Domínio":"Carrinho","Nota":"B","Evidência":"manual/random v2, storage Zod e testes de página","Próximo passo":"ampliar conflito E2E"},
+{"Domínio":"Checkout","Nota":"B","Evidência":"pedido typed, lock transacional e customer lookup","Próximo passo":"validar credenciais InfinitePay live"},
+{"Domínio":"Pagamento","Nota":"B","Evidência":"webhook idempotente, payment_check e revisão manual","Próximo passo":"teste sandbox/live controlado"},
+{"Domínio":"Segurança","Nota":"B","Evidência":"reconciliação, preço no servidor e segredos fora do bundle","Próximo passo":"HTTPS, headers e auditoria operacional"},
+{"Domínio":"E2E","Nota":"C","Evidência":"54 testes unit/integration; Playwright bloqueado por ENOMEM do host","Próximo passo":"reexecutar em CI/host com webServer"},
+{"Domínio":"API externa","Nota":"C","Evidência":"/bilhete/disponiveis retornou HTTP 500 observado em 23/09/2026","Próximo passo":"investigar disponibilidade upstream"}
+]

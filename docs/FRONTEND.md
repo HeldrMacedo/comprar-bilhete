@@ -10,6 +10,7 @@ React 19, TypeScript estrito, Vite, React Router, TanStack Query, React Hook For
 - Funções, módulos e pastas de camada: `kebab-case.ts`.
 - Consultas remotas ficam em TanStack Query; carrinho local fica no provider e `localStorage` validado.
 - O repository é a única camada que chama `requestJson`.
+- Busca de cliente usa somente `GET /api/v1/customers/lookup`; o navegador nunca chama a API de bilhetes ou InfinitePay. O carrinho v2 guarda seleção manual pública ou quantidade aleatória, nunca dados pessoais.
 - Páginas orquestram componentes e services, mas não fazem `fetch`.
 - Campos devem ter `label`, erros com `role="alert"` e foco visível.
 - Textos para usuário ficam em português brasileiro.

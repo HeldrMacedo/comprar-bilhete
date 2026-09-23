@@ -23,6 +23,8 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 - O total exibido é `quantidade × preço unitário`; o backend recalcula o total.
 - Conflito de reserva (`409`) devolve o usuário à seleção com mensagem clara.
 - Parâmetros de retorno da InfinitePay não comprovam pagamento; são apenas identificadores.
+- Busca de cliente é feita pelo backend em `GET /api/v1/customers/lookup`; o navegador não chama a API de bilhetes.
+- Surpresinha envia apenas quantidade; o backend atribui e reserva IDs de cartelas em transação.
 - Menores de 18 anos não podem participar.
 
 ## Critérios de aceite do MVP

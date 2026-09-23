@@ -20,4 +20,4 @@
 
 ## Observabilidade necessária no backend
 
-Correlacionar `order_nsu`, pedido, cartelas, link e transação sem registrar CPF/telefone. Medir criação de pedido, criação de checkout, abandono, tempo até pagamento, eventos pendentes e pedidos em revisão manual.
+Correlacionar `order_nsu`, pedido, cartelas, link e transação sem registrar CPF/telefone. Medir criação de pedido, criação de checkout, abandono, tempo até pagamento, eventos pendentes e pedidos em revisão manual. Pagamento tardio, sem reserva ativa, permanece em `manual_review` com evidência transacional preservada.

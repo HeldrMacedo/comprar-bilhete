@@ -26,7 +26,7 @@ O redirect também pode iniciar reconciliação com `transaction_nsu` e `slug`; 
 
 ## Providers
 
-`TICKET_PROVIDER=mock` e `PAYMENT_PROVIDER=mock` são o padrão seguro de desenvolvimento. Para live, configure `TICKET_ESTABLISHMENT_ID`, `INFINITEPAY_HANDLE`, URLs públicas HTTPS e armazenamento persistente para `DATABASE_PATH`.
+`TICKET_PROVIDER=mock` e `PAYMENT_PROVIDER=mock` são o padrão seguro de desenvolvimento. Para live, configure `TICKET_ESTABLISHMENT_ID`, `INFINITEPAY_HANDLE`, URLs públicas HTTPS e armazenamento persistente para `DATABASE_PATH`. O filtro externo usa estabelecimento `4734` para a regional `57`; a API externa não recebe parâmetro de regional. Webhooks são duráveis e idempotentes, mas exigem `payment_check` antes de liberar `paid`. Pix deve estar habilitado nas configurações do checkout InfinitePay; o payload `/links` não força método de pagamento.
 
 ## Limitação da API externa
 
