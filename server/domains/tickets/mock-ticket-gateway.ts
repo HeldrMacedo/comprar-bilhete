@@ -34,6 +34,13 @@ export class MockTicketGateway implements TicketGateway {
     return structuredClone(tickets.filter((ticket) => !this.soldTickets.has(ticket.id)))
   }
 
+  async getAvailableTicket(raffleId: string, ticketId: string) {
+    if (raffleId !== raffle.id) throw new DomainError('Sorteio não encontrado.', 404)
+    const ticket = tickets.find((item) => item.id === ticketId)
+    if (!ticket || this.soldTickets.has(ticket.id)) return null
+    return structuredClone(ticket)
+  }
+
   async fulfillOrder(order: Order) {
     for (const item of order.items) {
       if (this.soldTickets.has(item.id)) {

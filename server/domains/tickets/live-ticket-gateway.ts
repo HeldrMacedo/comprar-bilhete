@@ -28,6 +28,11 @@ const availableResponseSchema = z.object({
   data: z.array(externalTicketSchema),
 })
 
+const availableTicketResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.union([externalTicketSchema, z.tuple([externalTicketSchema]).rest(externalTicketSchema)]),
+})
+
 const mutationResponseSchema = z
   .object({
     success: z.literal(true),
@@ -53,24 +58,52 @@ export class LiveTicketGateway implements TicketGateway {
   async getAvailableTickets(raffleId: string): Promise<Ticket[]> {
     const query = new URLSearchParams({
       concurso_id: raffleId,
-      estabelecimento_id: this.env.TICKET_ESTABLISHMENT_ID!,
+      estabelecimento_id: this.env.TICKET_ESTABLISHMENT_ID,
       pagina: '1',
     })
     const response = await fetchJson(
       `${this.env.TICKET_API_BASE_URL}/bilhete/disponiveis?${query.toString()}`,
       availableResponseSchema,
     )
-    return response.data.map((ticket) => ({
-      id: ticket.numero,
-      code: ticket.numero,
-      numbers: ticket.numeros,
-      validationBatch: ticket.lote_validacao,
-      batchPosition: ticket.posicao_lote,
-    }))
+    return response.data.map(mapTicket)
+  }
+
+  async getAvailableTicket(raffleId: string, ticketId: string): Promise<Ticket | null> {
+    const query = new URLSearchParams({
+      concurso_id: raffleId,
+      estabelecimento_id: this.env.TICKET_ESTABLISHMENT_ID,
+      numero: ticketId,
+    })
+    const response = await fetch(
+      `${this.env.TICKET_API_BASE_URL}/bilhete/disponivel/numero?${query.toString()}`,
+      {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(10_000),
+      },
+    ).catch(() => {
+      throw new DomainError('Serviço externo indisponível.', 502, 'UPSTREAM_ERROR')
+    })
+
+    if (response.status === 404) return null
+    if (!response.ok) {
+      throw new DomainError('Serviço externo indisponível.', 502, 'UPSTREAM_ERROR')
+    }
+
+    const body: unknown = await response.json().catch(() => null)
+    const parsed = availableTicketResponseSchema.safeParse(body)
+    if (!parsed.success) {
+      throw new DomainError(
+        'Serviço externo respondeu fora do contrato esperado.',
+        502,
+        'UPSTREAM_SCHEMA',
+      )
+    }
+
+    const ticket = Array.isArray(parsed.data.data) ? parsed.data.data[0] : parsed.data.data
+    return mapTicket(ticket)
   }
 
   async fulfillOrder(order: Order) {
-    await this.ensurePerson(order)
     for (const item of order.items) {
       if (!item.validationBatch || !item.batchPosition) {
         throw new DomainError('Cartela sem dados de validação da API externa.', 502)
@@ -88,21 +121,14 @@ export class LiveTicketGateway implements TicketGateway {
     }
   }
 
-  private async ensurePerson(order: Order) {
-    const lookup = await fetch(
-      `${this.env.TICKET_API_BASE_URL}/pessoa/cpf/${encodeURIComponent(order.customer.cpf)}`,
-      { signal: AbortSignal.timeout(10_000) },
-    )
-    if (lookup.ok) return
-    if (lookup.status !== 404) throw new DomainError('Falha ao consultar participante.', 502)
+}
 
-    await fetchJson(`${this.env.TICKET_API_BASE_URL}/pessoa`, mutationResponseSchema, {
-      method: 'POST',
-      body: JSON.stringify({
-        nome: order.customer.name,
-        cpf: order.customer.cpf,
-        fone: order.customer.phone.replace('+55', ''),
-      }),
-    })
+function mapTicket(ticket: z.infer<typeof externalTicketSchema>): Ticket {
+  return {
+    id: ticket.numero,
+    code: ticket.numero,
+    numbers: ticket.numeros,
+    validationBatch: ticket.lote_validacao,
+    batchPosition: ticket.posicao_lote,
   }
 }

@@ -1,4 +1,4 @@
-import type { Customer, Order, Ticket } from '../orders/order-types.js'
+import type { Order, Ticket } from '../orders/order-types.js'
 
 export type Raffle = {
   id: string
@@ -12,7 +12,6 @@ export type Raffle = {
 export interface TicketGateway {
   getActiveRaffle(): Promise<Raffle>
   getAvailableTickets(raffleId: string): Promise<Ticket[]>
+  getAvailableTicket(raffleId: string, ticketId: string): Promise<Ticket | null>
   fulfillOrder(order: Order): Promise<void>
 }
-
-export type PersonInput = Customer

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import type { z } from 'zod'
 import { DomainError } from './errors.js'
 
 export async function fetchJson<T>(
@@ -18,9 +18,8 @@ export async function fetchJson<T>(
 
   const body: unknown = await response.json().catch(() => null)
   if (!response.ok) {
-    const message = z.object({ error: z.string().optional() }).safeParse(body)
     throw new DomainError(
-      message.success && message.data.error ? message.data.error : 'Serviço externo indisponível.',
+      'Serviço externo indisponível.',
       response.status >= 500 ? 502 : response.status,
       'UPSTREAM_ERROR',
     )
