@@ -1,4 +1,10 @@
 export const apiRoutes = {
+  customerLookup(criteria: { cpf?: string; phone?: string }) {
+    const query = new URLSearchParams()
+    if (criteria.cpf) query.set('cpf', criteria.cpf)
+    if (criteria.phone) query.set('phone', criteria.phone)
+    return `/v1/customers/lookup?${query.toString()}`
+  },
   activeRaffle: '/v1/raffles/active',
   availableCards: (raffleId: string) =>
     `/v1/raffles/${encodeURIComponent(raffleId)}/cards?status=available`,

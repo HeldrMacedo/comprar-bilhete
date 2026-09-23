@@ -64,7 +64,7 @@ export class LiveCustomerGateway implements CustomerGateway {
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(10_000),
       })
-    } catch (error) {
+    } catch {
       throw new DomainError('Serviço externo indisponível.', 502, 'UPSTREAM_ERROR')
     }
 

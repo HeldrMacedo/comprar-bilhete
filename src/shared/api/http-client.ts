@@ -5,6 +5,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    readonly code?: string,
     readonly cause?: unknown,
   ) {
     super(message)
@@ -20,7 +21,6 @@ export async function requestJson<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   let response: Response
-
   try {
     response = await fetch(`${env.VITE_API_BASE_URL}${path}`, {
       ...options,
@@ -32,37 +32,52 @@ export async function requestJson<T>(
       },
     })
   } catch (error) {
-    throw new ApiError('Não foi possível conectar ao servidor. Tente novamente.', undefined, error)
+    throw new ApiError(
+      'Nao foi possivel conectar ao servidor. Tente novamente.',
+      undefined,
+      undefined,
+      error,
+    )
   }
 
   if (!response.ok) {
-    throw new ApiError(await readErrorMessage(response), response.status)
+    const apiError = await readApiError(response)
+    throw new ApiError(apiError.message, response.status, apiError.code)
   }
 
   const data: unknown = await response.json()
   const parsed = schema.safeParse(data)
-
   if (!parsed.success) {
     console.error('Resposta fora do contrato', parsed.error.flatten())
     throw new ApiError(
       'O servidor respondeu em um formato inesperado.',
       response.status,
+      undefined,
       parsed.error,
     )
   }
-
   return parsed.data
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { message?: unknown }
-    if (typeof body.message === 'string') return body.message
-  } catch {
-    // A resposta pode não ser JSON; a mensagem segura abaixo é suficiente.
-  }
+const errorBodySchema = z.object({
+  message: z.string().optional(),
+  code: z.string().regex(/^[A-Z0-9_]{1,64}$/).optional(),
+})
 
-  if (response.status === 409) return 'Uma ou mais cartelas acabaram de ser reservadas.'
-  if (response.status >= 500) return 'O servidor está temporariamente indisponível.'
-  return 'Não foi possível concluir a solicitação.'
+async function readApiError(response: Response): Promise<{ message: string; code?: string }> {
+  try {
+    const parsed = errorBodySchema.safeParse(await response.json())
+    if (parsed.success && parsed.data.message) {
+      return { message: parsed.data.message, code: parsed.data.code }
+    }
+  } catch {
+    // Non-JSON responses receive a safe message below.
+  }
+  if (response.status === 409) {
+    return { message: 'Uma ou mais cartelas acabaram de ser reservadas.' }
+  }
+  if (response.status >= 500) {
+    return { message: 'O servidor esta temporariamente indisponivel.' }
+  }
+  return { message: 'Nao foi possivel concluir a solicitacao.' }
 }
