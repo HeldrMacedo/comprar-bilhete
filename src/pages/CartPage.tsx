@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react'
 import { useForm, type FieldErrors, type UseFormRegister } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../features/cart/runtime/cart-context'
-import { startCheckout } from '../features/checkout/service/checkout-service'
+import { isReservationConflict, startCheckout } from '../features/checkout/service/checkout-service'
 import {
   createCustomerSchema,
   type CustomerForm,
 } from '../features/checkout/service/customer-schema'
 import { useCustomerLookup } from '../features/checkout/runtime/use-customer-lookup'
-import { ApiError } from '../shared/api/http-client'
 import { formatCurrency } from '../shared/lib/currency'
 import { formatCpf, formatPhone, onlyDigits } from '../shared/lib/forms'
 import { Spinner } from '../shared/ui/Spinner'
@@ -85,10 +84,7 @@ export function CartPage() {
       const { checkout } = await startCheckout(currentCart, customer)
       window.location.assign(checkout.checkoutUrl)
     } catch (error) {
-      if (
-        error instanceof ApiError &&
-        ['TICKET_RESERVED', 'INSUFFICIENT_TICKETS'].includes(error.code ?? '')
-      ) {
+      if (isReservationConflict(error)) {
         clearCart()
         navigate('/', { state: { notice: 'As cartelas selecionadas não estão mais disponíveis.' } })
         return

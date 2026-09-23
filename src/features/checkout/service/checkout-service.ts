@@ -1,4 +1,5 @@
 import { env } from '../../../shared/config/env'
+import { ApiError } from '../../../shared/api/http-client'
 import { onlyDigits } from '../../../shared/lib/forms'
 import type { Cart } from '../../cart/domain/types'
 import type { Customer } from '../domain/types'
@@ -20,4 +21,11 @@ export async function startCheckout(cart: Cart, customer: Customer) {
 
   const checkout = await checkoutRepository.createCheckout(order.id, env.VITE_PAYMENT_RETURN_URL)
   return { order, checkout }
+}
+
+export function isReservationConflict(error: unknown) {
+  return (
+    error instanceof ApiError &&
+    ['TICKET_RESERVED', 'INSUFFICIENT_TICKETS'].includes(error.code ?? '')
+  )
 }
