@@ -44,7 +44,7 @@ export class OrderService {
       raffleTitle: raffle.title,
       status: 'pending',
       totalInCents: raffle.priceInCents * items.length,
-      customer: input.customer,
+      customer: { ...input.customer, registrationStatus: 'existing' },
       items,
       createdAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000).toISOString(),

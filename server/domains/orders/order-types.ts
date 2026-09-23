@@ -1,10 +1,11 @@
 import { z } from 'zod'
+import {
+  customerInputSchema,
+  resolvedCustomerSchema,
+  type ResolvedCustomer,
+} from '../customers/customer-types.js'
 
-export const customerSchema = z.object({
-  name: z.string().trim().min(3).max(120),
-  cpf: z.string().regex(/^\d{11}$/),
-  phone: z.string().regex(/^\+55\d{11}$/),
-})
+export const customerSchema = resolvedCustomerSchema
 
 export const ticketSchema = z.object({
   id: z.string().min(1),
@@ -29,7 +30,7 @@ export const orderSchema = z.object({
   raffleTitle: z.string().min(1),
   status: orderStatusSchema,
   totalInCents: z.number().int().positive(),
-  customer: customerSchema,
+  customer: resolvedCustomerSchema,
   items: z.array(ticketSchema).min(1),
   checkoutUrl: z.url().optional(),
   receiptUrl: z.url().optional(),
@@ -44,7 +45,7 @@ export const orderSchema = z.object({
 export const createOrderInputSchema = z.object({
   raffleId: z.string().min(1),
   cardIds: z.array(z.string().min(1)).min(1).max(50),
-  customer: customerSchema,
+  customer: customerInputSchema,
 })
 
 export const paymentEventSchema = z.object({
@@ -59,7 +60,7 @@ export const paymentEventSchema = z.object({
   items: z.array(z.unknown()).default([]),
 })
 
-export type Customer = z.infer<typeof customerSchema>
+export type Customer = ResolvedCustomer
 export type Ticket = z.infer<typeof ticketSchema>
 export type Order = z.infer<typeof orderSchema>
 export type CreateOrderInput = z.infer<typeof createOrderInputSchema>
