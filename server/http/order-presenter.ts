@@ -4,7 +4,10 @@ export function presentOrder(order: Order) {
   return {
     id: order.id,
     status: order.status,
+    selectionMode: order.selectionMode,
+    unitPriceInCents: order.unitPriceInCents,
     totalInCents: order.totalInCents,
+    items: order.items.map(({ id, code, numbers }) => ({ id, code, numbers })),
     receiptUrl: order.receiptUrl,
     expiresAt: order.expiresAt,
     message:

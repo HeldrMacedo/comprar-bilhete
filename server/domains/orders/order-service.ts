@@ -1,16 +1,18 @@
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import type { ServerEnv } from '../../config/env.js'
 import { DomainError } from '../../shared/errors.js'
+import type { CustomerService } from '../customers/customer-service.js'
 import type { PaymentGateway } from '../payments/payment-gateway.js'
 import type { TicketGateway } from '../tickets/ticket-gateway.js'
 import { OrderRepository } from './order-repository.js'
-import type { CreateOrderInput, Order, PaymentEvent } from './order-types.js'
+import type { CreateOrderInput, Order, OrderDraft, PaymentEvent, Ticket } from './order-types.js'
 
 export class OrderService {
   constructor(
     private readonly repository: OrderRepository,
     private readonly tickets: TicketGateway,
     private readonly payments: PaymentGateway,
+    private readonly customers: CustomerService,
     private readonly env: ServerEnv,
   ) {}
 
@@ -23,41 +25,62 @@ export class OrderService {
   }
 
   async createOrder(input: CreateOrderInput) {
+    const customer = await this.customers.resolveForOrder(input.customer)
     const raffle = await this.tickets.getActiveRaffle()
-    if (raffle.id !== input.raffleId)
-      throw new DomainError('O sorteio informado não está ativo.', 409)
-
-    const available = await this.tickets.getAvailableTickets(raffle.id)
-    const requestedIds = new Set(input.cardIds)
-    if (requestedIds.size !== input.cardIds.length) {
-      throw new DomainError('A seleção contém cartelas repetidas.')
-    }
-    const items = available.filter((ticket) => requestedIds.has(ticket.id))
-    if (items.length !== requestedIds.size) {
-      throw new DomainError('Uma ou mais cartelas não estão disponíveis.', 409)
+    if (raffle.id !== input.raffleId) {
+      throw new DomainError('O sorteio informado nao esta ativo.', 409)
     }
 
     const now = new Date()
-    const order: Order = {
+    const quantity =
+      input.selection.mode === 'manual'
+        ? input.selection.cardIds.length
+        : input.selection.quantity
+    const draft: OrderDraft = {
       id: randomUUID(),
       raffleId: raffle.id,
       raffleTitle: raffle.title,
-      selectionMode: 'manual',
+      selectionMode: input.selection.mode,
       status: 'pending',
       unitPriceInCents: raffle.priceInCents,
-      totalInCents: raffle.priceInCents * items.length,
-      customer: { ...input.customer, registrationStatus: 'existing' },
-      items,
+      totalInCents: raffle.priceInCents * quantity,
+      customer,
       createdAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000).toISOString(),
+      expiresAt: new Date(
+        now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000,
+      ).toISOString(),
     }
-    return this.repository.create(order)
+
+    if (input.selection.mode === 'random') {
+      const candidates = shuffle(await this.tickets.getAvailableTickets(raffle.id))
+      return this.repository.createRandom(draft, candidates, input.selection.quantity)
+    }
+
+    const requestedIds = new Set(input.selection.cardIds)
+    if (requestedIds.size !== input.selection.cardIds.length) {
+      throw new DomainError('A selecao contem cartelas repetidas.')
+    }
+    const items = await Promise.all(
+      input.selection.cardIds.map((ticketId) =>
+        this.tickets.getAvailableTicket(raffle.id, ticketId),
+      ),
+    )
+    if (!hasOnlyTickets(items)) {
+      throw new DomainError(
+        'Uma ou mais cartelas nao estao disponiveis.',
+        409,
+        'TICKET_UNAVAILABLE',
+      )
+    }
+
+    const order: Order = { ...draft, items }
+    return this.repository.createManual(order)
   }
 
   async createCheckout(orderId: string) {
     const order = this.requireOrder(orderId)
     if (order.status !== 'pending') {
-      throw new DomainError('Este pedido não está disponível para pagamento.', 409)
+      throw new DomainError('Este pedido nao esta disponivel para pagamento.', 409)
     }
     if (order.checkoutUrl) return order.checkoutUrl
     const url = await this.payments.createCheckout(order)
@@ -73,7 +96,7 @@ export class OrderService {
     const order = this.requireOrder(event.order_nsu)
     if (order.status === 'paid') return
     if (event.amount !== order.totalInCents) {
-      throw new DomainError('Valor do pagamento não corresponde ao pedido.', 400)
+      throw new DomainError('Valor do pagamento nao corresponde ao pedido.', 400)
     }
     this.repository.enqueuePaymentEvent(event)
   }
@@ -141,7 +164,22 @@ export class OrderService {
 
   private requireOrder(orderId: string) {
     const order = this.repository.get(orderId)
-    if (!order) throw new DomainError('Pedido não encontrado.', 404)
+    if (!order) throw new DomainError('Pedido nao encontrado.', 404)
     return order
   }
+}
+
+function shuffle<T>(values: T[]): T[] {
+  const shuffled = [...values]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const target = randomInt(index + 1)
+    const current = shuffled[index]
+    shuffled[index] = shuffled[target]!
+    shuffled[target] = current!
+  }
+  return shuffled
+}
+
+function hasOnlyTickets(items: Array<Ticket | null>): items is Ticket[] {
+  return items.every((item) => item !== null)
 }

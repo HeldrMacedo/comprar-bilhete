@@ -45,7 +45,7 @@ export async function buildApp(options: AppOptions = {}) {
       ? new LiveCustomerGateway(env.TICKET_API_BASE_URL)
       : new MockCustomerGateway())
   const customers = new CustomerService(customerGateway)
-  const service = new OrderService(new OrderRepository(database), tickets, payments, env)
+  const service = new OrderService(new OrderRepository(database), tickets, payments, customers, env)
 
   await app.register(cors, { origin: env.PUBLIC_APP_URL })
   await registerRoutes(app, service, customers)

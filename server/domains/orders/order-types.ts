@@ -46,9 +46,20 @@ export const orderSchema = z.object({
 
 export const orderDraftSchema = orderSchema.omit({ items: true })
 
+export const orderSelectionSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('manual'),
+    cardIds: z.array(z.string().min(1)).min(1).max(50),
+  }),
+  z.object({
+    mode: z.literal('random'),
+    quantity: z.number().int().min(1).max(50),
+  }),
+])
+
 export const createOrderInputSchema = z.object({
   raffleId: z.string().min(1),
-  cardIds: z.array(z.string().min(1)).min(1).max(50),
+  selection: orderSelectionSchema,
   customer: customerInputSchema,
 })
 

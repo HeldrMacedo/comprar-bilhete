@@ -17,38 +17,102 @@ const env: ServerEnv = {
 }
 
 const apps: Awaited<ReturnType<typeof buildApp>>[] = []
+const existingCustomer = {
+  name: 'Maria da Silva',
+  cpf: '52998224725',
+  phone: '84999855367',
+}
 
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()))
 })
 
 describe('pedido e pagamento', () => {
+  it('reserva os identificadores exatos da selecao manual', async () => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+
+    const response = await createOrder(app, {
+      mode: 'manual',
+      cardIds: ['card-001'],
+    })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({
+      selectionMode: 'manual',
+      unitPriceInCents: 1000,
+      totalInCents: 1000,
+      items: [{ id: 'card-001', code: '#001' }],
+    })
+  })
+
+  it('aloca no backend a quantidade solicitada na surpresinha', async () => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+
+    const response = await createOrder(app, { mode: 'random', quantity: 3 })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({
+      selectionMode: 'random',
+      unitPriceInCents: 1000,
+      totalInCents: 3000,
+    })
+    expect(response.json<{ items: unknown[] }>().items).toHaveLength(3)
+  })
+
+  it.each([0, 51, 1.5])('rejeita quantidade aleatoria invalida: %s', async (quantity) => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+
+    const response = await createOrder(app, { mode: 'random', quantity })
+
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('permite somente uma reserva manual concorrente da mesma cartela', async () => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+
+    const responses = await Promise.all([
+      createOrder(app, { mode: 'manual', cardIds: ['card-010'] }),
+      createOrder(app, { mode: 'manual', cardIds: ['card-010'] }),
+    ])
+
+    expect(responses.map(({ statusCode }) => statusCode).sort()).toEqual([201, 409])
+    expect(responses.find(({ statusCode }) => statusCode === 409)?.json()).toMatchObject({
+      code: 'TICKET_RESERVED',
+    })
+  })
+
+  it('resolve o cliente novamente e exige endereco para novo cadastro', async () => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: {
+        raffleId: 'sorteio-setembro',
+        selection: { mode: 'manual', cardIds: ['card-001'] },
+        customer: { name: 'Cliente Novo', cpf: '11144477735', phone: '84999998888' },
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({ code: 'ADDRESS_REQUIRED' })
+  })
+
   it('reserva, cria checkout, reconcilia e entrega a cartela', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)
 
-    const created = await app.inject({
-      method: 'POST',
-      url: '/api/v1/orders',
-      payload: {
-        raffleId: 'sorteio-setembro',
-        cardIds: ['card-001'],
-        customer: { name: 'Maria da Silva', cpf: '52998224725', phone: '+5585999998888' },
-      },
-    })
+    const created = await createOrder(app, { mode: 'manual', cardIds: ['card-001'] })
     expect(created.statusCode).toBe(201)
     const order = created.json<{ id: string; totalInCents: number }>()
     expect(order.totalInCents).toBe(1000)
 
-    const conflict = await app.inject({
-      method: 'POST',
-      url: '/api/v1/orders',
-      payload: {
-        raffleId: 'sorteio-setembro',
-        cardIds: ['card-001'],
-        customer: { name: 'João da Silva', cpf: '52998224725', phone: '+5585999998888' },
-      },
-    })
+    const conflict = await createOrder(app, { mode: 'manual', cardIds: ['card-001'] })
     expect(conflict.statusCode).toBe(409)
 
     const checkout = await app.inject({
@@ -64,18 +128,10 @@ describe('pedido e pagamento', () => {
     expect(paid.json<{ status: string }>().status).toBe('paid')
   })
 
-  it('aceita o webhook rapidamente e processa a confirmação de forma assíncrona', async () => {
+  it('aceita o webhook rapidamente e processa a confirmacao de forma assincrona', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)
-    const created = await app.inject({
-      method: 'POST',
-      url: '/api/v1/orders',
-      payload: {
-        raffleId: 'sorteio-setembro',
-        cardIds: ['card-002'],
-        customer: { name: 'Maria da Silva', cpf: '52998224725', phone: '+5585999998888' },
-      },
-    })
+    const created = await createOrder(app, { mode: 'manual', cardIds: ['card-002'] })
     const order = created.json<{ id: string }>()
     await app.inject({ method: 'POST', url: `/api/v1/orders/${order.id}/checkout` })
 
@@ -102,3 +158,14 @@ describe('pedido e pagamento', () => {
     })
   })
 })
+
+function createOrder(
+  app: Awaited<ReturnType<typeof buildApp>>,
+  selection: { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number },
+) {
+  return app.inject({
+    method: 'POST',
+    url: '/api/v1/orders',
+    payload: { raffleId: 'sorteio-setembro', selection, customer: existingCustomer },
+  })
+}

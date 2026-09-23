@@ -18,16 +18,21 @@ Entrada de pedido:
 ```json
 {
   "raffleId": "2024029",
-  "cardIds": ["000123", "000456"],
+  "selection": { "mode": "manual", "cardIds": ["000123", "000456"] },
   "customer": {
     "name": "Maria da Silva",
     "cpf": "52998224725",
-    "phone": "+5585999998888"
+    "phone": "84999855367"
   }
 }
 ```
 
-O backend ignora preço do navegador, consulta o concurso ativo e recalcula o total. Status públicos: `pending`, `processing`, `paid`, `expired`, `cancelled` e `manual_review`.
+Para surpresinha, `selection` deve ser `{ "mode": "random", "quantity": 3 }`, com
+quantidade inteira entre 1 e 50. O backend ignora o preço do navegador, consulta o
+concurso ativo, resolve o cliente novamente, atribui as cartelas e recalcula o total.
+A resposta pública inclui `items`, `selectionMode`, `unitPriceInCents`, `totalInCents`
+e `expiresAt`; metadados internos de validação das cartelas não são expostos. Status
+públicos: `pending`, `processing`, `paid`, `expired`, `cancelled` e `manual_review`.
 
 ## InfinitePay
 
