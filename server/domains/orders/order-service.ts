@@ -14,6 +14,7 @@ export class OrderService {
     private readonly payments: PaymentGateway,
     private readonly customers: CustomerService,
     private readonly env: ServerEnv,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async getActiveRaffle() {
@@ -31,7 +32,7 @@ export class OrderService {
       throw new DomainError('O sorteio informado nao esta ativo.', 409)
     }
 
-    const now = new Date()
+    const now = this.now()
     const quantity =
       input.selection.mode === 'manual'
         ? input.selection.cardIds.length
@@ -98,7 +99,7 @@ export class OrderService {
     if (event.amount !== order.totalInCents) {
       throw new DomainError('Valor do pagamento nao corresponde ao pedido.', 400)
     }
-    this.repository.enqueuePaymentEvent(event)
+    return this.repository.enqueuePaymentEvent(event)
   }
 
   async reconcileRedirect(orderId: string, transactionNsu: string, invoiceSlug: string) {
@@ -137,20 +138,33 @@ export class OrderService {
 
   private async reconcile(event: PaymentEvent) {
     const order = this.requireOrder(event.order_nsu)
-    if (order.status === 'paid') return
+    if (['paid', 'processing', 'manual_review'].includes(order.status)) return
     const verification = await this.payments.verifyPayment({
       orderId: order.id,
       transactionNsu: event.transaction_nsu,
       invoiceSlug: event.invoice_slug,
     })
     if (!verification.paid) return
+    const verifiedEvent = { ...event, capture_method: verification.captureMethod }
+    this.repository.recordPaymentEvidence(verifiedEvent)
     if (verification.amountInCents !== order.totalInCents) {
       this.repository.markManualReview(order.id, 'Pagamento confirmado com valor divergente.')
-      throw new DomainError('Pagamento com valor divergente.', 409)
+      return
     }
 
-    this.repository.markProcessing(order.id, event)
+    if (!this.repository.tryStartProcessing(order.id, order.items.length)) {
+      const current = this.requireOrder(order.id)
+      if (current.status === 'expired' || current.status === 'cancelled') {
+        this.repository.markManualReview(
+          order.id,
+          'Pagamento confirmado sem reserva ativa; exige analise manual.',
+        )
+      }
+      return
+    }
+
     try {
+      await this.customers.ensureRegistered(order.customer)
       await this.tickets.fulfillOrder({ ...order, status: 'processing' })
       this.repository.markPaid(order.id)
     } catch (error) {
@@ -158,7 +172,6 @@ export class OrderService {
         order.id,
         error instanceof Error ? error.message : 'Falha ao validar cartelas.',
       )
-      throw error
     }
   }
 

@@ -38,6 +38,8 @@ export const orderSchema = z.object({
   receiptUrl: z.url().optional(),
   transactionNsu: z.string().optional(),
   invoiceSlug: z.string().optional(),
+  paidAmountInCents: z.number().int().positive().optional(),
+  captureMethod: z.string().min(1).optional(),
   lastError: z.string().optional(),
   createdAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),

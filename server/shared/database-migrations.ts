@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 2
+const CURRENT_SCHEMA_VERSION = 3
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -19,8 +19,12 @@ export function migrateDatabase(database: DatabaseSync) {
 
   database.exec('BEGIN IMMEDIATE')
   try {
-    if (!hasOrders) createLatestSchema(database)
-    else migrateLegacySchema(database)
+    if (!hasOrders) {
+      createLatestSchema(database)
+    } else {
+      if (version < 2) migrateToVersion2(database)
+      if (version < 3) migrateToVersion3(database)
+    }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
     database.exec('COMMIT')
@@ -46,6 +50,8 @@ function createLatestSchema(database: DatabaseSync) {
       receipt_url TEXT,
       transaction_nsu TEXT,
       invoice_slug TEXT,
+      paid_amount_in_cents INTEGER,
+      capture_method TEXT,
       last_error TEXT,
       created_at TEXT NOT NULL,
       expires_at TEXT NOT NULL,
@@ -61,6 +67,8 @@ function createLatestSchema(database: DatabaseSync) {
     CREATE TABLE payment_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id TEXT NOT NULL,
+      transaction_nsu TEXT NOT NULL,
+      invoice_slug TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       attempts INTEGER NOT NULL DEFAULT 0,
@@ -71,15 +79,13 @@ function createLatestSchema(database: DatabaseSync) {
 
     CREATE INDEX idx_orders_status ON orders(status);
     CREATE INDEX idx_payment_events_status ON payment_events(status, id);
+    CREATE UNIQUE INDEX idx_payment_events_reference
+      ON payment_events(transaction_nsu, invoice_slug);
   `)
 }
 
-function migrateLegacySchema(database: DatabaseSync) {
-  const columns = new Set(
-    (database.prepare('PRAGMA table_info(orders)').all() as Array<{ name: string }>).map(
-      ({ name }) => name,
-    ),
-  )
+function migrateToVersion2(database: DatabaseSync) {
+  const columns = tableColumns(database, 'orders')
 
   if (!columns.has('selection_mode')) {
     database.exec("ALTER TABLE orders ADD COLUMN selection_mode TEXT NOT NULL DEFAULT 'manual'")
@@ -100,4 +106,50 @@ function migrateLegacySchema(database: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
     CREATE INDEX IF NOT EXISTS idx_payment_events_status ON payment_events(status, id);
   `)
+}
+
+function migrateToVersion3(database: DatabaseSync) {
+  const orderColumns = tableColumns(database, 'orders')
+  if (!orderColumns.has('paid_amount_in_cents')) {
+    database.exec('ALTER TABLE orders ADD COLUMN paid_amount_in_cents INTEGER')
+  }
+  if (!orderColumns.has('capture_method')) {
+    database.exec('ALTER TABLE orders ADD COLUMN capture_method TEXT')
+  }
+
+  const eventColumns = tableColumns(database, 'payment_events')
+  if (!eventColumns.has('transaction_nsu')) {
+    database.exec('ALTER TABLE payment_events ADD COLUMN transaction_nsu TEXT')
+  }
+  if (!eventColumns.has('invoice_slug')) {
+    database.exec('ALTER TABLE payment_events ADD COLUMN invoice_slug TEXT')
+  }
+
+  database.exec(`
+    UPDATE payment_events
+    SET transaction_nsu = COALESCE(transaction_nsu, json_extract(payload_json, '$.transaction_nsu')),
+        invoice_slug = COALESCE(invoice_slug, json_extract(payload_json, '$.invoice_slug'));
+
+    DELETE FROM payment_events
+    WHERE transaction_nsu IS NOT NULL
+      AND invoice_slug IS NOT NULL
+      AND id NOT IN (
+        SELECT MIN(id)
+        FROM payment_events
+        WHERE transaction_nsu IS NOT NULL AND invoice_slug IS NOT NULL
+        GROUP BY transaction_nsu, invoice_slug
+      );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_events_reference
+      ON payment_events(transaction_nsu, invoice_slug)
+      WHERE transaction_nsu IS NOT NULL AND invoice_slug IS NOT NULL;
+  `)
+}
+
+function tableColumns(database: DatabaseSync, table: string) {
+  return new Set(
+    (database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+      ({ name }) => name,
+    ),
+  )
 }

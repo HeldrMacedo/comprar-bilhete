@@ -62,10 +62,12 @@ export async function registerRoutes(
   })
 
   app.post('/api/v1/webhooks/infinitepay', async (request) => {
-    service.acceptWebhook(paymentEventSchema.parse(request.body))
-    setImmediate(() => {
-      void service.processNextPaymentEvent().catch((error: unknown) => app.log.error(error))
-    })
+    const result = service.acceptWebhook(paymentEventSchema.parse(request.body))
+    if (result === 'created') {
+      setImmediate(() => {
+        void service.processNextPaymentEvent().catch((error: unknown) => app.log.error(error))
+      })
+    }
     return { success: true, message: null }
   })
 }

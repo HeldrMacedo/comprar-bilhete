@@ -25,6 +25,7 @@ type AppOptions = {
   customers?: CustomerGateway
   logger?: boolean
   startWorker?: boolean
+  now?: () => Date
 }
 
 export async function buildApp(options: AppOptions = {}) {
@@ -45,7 +46,15 @@ export async function buildApp(options: AppOptions = {}) {
       ? new LiveCustomerGateway(env.TICKET_API_BASE_URL)
       : new MockCustomerGateway())
   const customers = new CustomerService(customerGateway)
-  const service = new OrderService(new OrderRepository(database), tickets, payments, customers, env)
+  const now = options.now ?? (() => new Date())
+  const service = new OrderService(
+    new OrderRepository(database, now),
+    tickets,
+    payments,
+    customers,
+    env,
+    now,
+  )
 
   await app.register(cors, { origin: env.PUBLIC_APP_URL })
   await registerRoutes(app, service, customers)

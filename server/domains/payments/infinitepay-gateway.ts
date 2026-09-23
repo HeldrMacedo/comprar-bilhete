@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { ServerEnv } from '../../config/env.js'
+import { DomainError } from '../../shared/errors.js'
 import { fetchJson } from '../../shared/fetch-json.js'
 import type { Order } from '../orders/order-types.js'
 import type { PaymentGateway, PaymentReference } from './payment-gateway.js'
@@ -18,6 +19,11 @@ export class InfinitePayGateway implements PaymentGateway {
   constructor(private readonly env: ServerEnv) {}
 
   async createCheckout(order: Order) {
+    if (order.totalInCents !== order.unitPriceInCents * order.items.length) {
+      throw new DomainError('Total do pedido inconsistente.', 500, 'INVALID_ORDER_TOTAL')
+    }
+
+    const address = order.customer.address
     const response = await fetchJson(
       `${this.env.INFINITEPAY_API_BASE_URL}/links`,
       checkoutResponseSchema,
@@ -28,13 +34,22 @@ export class InfinitePayGateway implements PaymentGateway {
           redirect_url: `${this.env.PUBLIC_APP_URL}/pagamento`,
           webhook_url: `${this.env.PUBLIC_API_URL}/api/v1/webhooks/infinitepay`,
           order_nsu: order.id,
-          customer: {
-            name: order.customer.name,
-            phone_number: order.customer.phone,
-          },
-          items: order.items.map((item) => ({
-            quantity: 1,
-            price: order.totalInCents / order.items.length,
+        customer: {
+          name: order.customer.name,
+          phone_number: `+55${order.customer.phone}`,
+        },
+        address: address
+          ? {
+              cep: address.zipCode,
+              street: address.street,
+              neighborhood: address.neighborhood,
+              number: address.number,
+              complement: address.complement,
+            }
+          : undefined,
+        items: order.items.map((item) => ({
+          quantity: 1,
+          price: order.unitPriceInCents,
             description: `Cartela ${item.code} — ${order.raffleTitle}`,
           })),
         }),

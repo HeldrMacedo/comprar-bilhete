@@ -10,6 +10,7 @@ import {
   orderDraft,
   ticket,
 } from '../domains/orders/order-test-fixtures.js'
+import { paymentEventSchema } from '../domains/orders/order-types.js'
 import { createDatabase } from './database.js'
 
 const temporaryDirectories: string[] = []
@@ -22,14 +23,16 @@ afterEach(() => {
 })
 
 describe('database migrations', () => {
-  it('creates an empty database at schema version 2', () => {
+  it('creates an empty database at schema version 3', () => {
     const database = createDatabase(':memory:')
 
-    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 2 })
+    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 3 })
     expect(database.prepare('PRAGMA table_info(orders)').all()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'selection_mode' }),
         expect.objectContaining({ name: 'unit_price_in_cents' }),
+        expect.objectContaining({ name: 'paid_amount_in_cents' }),
+        expect.objectContaining({ name: 'capture_method' }),
       ]),
     )
     database.close()
@@ -97,7 +100,7 @@ describe('database migrations', () => {
 
     const upgraded = createDatabase(path)
 
-    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 2 })
+    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 3 })
     expect(upgraded.prepare('SELECT * FROM orders').get()).toMatchObject({
       id: '00000000-0000-4000-8000-000000000001',
       selection_mode: 'manual',
@@ -170,6 +173,50 @@ describe('OrderRepository reservations', () => {
     expect(database.prepare('SELECT order_id FROM reservations').all()).toEqual([
       { order_id: '00000000-0000-4000-8000-000000000002' },
     ])
+    database.close()
+  })
+})
+
+describe('OrderRepository payment evidence', () => {
+  const paidEvent = paymentEventSchema.parse({
+    invoice_slug: 'invoice-001',
+    amount: 1000,
+    paid_amount: 1000,
+    installments: 1,
+    capture_method: 'pix',
+    transaction_nsu: 'transaction-001',
+    order_nsu: '00000000-0000-4000-8000-000000000001',
+    receipt_url: 'https://example.com/receipt',
+    items: [],
+  })
+
+  it('deduplicates payment events by transaction and invoice', () => {
+    const database = createDatabase(':memory:')
+    const repository = new OrderRepository(database, reservationTime)
+    repository.createManual(order())
+
+    expect(repository.enqueuePaymentEvent(paidEvent)).toBe('created')
+    expect(repository.enqueuePaymentEvent(paidEvent)).toBe('duplicate')
+    expect(database.prepare('SELECT COUNT(*) AS count FROM payment_events').get()).toMatchObject({
+      count: 1,
+    })
+    database.close()
+  })
+
+  it('stores verified payment evidence independently from paid status', () => {
+    const database = createDatabase(':memory:')
+    const repository = new OrderRepository(database, reservationTime)
+    repository.createManual(order())
+
+    repository.recordPaymentEvidence(paidEvent)
+
+    expect(database.prepare('SELECT * FROM orders WHERE id = ?').get(paidEvent.order_nsu)).toMatchObject({
+      status: 'pending',
+      transaction_nsu: 'transaction-001',
+      invoice_slug: 'invoice-001',
+      paid_amount_in_cents: 1000,
+      capture_method: 'pix',
+    })
     database.close()
   })
 })

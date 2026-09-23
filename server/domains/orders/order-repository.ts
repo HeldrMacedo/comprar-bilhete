@@ -76,15 +76,44 @@ export class OrderRepository {
       .run(checkoutUrl, orderId)
   }
 
-  markProcessing(orderId: string, event: PaymentEvent) {
+  recordPaymentEvidence(event: PaymentEvent) {
     this.database
       .prepare(
         `
-        UPDATE orders SET status = 'processing', receipt_url = ?, transaction_nsu = ?,
-          invoice_slug = ?, last_error = NULL WHERE id = ?
+        UPDATE orders SET receipt_url = ?, transaction_nsu = ?, invoice_slug = ?,
+          paid_amount_in_cents = ?, capture_method = ? WHERE id = ?
       `,
       )
-      .run(event.receipt_url, event.transaction_nsu, event.invoice_slug, orderId)
+      .run(
+        event.receipt_url,
+        event.transaction_nsu,
+        event.invoice_slug,
+        event.paid_amount,
+        event.capture_method,
+        event.order_nsu,
+      )
+  }
+
+  tryStartProcessing(orderId: string, expectedReservationCount: number) {
+    this.database.exec('BEGIN IMMEDIATE')
+    try {
+      this.expirePendingWithinTransaction(this.now().toISOString())
+      const reservations = this.database
+        .prepare('SELECT COUNT(*) AS count FROM reservations WHERE order_id = ?')
+        .get(orderId) as { count: number }
+      if (reservations.count !== expectedReservationCount) {
+        this.database.exec('COMMIT')
+        return false
+      }
+      const result = this.database
+        .prepare("UPDATE orders SET status = 'processing' WHERE id = ? AND status = 'pending'")
+        .run(orderId)
+      this.database.exec('COMMIT')
+      return result.changes === 1
+    } catch (error) {
+      this.database.exec('ROLLBACK')
+      throw error
+    }
   }
 
   markPaid(orderId: string) {
@@ -100,14 +129,22 @@ export class OrderRepository {
   }
 
   enqueuePaymentEvent(event: PaymentEvent) {
-    this.database
+    const result = this.database
       .prepare(
         `
-        INSERT INTO payment_events (order_id, payload_json, created_at)
-        VALUES (?, ?, ?)
+        INSERT OR IGNORE INTO payment_events (
+          order_id, transaction_nsu, invoice_slug, payload_json, created_at
+        ) VALUES (?, ?, ?, ?, ?)
       `,
       )
-      .run(event.order_nsu, JSON.stringify(event), this.now().toISOString())
+      .run(
+        event.order_nsu,
+        event.transaction_nsu,
+        event.invoice_slug,
+        JSON.stringify(event),
+        this.now().toISOString(),
+      )
+    return result.changes === 1 ? 'created' : 'duplicate'
   }
 
   claimPaymentEvent(): { id: number; event: PaymentEvent } | null {
@@ -237,6 +274,8 @@ function mapOrder(row: OrderRow): Order {
     receiptUrl: row.receipt_url ?? undefined,
     transactionNsu: row.transaction_nsu ?? undefined,
     invoiceSlug: row.invoice_slug ?? undefined,
+    paidAmountInCents: row.paid_amount_in_cents ?? undefined,
+    captureMethod: row.capture_method ?? undefined,
     lastError: row.last_error ?? undefined,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
