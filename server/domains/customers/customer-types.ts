@@ -24,8 +24,12 @@ export const customerInputSchema = z.object({
   address: addressSchema.optional(),
 })
 
-export const externalCustomerSchema = customerInputSchema.extend({
+export const externalCustomerSchema = z.object({
   externalId: z.string().min(1),
+  name: z.string(),
+  cpf: z.string(),
+  phone: z.string(),
+  address: addressSchema.optional(),
 })
 
 export const resolvedCustomerSchema = customerInputSchema.extend({

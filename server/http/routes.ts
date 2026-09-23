@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import type { CustomerService } from '../domains/customers/customer-service.js'
 import type { OrderService } from '../domains/orders/order-service.js'
 import { createOrderInputSchema, paymentEventSchema } from '../domains/orders/order-types.js'
 import { presentOrder } from './order-presenter.js'
@@ -11,8 +12,27 @@ const orderQuerySchema = z.object({
   slug: z.string().min(1).optional(),
 })
 
-export async function registerRoutes(app: FastifyInstance, service: OrderService) {
+const customerLookupQuerySchema = z
+  .object({
+    cpf: z.string().regex(/^\d{11}$/).optional(),
+    phone: z.string().regex(/^\d{10,11}$/).optional(),
+  })
+  .strict()
+  .refine((value) => Number(Boolean(value.cpf)) + Number(Boolean(value.phone)) === 1, {
+    message: 'Informe CPF ou telefone, mas não ambos.',
+  })
+
+export async function registerRoutes(
+  app: FastifyInstance,
+  service: OrderService,
+  customers: CustomerService,
+) {
   app.get('/api/health', async () => ({ status: 'online' }))
+
+  app.get('/api/v1/customers/lookup', async (request) => {
+    const query = customerLookupQuerySchema.parse(request.query)
+    return customers.lookup(query)
+  })
 
   app.get('/api/v1/raffles/active', async () => service.getActiveRaffle())
 

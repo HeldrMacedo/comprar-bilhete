@@ -3,6 +3,7 @@ import type { CustomerGateway } from './customer-gateway.js'
 import {
   addressSchema,
   customerInputSchema,
+  resolvedCustomerSchema,
   type CustomerInput,
   type CustomerLookupCriteria,
   type CustomerLookupResult,
@@ -42,10 +43,14 @@ export class CustomerService {
 
     const existing = byCpf ?? byPhone
     if (existing) {
-      return {
+      return resolvedCustomerSchema.parse({
+        ...customer,
         ...existing,
+        name: existing.name.trim() || customer.name,
+        cpf: existing.cpf || customer.cpf,
+        phone: existing.phone || customer.phone,
         registrationStatus: 'existing',
-      }
+      })
     }
 
     if (!addressSchema.safeParse(customer.address).success) {

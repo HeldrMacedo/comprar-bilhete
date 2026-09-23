@@ -62,6 +62,25 @@ describe('CustomerService', () => {
     })
   })
 
+  it('keeps submitted required data when the external customer omits it', async () => {
+    const incomplete = { ...maria, cpf: '' }
+    const service = new CustomerService(createGateway([incomplete]).gateway)
+
+    await expect(
+      service.resolveForOrder({
+        name: 'Nome digitado',
+        cpf: maria.cpf,
+        phone: maria.phone,
+      }),
+    ).resolves.toMatchObject({
+      externalId: maria.externalId,
+      name: maria.name,
+      cpf: maria.cpf,
+      phone: maria.phone,
+      registrationStatus: 'existing',
+    })
+  })
+
   it('rejects CPF and phone owned by different people', async () => {
     const other = { ...maria, externalId: '2020', cpf: '11144477735' }
     const service = new CustomerService(createGateway([maria, other]).gateway)

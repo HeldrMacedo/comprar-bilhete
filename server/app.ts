@@ -2,6 +2,10 @@ import cors from '@fastify/cors'
 import Fastify from 'fastify'
 import { ZodError } from 'zod'
 import { parseServerEnv, type ServerEnv } from './config/env.js'
+import type { CustomerGateway } from './domains/customers/customer-gateway.js'
+import { CustomerService } from './domains/customers/customer-service.js'
+import { LiveCustomerGateway } from './domains/customers/live-customer-gateway.js'
+import { MockCustomerGateway } from './domains/customers/mock-customer-gateway.js'
 import { InfinitePayGateway } from './domains/payments/infinitepay-gateway.js'
 import { MockPaymentGateway } from './domains/payments/mock-payment-gateway.js'
 import type { PaymentGateway } from './domains/payments/payment-gateway.js'
@@ -18,6 +22,7 @@ type AppOptions = {
   env?: ServerEnv
   tickets?: TicketGateway
   payments?: PaymentGateway
+  customers?: CustomerGateway
   logger?: boolean
   startWorker?: boolean
 }
@@ -34,10 +39,16 @@ export async function buildApp(options: AppOptions = {}) {
     (env.PAYMENT_PROVIDER === 'infinitepay'
       ? new InfinitePayGateway(env)
       : new MockPaymentGateway(env))
+  const customerGateway =
+    options.customers ??
+    (env.TICKET_PROVIDER === 'live'
+      ? new LiveCustomerGateway(env.TICKET_API_BASE_URL)
+      : new MockCustomerGateway())
+  const customers = new CustomerService(customerGateway)
   const service = new OrderService(new OrderRepository(database), tickets, payments, env)
 
   await app.register(cors, { origin: env.PUBLIC_APP_URL })
-  await registerRoutes(app, service)
+  await registerRoutes(app, service, customers)
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
