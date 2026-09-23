@@ -28,7 +28,9 @@ export const orderSchema = z.object({
   id: z.string().uuid(),
   raffleId: z.string().min(1),
   raffleTitle: z.string().min(1),
+  selectionMode: z.enum(['manual', 'random']),
   status: orderStatusSchema,
+  unitPriceInCents: z.number().int().positive(),
   totalInCents: z.number().int().positive(),
   customer: resolvedCustomerSchema,
   items: z.array(ticketSchema).min(1),
@@ -41,6 +43,8 @@ export const orderSchema = z.object({
   expiresAt: z.iso.datetime(),
   paidAt: z.iso.datetime().optional(),
 })
+
+export const orderDraftSchema = orderSchema.omit({ items: true })
 
 export const createOrderInputSchema = z.object({
   raffleId: z.string().min(1),
@@ -63,5 +67,6 @@ export const paymentEventSchema = z.object({
 export type Customer = ResolvedCustomer
 export type Ticket = z.infer<typeof ticketSchema>
 export type Order = z.infer<typeof orderSchema>
+export type OrderDraft = z.infer<typeof orderDraftSchema>
 export type CreateOrderInput = z.infer<typeof createOrderInputSchema>
 export type PaymentEvent = z.infer<typeof paymentEventSchema>

@@ -1,57 +1,73 @@
 import type { AppDatabase } from '../../shared/database.js'
 import { DomainError } from '../../shared/errors.js'
-import { orderSchema, paymentEventSchema, type Order, type PaymentEvent } from './order-types.js'
+import {
+  orderSchema,
+  paymentEventSchema,
+  type Order,
+  type OrderDraft,
+  type PaymentEvent,
+  type Ticket,
+} from './order-types.js'
 
 type OrderRow = Record<string, unknown>
 
 export class OrderRepository {
-  constructor(private readonly database: AppDatabase) {}
+  constructor(
+    private readonly database: AppDatabase,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
 
   create(order: Order) {
-    this.expirePending()
-    this.database.exec('BEGIN IMMEDIATE')
-    try {
-      this.database
-        .prepare(
-          `
-          INSERT INTO orders (
-            id, raffle_id, raffle_title, status, total_in_cents, customer_json, items_json,
-            created_at, expires_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        )
-        .run(
-          order.id,
-          order.raffleId,
-          order.raffleTitle,
-          order.status,
-          order.totalInCents,
-          JSON.stringify(order.customer),
-          JSON.stringify(order.items),
-          order.createdAt,
-          order.expiresAt,
-        )
-      for (const item of order.items) {
-        const key = `${order.raffleId}:${item.id}`
-        this.database
-          .prepare('INSERT INTO reservations (ticket_key, order_id, expires_at) VALUES (?, ?, ?)')
-          .run(key, order.id, order.expiresAt)
+    return this.createManual(order)
+  }
+
+  createManual(order: Order) {
+    return this.withReservationTransaction(() => {
+      this.expirePendingWithinTransaction(this.now().toISOString())
+      this.insertOrderAndReservations(order)
+      return order
+    })
+  }
+
+  createRandom(draft: OrderDraft, candidates: Ticket[], quantity: number) {
+    return this.withReservationTransaction(() => {
+      this.expirePendingWithinTransaction(this.now().toISOString())
+      const selected: Ticket[] = []
+      const seen = new Set<string>()
+
+      for (const candidate of candidates) {
+        if (selected.length === quantity) break
+        const ticketKey = `${draft.raffleId}:${candidate.id}`
+        if (seen.has(ticketKey) || this.isReserved(ticketKey)) continue
+        seen.add(ticketKey)
+        selected.push(candidate)
       }
-      this.database.exec('COMMIT')
-    } catch (error) {
-      this.database.exec('ROLLBACK')
-      if (String(error).includes('UNIQUE constraint failed: reservations.ticket_key')) {
-        throw new DomainError('Uma ou mais cartelas já estão reservadas.', 409, 'TICKET_RESERVED')
+
+      if (selected.length !== quantity) {
+        throw new DomainError(
+          'Nao ha cartelas suficientes disponiveis.',
+          409,
+          'INSUFFICIENT_TICKETS',
+        )
       }
-      throw error
-    }
-    return order
+
+      const order = orderSchema.parse({ ...draft, items: selected })
+      this.insertOrderAndReservations(order)
+      return order
+    })
   }
 
   get(orderId: string) {
     this.expirePending()
     const row = this.database.prepare('SELECT * FROM orders WHERE id = ?').get(orderId)
     return row ? mapOrder(row as OrderRow) : null
+  }
+
+  isReserved(ticketKey: string) {
+    return (
+      this.database.prepare('SELECT 1 FROM reservations WHERE ticket_key = ?').get(ticketKey) !==
+      undefined
+    )
   }
 
   setCheckout(orderId: string, checkoutUrl: string) {
@@ -72,18 +88,9 @@ export class OrderRepository {
   }
 
   markPaid(orderId: string) {
-    const paidAt = new Date().toISOString()
-    this.database.exec('BEGIN IMMEDIATE')
-    try {
-      this.database
-        .prepare("UPDATE orders SET status = 'paid', paid_at = ?, last_error = NULL WHERE id = ?")
-        .run(paidAt, orderId)
-      this.database.prepare('DELETE FROM reservations WHERE order_id = ?').run(orderId)
-      this.database.exec('COMMIT')
-    } catch (error) {
-      this.database.exec('ROLLBACK')
-      throw error
-    }
+    this.database
+      .prepare("UPDATE orders SET status = 'paid', paid_at = ?, last_error = NULL WHERE id = ?")
+      .run(this.now().toISOString(), orderId)
   }
 
   markManualReview(orderId: string, message: string) {
@@ -100,7 +107,7 @@ export class OrderRepository {
         VALUES (?, ?, ?)
       `,
       )
-      .run(event.order_nsu, JSON.stringify(event), new Date().toISOString())
+      .run(event.order_nsu, JSON.stringify(event), this.now().toISOString())
   }
 
   claimPaymentEvent(): { id: number; event: PaymentEvent } | null {
@@ -131,7 +138,7 @@ export class OrderRepository {
   completePaymentEvent(eventId: number) {
     this.database
       .prepare("UPDATE payment_events SET status = 'done', processed_at = ? WHERE id = ?")
-      .run(new Date().toISOString(), eventId)
+      .run(this.now().toISOString(), eventId)
   }
 
   failPaymentEvent(eventId: number, error: string) {
@@ -140,19 +147,78 @@ export class OrderRepository {
       .run(error.slice(0, 500), eventId)
   }
 
-  private expirePending() {
-    const now = new Date().toISOString()
+  private insertOrderAndReservations(order: Order) {
+    this.database
+      .prepare(
+        `
+        INSERT INTO orders (
+          id, raffle_id, raffle_title, selection_mode, status, unit_price_in_cents,
+          total_in_cents, customer_json, items_json, created_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .run(
+        order.id,
+        order.raffleId,
+        order.raffleTitle,
+        order.selectionMode,
+        order.status,
+        order.unitPriceInCents,
+        order.totalInCents,
+        JSON.stringify(order.customer),
+        JSON.stringify(order.items),
+        order.createdAt,
+        order.expiresAt,
+      )
+
+    for (const item of order.items) {
+      const ticketKey = `${order.raffleId}:${item.id}`
+      this.database
+        .prepare('INSERT INTO reservations (ticket_key, order_id, expires_at) VALUES (?, ?, ?)')
+        .run(ticketKey, order.id, order.expiresAt)
+    }
+  }
+
+  private withReservationTransaction<T>(operation: () => T): T {
     this.database.exec('BEGIN IMMEDIATE')
     try {
-      this.database
-        .prepare("UPDATE orders SET status = 'expired' WHERE status = 'pending' AND expires_at < ?")
-        .run(now)
-      this.database.prepare('DELETE FROM reservations WHERE expires_at < ?').run(now)
+      const result = operation()
+      this.database.exec('COMMIT')
+      return result
+    } catch (error) {
+      this.database.exec('ROLLBACK')
+      if (String(error).includes('UNIQUE constraint failed: reservations.ticket_key')) {
+        throw new DomainError(
+          'Uma ou mais cartelas ja estao reservadas.',
+          409,
+          'TICKET_RESERVED',
+        )
+      }
+      throw error
+    }
+  }
+
+  private expirePending() {
+    this.database.exec('BEGIN IMMEDIATE')
+    try {
+      this.expirePendingWithinTransaction(this.now().toISOString())
       this.database.exec('COMMIT')
     } catch (error) {
       this.database.exec('ROLLBACK')
       throw error
     }
+  }
+
+  private expirePendingWithinTransaction(now: string) {
+    this.database
+      .prepare("UPDATE orders SET status = 'expired' WHERE status = 'pending' AND expires_at < ?")
+      .run(now)
+    this.database
+      .prepare(`
+        DELETE FROM reservations
+        WHERE order_id IN (SELECT id FROM orders WHERE status IN ('expired', 'cancelled'))
+      `)
+      .run()
   }
 }
 
@@ -161,7 +227,9 @@ function mapOrder(row: OrderRow): Order {
     id: row.id,
     raffleId: row.raffle_id,
     raffleTitle: row.raffle_title,
+    selectionMode: row.selection_mode,
     status: row.status,
+    unitPriceInCents: row.unit_price_in_cents,
     totalInCents: row.total_in_cents,
     customer: JSON.parse(String(row.customer_json)),
     items: JSON.parse(String(row.items_json)),
