@@ -1,11 +1,11 @@
 import { requestJson } from '../../../shared/api/http-client'
 import { apiRoutes } from '../../../shared/config/api-routes'
 import { env } from '../../../shared/config/env'
-import { cardsSchema, raffleSummarySchema } from '../api/schemas'
+import { activeRafflesSchema, cardsSchema } from '../api/schemas'
 import type { Raffle, RaffleCard } from '../domain/types'
 
 export interface RaffleRepository {
-  getActive(): Promise<Raffle>
+  getActive(): Promise<Raffle[]>
 }
 
 const mockCards: RaffleCard[] = Array.from({ length: 48 }, (_, index) => ({
@@ -28,18 +28,32 @@ const mockRaffle: Raffle = {
   cards: mockCards,
 }
 
+const mockSundayRaffle: Raffle = {
+  id: 'sorteio-domingo',
+  title: 'Sorteio de Domingo',
+  description: 'Escolha sua cartela para o sorteio de domingo.',
+  prize: 'R$ 5.000 em prêmios',
+  drawDate: '2026-10-04T23:00:00.000Z',
+  priceInCents: 600,
+  cards: mockCards,
+}
+
 const mockRepository: RaffleRepository = {
   async getActive() {
     await delay(250)
-    return structuredClone(mockRaffle)
+    return structuredClone([mockRaffle, mockSundayRaffle])
   },
 }
 
 const liveRepository: RaffleRepository = {
   async getActive() {
-    const raffle = await requestJson(apiRoutes.activeRaffle, raffleSummarySchema)
-    const cards = await requestJson(apiRoutes.availableCards(raffle.id), cardsSchema)
-    return { ...raffle, cards }
+    const raffles = await requestJson(apiRoutes.activeRaffle, activeRafflesSchema)
+    return Promise.all(
+      raffles.map(async (raffle) => ({
+        ...raffle,
+        cards: await requestJson(apiRoutes.availableCards(raffle.id), cardsSchema),
+      })),
+    )
   },
 }
 

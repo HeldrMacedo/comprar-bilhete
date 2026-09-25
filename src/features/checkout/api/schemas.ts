@@ -30,7 +30,16 @@ export const orderSchema = z.object({
   unitPriceInCents: z.number().int().positive().optional(),
   totalInCents: z.number().int().nonnegative(),
   items: z
-    .array(z.object({ id: z.string(), code: z.string(), numbers: z.array(z.number()) }))
+    .array(
+      z.object({
+        id: z.string(),
+        code: z.string(),
+        numbers: z.array(z.number()),
+        raffleId: z.string().min(1),
+        raffleTitle: z.string().min(1),
+        unitPriceInCents: z.number().int().positive(),
+      }),
+    )
     .optional(),
   receiptUrl: z.url().optional(),
   expiresAt: z.iso.datetime().optional(),

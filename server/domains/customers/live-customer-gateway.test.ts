@@ -7,6 +7,17 @@ afterEach(() => {
 })
 
 describe('LiveCustomerGateway', () => {
+  it('não envia CPF a uma API HTTP', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new LiveCustomerGateway('http://tickets.test')
+    await expect(gateway.findByCpf('52998224725')).rejects.toMatchObject({
+      statusCode: 503,
+      code: 'TICKET_API_TLS_REQUIRED',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('normalizes a person returned by phone', async () => {
     vi.stubGlobal(
       'fetch',
@@ -35,7 +46,7 @@ describe('LiveCustomerGateway', () => {
       ),
     )
 
-    const gateway = new LiveCustomerGateway('http://tickets.test')
+    const gateway = new LiveCustomerGateway('https://tickets.test')
 
     await expect(gateway.findByPhone('84999855367')).resolves.toEqual({
       externalId: '2015',
@@ -79,7 +90,7 @@ describe('LiveCustomerGateway', () => {
       ),
     )
 
-    const gateway = new LiveCustomerGateway('http://tickets.test')
+    const gateway = new LiveCustomerGateway('https://tickets.test')
 
     await expect(gateway.findByPhone('84999855367')).resolves.toEqual({
       externalId: '2015',
@@ -93,11 +104,9 @@ describe('LiveCustomerGateway', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response('{}', { status: 404 }))
-      .mockResolvedValueOnce(
-        new Response('{"error":"internal database detail"}', { status: 500 }),
-      )
+      .mockResolvedValueOnce(new Response('{"error":"internal database detail"}', { status: 500 }))
     vi.stubGlobal('fetch', fetchMock)
-    const gateway = new LiveCustomerGateway('http://tickets.test')
+    const gateway = new LiveCustomerGateway('https://tickets.test')
 
     await expect(gateway.findByCpf('52998224725')).resolves.toBeNull()
     await expect(gateway.findByCpf('52998224725')).rejects.toMatchObject({

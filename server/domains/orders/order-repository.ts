@@ -11,6 +11,15 @@ import {
 
 type OrderRow = Record<string, unknown>
 
+export type PreparedOrderGroup = {
+  raffleId: string
+  raffleTitle: string
+  unitPriceInCents: number
+  mode: 'manual' | 'random'
+  quantity: number
+  tickets: Ticket[]
+}
+
 export class OrderRepository {
   constructor(
     private readonly database: AppDatabase,
@@ -52,6 +61,55 @@ export class OrderRepository {
       }
 
       const order = orderSchema.parse({ ...draft, items: selected })
+      this.insertOrderAndReservations(order)
+      return order
+    })
+  }
+
+  createGrouped(draft: OrderDraft, groups: PreparedOrderGroup[]) {
+    return this.withReservationTransaction(() => {
+      this.expirePendingWithinTransaction(this.now().toISOString())
+      const reserved = new Set<string>()
+      const items: Ticket[] = []
+
+      for (const group of groups) {
+        const selected: Ticket[] = []
+        for (const ticket of group.tickets) {
+          if (selected.length === group.quantity) break
+          const key = `${group.raffleId}:${ticket.id}`
+          if (reserved.has(key) || this.isReserved(key)) {
+            if (group.mode === 'manual') {
+              throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
+            }
+            continue
+          }
+          reserved.add(key)
+          selected.push(ticket)
+        }
+
+        if (selected.length !== group.quantity) {
+          throw new DomainError(
+            'Nao ha cartelas suficientes disponiveis.',
+            409,
+            'INSUFFICIENT_TICKETS',
+          )
+        }
+
+        items.push(
+          ...selected.map((ticket) => ({
+            ...ticket,
+            raffleId: group.raffleId,
+            raffleTitle: group.raffleTitle,
+            unitPriceInCents: group.unitPriceInCents,
+          })),
+        )
+      }
+
+      const totalInCents = items.reduce((sum, item) => sum + (item.unitPriceInCents ?? 0), 0)
+      if (totalInCents !== draft.totalInCents) {
+        throw new DomainError('Total do pedido inconsistente.', 500, 'INVALID_ORDER_TOTAL')
+      }
+      const order = orderSchema.parse({ ...draft, items })
       this.insertOrderAndReservations(order)
       return order
     })
@@ -209,7 +267,7 @@ export class OrderRepository {
       )
 
     for (const item of order.items) {
-      const ticketKey = `${order.raffleId}:${item.id}`
+      const ticketKey = `${item.raffleId ?? order.raffleId}:${item.id}`
       this.database
         .prepare('INSERT INTO reservations (ticket_key, order_id, expires_at) VALUES (?, ?, ?)')
         .run(ticketKey, order.id, order.expiresAt)

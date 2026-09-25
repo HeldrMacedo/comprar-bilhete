@@ -1,4 +1,5 @@
 import { requestJson } from '../../../shared/api/http-client'
+import { z } from 'zod'
 import { apiRoutes } from '../../../shared/config/api-routes'
 import { env } from '../../../shared/config/env'
 import { checkoutSchema, orderSchema } from '../api/schemas'
@@ -16,15 +17,21 @@ const mockRepository: CheckoutRepository = {
   async createOrder(input) {
     await delay(350)
     const id = `demo-${Date.now()}`
+    const totalInCents = input.raffles.reduce(
+      (total, raffle) =>
+        total +
+        (raffle.selection.mode === 'manual'
+          ? raffle.selection.cardIds.length
+          : raffle.selection.quantity) *
+          raffle.unitPriceInCents,
+      0,
+    )
     const order: Order = {
       id,
       status: 'pending',
-      selectionMode: input.selection.mode,
-      unitPriceInCents: 1000,
-      totalInCents:
-        (input.selection.mode === 'manual'
-          ? input.selection.cardIds.length
-          : input.selection.quantity) * 1000,
+      selectionMode: input.raffles[0]?.selection.mode,
+      unitPriceInCents: input.raffles[0]?.unitPriceInCents,
+      totalInCents,
     }
     mockOrders.set(id, { order, checks: 0 })
     sessionStorage.setItem(`mock-order:${id}`, JSON.stringify({ order, checks: 0 }))
@@ -61,10 +68,11 @@ export const checkoutRepository = env.VITE_API_MODE === 'live' ? liveRepository 
 
 function readMockOrder(orderId: string) {
   try {
-    return JSON.parse(sessionStorage.getItem(`mock-order:${orderId}`) ?? 'null') as {
-      order: Order
-      checks: number
-    } | null
+    const stored: unknown = JSON.parse(sessionStorage.getItem(`mock-order:${orderId}`) ?? 'null')
+    const parsed = z
+      .object({ order: orderSchema, checks: z.number().int().nonnegative() })
+      .safeParse(stored)
+    return parsed.success ? parsed.data : null
   } catch {
     return null
   }

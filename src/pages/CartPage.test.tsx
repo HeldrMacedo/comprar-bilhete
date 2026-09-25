@@ -8,13 +8,23 @@ import { CartPage } from './CartPage'
 import type { Cart } from '../features/cart/domain/types'
 
 const cart: Cart = {
-  raffleId: 'raffle-1',
-  raffleTitle: 'Sorteio',
-  priceInCents: 1000,
-  selection: {
-    mode: 'manual',
-    cards: [{ id: 'card-001', code: '#001', numbers: [1, 2, 3], available: true }],
-  },
+  entries: [
+    {
+      raffleId: 'raffle-1',
+      raffleTitle: 'Sorteio de Quarta',
+      priceInCents: 1000,
+      selection: {
+        mode: 'manual',
+        cards: [{ id: 'card-001', code: '#001', numbers: [1, 2, 3], available: true }],
+      },
+    },
+    {
+      raffleId: 'raffle-2',
+      raffleTitle: 'Sorteio de Domingo',
+      priceInCents: 600,
+      selection: { mode: 'random', quantity: 1 },
+    },
+  ],
 }
 
 vi.mock('../features/checkout/repository/customer-repository', () => ({
@@ -30,7 +40,7 @@ vi.mock('../features/checkout/repository/checkout-repository', () => ({
 }))
 
 function renderCartPage() {
-  localStorage.setItem('bilhete-da-sorte:cart:v2', JSON.stringify(cart))
+  localStorage.setItem('bilhete-da-sorte:cart:v3', JSON.stringify(cart))
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -66,6 +76,9 @@ describe('CartPage', () => {
       },
     })
     renderCartPage()
+    expect(screen.getByRole('heading', { name: 'Sorteio de Quarta' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Sorteio de Domingo' })).toBeVisible()
+    expect(screen.getAllByText('R$ 16,00')[0]).toBeVisible()
     await userEvent.type(screen.getByLabelText('Celular com DDD'), '84999855367')
     expect(await screen.findByText('Cliente encontrado')).toBeVisible()
     expect(screen.getByLabelText('Nome completo')).toHaveValue('Maria da Silva')

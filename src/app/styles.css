@@ -151,6 +151,9 @@ main {
   gap: 90px;
   position: relative;
 }
+.hero__content--empty {
+  grid-template-columns: 1fr;
+}
 .hero__copy h1 {
   max-width: 680px;
   margin: 18px 0;
@@ -231,6 +234,69 @@ main {
 
 .purchase-section {
   padding-block: 68px 110px;
+}
+.raffle-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  margin: 34px 0;
+}
+.raffle-choice {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  cursor: pointer;
+}
+.raffle-choice:has(input:checked) {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgb(9 107 82 / 12%);
+}
+.raffle-choice input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--green);
+}
+.raffle-choice strong,
+.raffle-choice small {
+  display: block;
+}
+.raffle-choice strong {
+  color: var(--ink);
+  text-transform: capitalize;
+}
+.raffle-choice small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.raffle-selection {
+  margin-top: 34px;
+}
+.raffle-selection + .raffle-selection {
+  padding-top: 34px;
+  border-top: 1px solid var(--line);
+}
+.raffle-selection > h3 {
+  margin: 0 0 20px;
+  color: var(--ink);
+  font: 800 22px Manrope, sans-serif;
+}
+.cart-group {
+  margin-top: 24px;
+}
+.cart-group + .cart-group {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.cart-group h3 {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font: 800 18px Manrope, sans-serif;
 }
 .section-heading,
 .page-title {

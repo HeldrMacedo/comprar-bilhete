@@ -32,6 +32,85 @@ afterEach(async () => {
 })
 
 describe('pedido e pagamento', () => {
+  it('cria um pedido com cartelas de dois sorteios e soma os preços de cada um', async () => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: {
+        raffles: [
+          {
+            raffleId: 'sorteio-setembro',
+            selection: { mode: 'manual', cardIds: ['card-001'] },
+          },
+          {
+            raffleId: 'sorteio-domingo',
+            selection: { mode: 'manual', cardIds: ['card-001'] },
+          },
+        ],
+        customer: existingCustomer,
+      },
+    })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({
+      totalInCents: 1600,
+      items: [
+        { id: 'card-001', raffleId: 'sorteio-setembro', unitPriceInCents: 1000 },
+        { id: 'card-001', raffleId: 'sorteio-domingo', unitPriceInCents: 600 },
+      ],
+    })
+
+    const { id } = response.json<{ id: string }>()
+    await app.inject({ method: 'POST', url: `/api/v1/orders/${id}/checkout` })
+    const paid = await app.inject({
+      method: 'GET',
+      url: `/api/v1/orders/${id}?transaction_nsu=mock-${id}&slug=mock-${id}`,
+    })
+    expect(paid.json()).toMatchObject({ status: 'paid', totalInCents: 1600 })
+    for (const raffleId of ['sorteio-setembro', 'sorteio-domingo']) {
+      const cards = await app.inject({ method: 'GET', url: `/api/v1/raffles/${raffleId}/cards` })
+      expect(cards.json<Array<{ id: string }>>().some((card) => card.id === 'card-001')).toBe(false)
+    }
+  })
+
+  it('desfaz todas as reservas se uma das seleções conjuntas conflitar', async () => {
+    const app = await buildApp({ env, logger: false, startWorker: false })
+    apps.push(app)
+    const oneSelection = (raffleId: string, cardId: string) => ({
+      raffles: [{ raffleId, selection: { mode: 'manual', cardIds: [cardId] } }],
+      customer: existingCustomer,
+    })
+    const reserved = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: oneSelection('sorteio-domingo', 'card-001'),
+    })
+    expect(reserved.statusCode).toBe(201)
+
+    const conflict = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: {
+        raffles: [
+          { raffleId: 'sorteio-setembro', selection: { mode: 'manual', cardIds: ['card-002'] } },
+          { raffleId: 'sorteio-domingo', selection: { mode: 'manual', cardIds: ['card-001'] } },
+        ],
+        customer: existingCustomer,
+      },
+    })
+    expect(conflict.statusCode).toBe(409)
+
+    const afterRollback = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: oneSelection('sorteio-setembro', 'card-002'),
+    })
+    expect(afterRollback.statusCode).toBe(201)
+  })
+
   it('reserva os identificadores exatos da selecao manual', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)

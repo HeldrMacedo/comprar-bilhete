@@ -12,5 +12,6 @@ export type Raffle = {
   prize: string
   drawDate: string
   priceInCents: number
+  purchaseEnabled?: boolean
   cards: RaffleCard[]
 }

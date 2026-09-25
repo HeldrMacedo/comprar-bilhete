@@ -17,25 +17,27 @@ export default defineConfig({
   webServer: [
     {
       command: 'npm run start:server',
-      url: 'http://127.0.0.1:3333/api/health',
-      reuseExistingServer: !process.env.CI,
+      url: 'http://127.0.0.1:3334/api/health',
+      reuseExistingServer: false,
       env: {
         ...process.env,
+        SERVER_PORT: '3334',
         DATABASE_PATH: ':memory:',
         TICKET_PROVIDER: 'mock',
         PAYMENT_PROVIDER: 'mock',
         PUBLIC_APP_URL: 'http://127.0.0.1:4173',
-        PUBLIC_API_URL: 'http://127.0.0.1:3333',
+        PUBLIC_API_URL: 'http://127.0.0.1:3334',
       },
     },
     {
       command: 'npm run dev -- --host 127.0.0.1 --port 4173',
       url: 'http://127.0.0.1:4173',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       env: {
         ...process.env,
         VITE_API_MODE: 'live',
         VITE_API_BASE_URL: '/api',
+        VITE_API_PROXY_TARGET: 'http://127.0.0.1:3334',
       },
     },
   ],

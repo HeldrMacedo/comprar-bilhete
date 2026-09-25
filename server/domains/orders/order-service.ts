@@ -1,10 +1,12 @@
 import { randomInt, randomUUID } from 'node:crypto'
 import type { ServerEnv } from '../../config/env.js'
 import { DomainError } from '../../shared/errors.js'
+import { requireTicketApiTls } from '../../shared/ticket-api-tls.js'
 import type { CustomerService } from '../customers/customer-service.js'
+import type { ResolvedCustomer } from '../customers/customer-types.js'
 import type { PaymentGateway } from '../payments/payment-gateway.js'
 import type { TicketGateway } from '../tickets/ticket-gateway.js'
-import { OrderRepository } from './order-repository.js'
+import { OrderRepository, type PreparedOrderGroup } from './order-repository.js'
 import type { CreateOrderInput, Order, OrderDraft, PaymentEvent, Ticket } from './order-types.js'
 
 export class OrderService {
@@ -21,12 +23,18 @@ export class OrderService {
     return this.tickets.getActiveRaffle()
   }
 
+  async getActiveRaffles() {
+    return this.tickets.getActiveRaffles()
+  }
+
   async getAvailableTickets(raffleId: string) {
     return this.tickets.getAvailableTickets(raffleId)
   }
 
   async createOrder(input: CreateOrderInput) {
+    if (this.env.TICKET_PROVIDER === 'live') requireTicketApiTls(this.env.TICKET_API_BASE_URL)
     const customer = await this.customers.resolveForOrder(input.customer)
+    if ('raffles' in input) return this.createGroupedOrder(input.raffles, customer)
     const raffle = await this.tickets.getActiveRaffle()
     if (raffle.id !== input.raffleId) {
       throw new DomainError('O sorteio informado nao esta ativo.', 409)
@@ -34,9 +42,7 @@ export class OrderService {
 
     const now = this.now()
     const quantity =
-      input.selection.mode === 'manual'
-        ? input.selection.cardIds.length
-        : input.selection.quantity
+      input.selection.mode === 'manual' ? input.selection.cardIds.length : input.selection.quantity
     const draft: OrderDraft = {
       id: randomUUID(),
       raffleId: raffle.id,
@@ -47,9 +53,7 @@ export class OrderService {
       totalInCents: raffle.priceInCents * quantity,
       customer,
       createdAt: now.toISOString(),
-      expiresAt: new Date(
-        now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000,
-      ).toISOString(),
+      expiresAt: new Date(now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000).toISOString(),
     }
 
     if (input.selection.mode === 'random') {
@@ -78,7 +82,90 @@ export class OrderService {
     return this.repository.createManual(order)
   }
 
+  private async createGroupedOrder(
+    selections: Extract<CreateOrderInput, { raffles: unknown }>['raffles'],
+    customer: ResolvedCustomer,
+  ) {
+    const ids = selections.map((entry) => entry.raffleId)
+    if (new Set(ids).size !== ids.length) {
+      throw new DomainError('O mesmo sorteio foi informado mais de uma vez.')
+    }
+
+    const activeRaffles = await this.tickets.getActiveRaffles()
+    const groups: PreparedOrderGroup[] = await Promise.all(
+      selections.map(async ({ raffleId, selection }) => {
+        const raffle = activeRaffles.find((entry) => entry.id === raffleId)
+        if (!raffle) throw new DomainError('O sorteio informado nao esta ativo.', 409)
+        const quantity = selection.mode === 'manual' ? selection.cardIds.length : selection.quantity
+        let tickets: Ticket[]
+        if (selection.mode === 'random') {
+          tickets = shuffle(await this.tickets.getAvailableTickets(raffle.id))
+        } else {
+          if (new Set(selection.cardIds).size !== selection.cardIds.length) {
+            throw new DomainError('A selecao contem cartelas repetidas.')
+          }
+          const resolved = await Promise.all(
+            selection.cardIds.map((ticketId) =>
+              this.tickets.getAvailableTicket(raffle.id, ticketId),
+            ),
+          )
+          if (!hasOnlyTickets(resolved)) {
+            throw new DomainError(
+              'Uma ou mais cartelas nao estao disponiveis.',
+              409,
+              'TICKET_UNAVAILABLE',
+            )
+          }
+          tickets = resolved
+        }
+        return {
+          raffleId: raffle.id,
+          raffleTitle: raffle.title,
+          unitPriceInCents: raffle.priceInCents,
+          mode: selection.mode,
+          quantity,
+          tickets,
+        }
+      }),
+    )
+
+    const now = this.now()
+    const totalInCents = groups.reduce(
+      (total, group) => total + group.unitPriceInCents * group.quantity,
+      0,
+    )
+    if (!Number.isSafeInteger(totalInCents)) {
+      throw new DomainError('Total do pedido inconsistente.', 500, 'INVALID_ORDER_TOTAL')
+    }
+    const deadlines = activeRaffles
+      .filter((raffle) => ids.includes(raffle.id) && raffle.salesEndAt)
+      .map((raffle) => Date.parse(raffle.salesEndAt ?? ''))
+    const expiresAtMs = Math.min(
+      now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000,
+      ...deadlines,
+    )
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= now.getTime()) {
+      throw new DomainError('O sorteio informado nao esta ativo.', 409)
+    }
+    const first = groups[0]
+    if (!first) throw new DomainError('Nenhum sorteio foi selecionado.')
+    const draft: OrderDraft = {
+      id: randomUUID(),
+      raffleId: first.raffleId,
+      raffleTitle: first.raffleTitle,
+      selectionMode: first.mode,
+      status: 'pending',
+      unitPriceInCents: first.unitPriceInCents,
+      totalInCents,
+      customer,
+      createdAt: now.toISOString(),
+      expiresAt: new Date(expiresAtMs).toISOString(),
+    }
+    return this.repository.createGrouped(draft, groups)
+  }
+
   async createCheckout(orderId: string) {
+    if (this.env.TICKET_PROVIDER === 'live') requireTicketApiTls(this.env.TICKET_API_BASE_URL)
     const order = this.requireOrder(orderId)
     if (order.status !== 'pending') {
       throw new DomainError('Este pedido nao esta disponivel para pagamento.', 409)

@@ -19,7 +19,9 @@ export class InfinitePayGateway implements PaymentGateway {
   constructor(private readonly env: ServerEnv) {}
 
   async createCheckout(order: Order) {
-    if (order.totalInCents !== order.unitPriceInCents * order.items.length) {
+    const itemPrices = order.items.map((item) => item.unitPriceInCents ?? order.unitPriceInCents)
+    const totalInCents = itemPrices.reduce((total, price) => total + price, 0)
+    if (!Number.isSafeInteger(totalInCents) || order.totalInCents !== totalInCents) {
       throw new DomainError('Total do pedido inconsistente.', 500, 'INVALID_ORDER_TOTAL')
     }
 
@@ -32,25 +34,25 @@ export class InfinitePayGateway implements PaymentGateway {
         body: JSON.stringify({
           handle: this.env.INFINITEPAY_HANDLE,
           redirect_url: `${this.env.PUBLIC_APP_URL}/pagamento`,
-          webhook_url: `${this.env.PUBLIC_API_URL}/api/v1/webhooks/infinitepay`,
+          webhook_url: `${this.env.PUBLIC_API_URL.replace(/\/$/, '')}/api/v1/webhooks/infinitepay`,
           order_nsu: order.id,
-        customer: {
-          name: order.customer.name,
-          phone_number: `+55${order.customer.phone}`,
-        },
-        address: address
-          ? {
-              cep: address.zipCode,
-              street: address.street,
-              neighborhood: address.neighborhood,
-              number: address.number,
-              complement: address.complement,
-            }
-          : undefined,
-        items: order.items.map((item) => ({
-          quantity: 1,
-          price: order.unitPriceInCents,
-            description: `Cartela ${item.code} — ${order.raffleTitle}`,
+          customer: {
+            name: order.customer.name,
+            phone_number: `+55${order.customer.phone}`,
+          },
+          address: address
+            ? {
+                cep: address.zipCode,
+                street: address.street,
+                neighborhood: address.neighborhood,
+                number: address.number,
+                complement: address.complement,
+              }
+            : undefined,
+          items: order.items.map((item) => ({
+            quantity: 1,
+            price: item.unitPriceInCents ?? order.unitPriceInCents,
+            description: `Cartela ${item.code} — ${item.raffleTitle ?? order.raffleTitle}`,
           })),
         }),
       },

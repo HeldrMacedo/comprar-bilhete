@@ -7,11 +7,14 @@ import { checkoutRepository } from '../repository/checkout-repository'
 
 export async function startCheckout(cart: Cart, customer: Customer) {
   const order = await checkoutRepository.createOrder({
-    raffleId: cart.raffleId,
-    selection:
-      cart.selection.mode === 'manual'
-        ? { mode: 'manual', cardIds: cart.selection.cards.map((card) => card.id) }
-        : { mode: 'random', quantity: cart.selection.quantity },
+    raffles: cart.entries.map((entry) => ({
+      raffleId: entry.raffleId,
+      unitPriceInCents: entry.priceInCents,
+      selection:
+        entry.selection.mode === 'manual'
+          ? { mode: 'manual', cardIds: entry.selection.cards.map((card) => card.id) }
+          : { mode: 'random', quantity: entry.selection.quantity },
+    })),
     customer: {
       ...customer,
       cpf: onlyDigits(customer.cpf),

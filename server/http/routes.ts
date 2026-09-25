@@ -34,7 +34,7 @@ export async function registerRoutes(
     return customers.lookup(query)
   })
 
-  app.get('/api/v1/raffles/active', async () => service.getActiveRaffle())
+  app.get('/api/v1/raffles/active', async () => service.getActiveRaffles())
 
   app.get('/api/v1/raffles/:id/cards', async (request) => {
     const { id } = raffleParamsSchema.parse(request.params)

@@ -95,8 +95,6 @@ export function CartPage() {
     }
   }
 
-  const cards = cart.selection.mode === 'manual' ? cart.selection.cards : []
-
   return (
     <section className="container page-section checkout-page">
       <Link className="back-link" to="/">
@@ -116,42 +114,50 @@ export function CartPage() {
             <div className="surface__header">
               <div>
                 <span className="surface__label">Suas cartelas</span>
-                <h2>{cart.raffleTitle}</h2>
+                <h2>Sorteios selecionados</h2>
               </div>
               <strong>
                 {itemCount} {itemCount === 1 ? 'unidade' : 'unidades'}
               </strong>
             </div>
-            {cart.selection.mode === 'random' ? (
-              <p className="random-summary">
-                {cart.selection.quantity} cartelas serao escolhidas pelo servidor.
-              </p>
-            ) : (
-              <div className="cart-items">
-                {cards.map((card) => (
-                  <article className="cart-item" key={card.id}>
-                    <div>
-                      <strong>Cartela {card.code}</strong>
-                      <div className="number-list">
-                        {card.numbers.map((number, index) => (
-                          <span key={`${card.id}-${index}`}>{String(number).padStart(2, '0')}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="cart-item__actions">
-                      <strong>{formatCurrency(cart.priceInCents)}</strong>
-                      <button
-                        type="button"
-                        onClick={() => removeCard(card.id)}
-                        aria-label={`Remover cartela ${card.code}`}
-                      >
-                        <Trash2 size={17} />
-                      </button>
-                    </div>
-                  </article>
-                ))}
+            {cart.entries.map((entry) => (
+              <div className="cart-group" key={entry.raffleId}>
+                <h3>{entry.raffleTitle}</h3>
+                {entry.selection.mode === 'random' ? (
+                  <p className="random-summary">
+                    {entry.selection.quantity} cartela(s) serão escolhidas pelo servidor a{' '}
+                    {formatCurrency(entry.priceInCents)} cada.
+                  </p>
+                ) : (
+                  <div className="cart-items">
+                    {entry.selection.cards.map((card) => (
+                      <article className="cart-item" key={card.id}>
+                        <div>
+                          <strong>Cartela {card.code}</strong>
+                          <div className="number-list">
+                            {card.numbers.map((number, index) => (
+                              <span key={`${card.id}-${index}`}>
+                                {String(number).padStart(2, '0')}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="cart-item__actions">
+                          <strong>{formatCurrency(entry.priceInCents)}</strong>
+                          <button
+                            type="button"
+                            onClick={() => removeCard(entry.raffleId, card.id)}
+                            aria-label={`Remover cartela ${card.code} de ${entry.raffleTitle}`}
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </section>
 
           <form

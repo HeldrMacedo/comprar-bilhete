@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { DomainError } from '../../shared/errors.js'
 import { fetchJson } from '../../shared/fetch-json.js'
+import { requireTicketApiTls } from '../../shared/ticket-api-tls.js'
 import type { CustomerGateway } from './customer-gateway.js'
 import {
   addressSchema,
@@ -40,6 +41,7 @@ export class LiveCustomerGateway implements CustomerGateway {
   }
 
   async create(customer: NormalizedCustomerInput): Promise<void> {
+    requireTicketApiTls(this.baseUrl)
     await fetchJson(`${this.baseUrl}/pessoa`, mutationResponseSchema, {
       method: 'POST',
       body: JSON.stringify({
@@ -58,6 +60,7 @@ export class LiveCustomerGateway implements CustomerGateway {
   }
 
   private async find(path: string): Promise<ExternalCustomer | null> {
+    requireTicketApiTls(this.baseUrl)
     let response: Response
     try {
       response = await fetch(`${this.baseUrl}${path}`, {

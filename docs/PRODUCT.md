@@ -6,8 +6,8 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 
 ## Jornada principal
 
-1. Ver sorteio ativo, prêmio, data e preço unitário.
-2. Escolher uma quantidade aleatória ou selecionar cartelas vendo seus números.
+1. Ver os sorteios ativos de quarta e domingo, prêmio, data e preço unitário de cada um.
+2. Escolher quarta, domingo ou ambos e definir quantidade aleatória ou cartelas específicas por sorteio.
 3. Revisar/remover cartelas no carrinho.
 4. Informar nome completo, CPF e celular.
 5. Criar pedido; o backend revalida preço e disponibilidade e reserva as cartelas.
@@ -21,6 +21,9 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 - Seleção aleatória não pode repetir cartela.
 - CPF e celular são validados antes do envio, mas o backend valida novamente.
 - O total exibido é `quantidade × preço unitário`; o backend recalcula o total.
+- Concursos com ID terminado em `000` ou prazo de venda encerrado não aparecem. Se nenhum estiver disponível, a Home mostra o banner e a mensagem "Sem sorteios ativo no momento".
+- Se a API de bilhetes oferecer apenas HTTP, a Home pode mostrar concursos e cartelas para consulta, mas a compra fica desabilitada até haver HTTPS.
+- Uma compra de dois sorteios gera um carrinho, um pedido, reservas atômicas e um pagamento; cada cartela conserva seu concurso e preço.
 - Conflito de reserva (`409`) devolve o usuário à seleção com mensagem clara.
 - Parâmetros de retorno da InfinitePay não comprovam pagamento; são apenas identificadores.
 - Busca de cliente é feita pelo backend em `GET /api/v1/customers/lookup`; o navegador não chama a API de bilhetes.

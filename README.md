@@ -19,7 +19,27 @@ TICKET_PROVIDER=mock
 PAYMENT_PROVIDER=mock
 ```
 
+Se `.env.local` estiver configurado com `TICKET_PROVIDER=live` e a origem de bilhetes ainda usar HTTP, o site mostra os concursos e cartelas para consulta. A compra fica indisponível até existir uma origem HTTPS. Para executar a jornada completa com dados de demonstração no PowerShell, use:
+
+```powershell
+$env:TICKET_PROVIDER='mock'
+npm run dev:full
+```
+
+O modo live exige uma origem HTTPS para consultar clientes e concluir pedidos, pois essas ações enviam dados pessoais à API de bilhetes.
+
 Para produção, configure `TICKET_PROVIDER=live`, `PAYMENT_PROVIDER=infinitepay`, `TICKET_ESTABLISHMENT_ID`, `INFINITEPAY_HANDLE`, URLs públicas HTTPS e um volume persistente para o banco. Veja [docs/BACKEND.md](docs/BACKEND.md) e [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md).
+
+Para testar checkout real localmente, crie `.env.local` com `VITE_API_MODE=live`,
+`TICKET_PROVIDER=live`, `PAYMENT_PROVIDER=infinitepay`, `INFINITEPAY_HANDLE` e
+`PUBLIC_API_URL` apontando para a origem HTTPS pública do backend, sem barra final.
+`TICKET_API_BASE_URL` também precisa ser HTTPS para habilitar compras em modo live.
+Com HTTP, somente os dados públicos de concursos e cartelas são consultados.
+Reinicie Vite e backend após alterar o arquivo. O webhook será enviado a
+`PUBLIC_API_URL/api/v1/webhooks/infinitepay`. Mantenha o túnel público ativo
+durante o teste; Dev Tunnels não substitui hospedagem de produção. Se
+`GET /concurso/atual` não encontrar concurso ativo, o checkout live ficará
+indisponível, sem trocar silenciosamente para mock.
 
 ## Comandos
 

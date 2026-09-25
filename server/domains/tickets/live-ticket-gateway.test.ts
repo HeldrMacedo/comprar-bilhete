@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 import { parseServerEnv } from '../../config/env.js'
+import { order, ticket } from '../orders/order-test-fixtures.js'
 import { LiveTicketGateway } from './live-ticket-gateway.js'
 
-const liveEnv = parseServerEnv({ TICKET_PROVIDER: 'live' })
+const liveEnv = parseServerEnv({
+  TICKET_PROVIDER: 'live',
+  TICKET_API_BASE_URL: 'https://bilhetes.example',
+})
 
 const externalTicket = {
   numero: '000123',
@@ -22,10 +27,118 @@ afterEach(() => {
 })
 
 describe('LiveTicketGateway', () => {
-  it('queries available tickets with contest and establishment 4734 only', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: [] }), { status: 200 }),
+  it('não valida cartelas pagas por uma API HTTP', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new LiveTicketGateway(
+      parseServerEnv({ TICKET_PROVIDER: 'live', TICKET_API_BASE_URL: 'http://bilhetes.test' }),
     )
+    await expect(gateway.fulfillOrder(order())).rejects.toMatchObject({
+      statusCode: 503,
+      code: 'TICKET_API_TLS_REQUIRED',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('valida cada cartela usando seu próprio concurso', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ success: true }), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new LiveTicketGateway(liveEnv)
+    const groupedOrder = order({
+      raffleId: '2026040',
+      items: [
+        { ...ticket('card-001'), raffleId: '2026040' },
+        { ...ticket('card-001'), raffleId: '2026041' },
+      ],
+    })
+
+    await gateway.fulfillOrder(groupedOrder)
+
+    const contestIds = fetchMock.mock.calls.map((call) => {
+      const options = z.object({ body: z.string() }).parse(call[1])
+      const body = z.object({ concurso_id: z.number() }).parse(JSON.parse(options.body))
+      return body.concurso_id
+    })
+    expect(contestIds).toEqual([2026040, 2026041])
+  })
+
+  it('loads both current contests and ignores a 000 sentinel', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          concurso_id_sorteiocap: 2026041,
+          data_sorteiocap: '2026-09-27',
+          data_fim_sorteiocap: '2026-09-27 19:00:00',
+          hora_sorteiocap: '20:00:00',
+          qte_premios_sorteiocap: 4,
+          qtd_giros_sorteiocap: 20,
+          giros_sorteiocap: 'R$: 500,00',
+          valor_bilhete_sorteiocap: 6,
+          concurso_id_sorteioesp: 2026000,
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new LiveTicketGateway(liveEnv, () => new Date('2026-09-22T00:00:00Z'))
+
+    await expect(gateway.getActiveRaffles()).resolves.toEqual([
+      expect.objectContaining({ id: '2026041', source: 'cap', priceInCents: 600 }),
+    ])
+    expect(firstRequestedUrl(fetchMock).pathname).toBe('/concurso/atual')
+  })
+
+  it('does not expose a contest after its sales deadline', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            concurso_id_sorteiocap: 2026041,
+            data_sorteiocap: '2026-09-27',
+            data_fim_sorteiocap: '2026-09-27 19:00:00',
+            hora_sorteiocap: '20:00:00',
+            qte_premios_sorteiocap: 4,
+            qtd_giros_sorteiocap: 20,
+            giros_sorteiocap: 'R$: 500,00',
+            valor_bilhete_sorteiocap: 6,
+            concurso_id_sorteioesp: 2026000,
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const gateway = new LiveTicketGateway(liveEnv, () => new Date('2026-09-27T22:00:00Z'))
+
+    await expect(gateway.getActiveRaffles()).resolves.toEqual([])
+  })
+
+  it('treats two 000 sentinels as no active contest', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            concurso_id_sorteiocap: 2026000,
+            concurso_id_sorteioesp: 2026000,
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const gateway = new LiveTicketGateway(liveEnv)
+
+    await expect(gateway.getActiveRaffle()).rejects.toMatchObject({ statusCode: 404 })
+  })
+
+  it('queries available tickets with contest and establishment 4734 only', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ success: true, data: [] }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     const gateway = new LiveTicketGateway(liveEnv)
 
@@ -40,9 +153,11 @@ describe('LiveTicketGateway', () => {
   })
 
   it('loads a manual ticket through the exact-number endpoint', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: externalTicket }), { status: 200 }),
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ success: true, data: externalTicket }), { status: 200 }),
+      )
     vi.stubGlobal('fetch', fetchMock)
     const gateway = new LiveTicketGateway(liveEnv)
 
@@ -71,9 +186,9 @@ describe('LiveTicketGateway', () => {
   it('hides upstream database details when ticket listing fails', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response('{"error":"[database] private detail"}', { status: 500 }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(new Response('{"error":"[database] private detail"}', { status: 500 })),
     )
     const gateway = new LiveTicketGateway(liveEnv)
 

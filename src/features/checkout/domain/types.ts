@@ -26,8 +26,11 @@ export interface CustomerRepository {
 }
 
 export type CreateOrderInput = {
-  raffleId: string
-  selection: { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number }
+  raffles: Array<{
+    raffleId: string
+    unitPriceInCents: number
+    selection: { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number }
+  }>
   customer: Customer
 }
 
@@ -40,7 +43,14 @@ export type Order = {
   selectionMode?: 'manual' | 'random'
   unitPriceInCents?: number
   totalInCents: number
-  items?: Array<{ id: string; code: string; numbers: number[] }>
+  items?: Array<{
+    id: string
+    code: string
+    numbers: number[]
+    raffleId: string
+    raffleTitle: string
+    unitPriceInCents: number
+  }>
   receiptUrl?: string
   expiresAt?: string
   message?: string

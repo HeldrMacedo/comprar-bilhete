@@ -11,6 +11,9 @@ export const ticketSchema = z.object({
   id: z.string().min(1),
   code: z.string().min(1),
   numbers: z.array(z.number().int().positive()),
+  raffleId: z.string().min(1).optional(),
+  raffleTitle: z.string().min(1).optional(),
+  unitPriceInCents: z.number().int().positive().optional(),
   validationBatch: z.string().optional(),
   batchPosition: z.number().int().positive().optional(),
 })
@@ -59,11 +62,26 @@ export const orderSelectionSchema = z.discriminatedUnion('mode', [
   }),
 ])
 
-export const createOrderInputSchema = z.object({
+const singleOrderInputSchema = z.object({
   raffleId: z.string().min(1),
   selection: orderSelectionSchema,
   customer: customerInputSchema,
 })
+
+const groupedOrderInputSchema = z.object({
+  raffles: z
+    .array(
+      z.object({
+        raffleId: z.string().min(1),
+        selection: orderSelectionSchema,
+      }),
+    )
+    .min(1)
+    .max(2),
+  customer: customerInputSchema,
+})
+
+export const createOrderInputSchema = z.union([singleOrderInputSchema, groupedOrderInputSchema])
 
 export const paymentEventSchema = z.object({
   invoice_slug: z.string().min(1),

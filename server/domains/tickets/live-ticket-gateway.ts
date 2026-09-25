@@ -1,20 +1,11 @@
 import { z } from 'zod'
 import { fetchJson } from '../../shared/fetch-json.js'
 import { DomainError } from '../../shared/errors.js'
+import { hasTicketApiTls, requireTicketApiTls } from '../../shared/ticket-api-tls.js'
 import type { ServerEnv } from '../../config/env.js'
 import type { Order, Ticket } from '../orders/order-types.js'
+import { currentContestsEnvelopeSchema, parseCurrentContests } from './current-contests.js'
 import type { Raffle, TicketGateway } from './ticket-gateway.js'
-
-const contestSchema = z.object({
-  concurso_id_sorteioesp: z.number().int().positive(),
-  data_sorteioesp: z.string(),
-  hora_sorteioesp: z.string(),
-  qte_premios_sorteioesp: z.number().int().nonnegative(),
-  premio_01_sorteioesp: z.string(),
-  qtd_giros_sorteioesp: z.number().int().nonnegative(),
-  giros_sorteioesp: z.string(),
-  valor_bilhete_sorteioesp: z.number().positive(),
-})
 
 const externalTicketSchema = z.object({
   numero: z.union([z.string(), z.number()]).transform(String),
@@ -40,19 +31,27 @@ const mutationResponseSchema = z
   .passthrough()
 
 export class LiveTicketGateway implements TicketGateway {
-  constructor(private readonly env: ServerEnv) {}
+  constructor(
+    private readonly env: ServerEnv,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  async getActiveRaffles() {
+    const contests = await fetchJson(
+      `${this.env.TICKET_API_BASE_URL}/concurso/atual`,
+      currentContestsEnvelopeSchema,
+    )
+    return parseCurrentContests(contests, this.now()).map((raffle) => ({
+      ...raffle,
+      purchaseEnabled: hasTicketApiTls(this.env.TICKET_API_BASE_URL),
+    }))
+  }
 
   async getActiveRaffle(): Promise<Raffle> {
-    const contest = await fetchJson(`${this.env.TICKET_API_BASE_URL}/concurso/atual`, contestSchema)
-    const time = contest.hora_sorteioesp || '12:00:00'
-    return {
-      id: String(contest.concurso_id_sorteioesp),
-      title: `Sorteio Especial #${contest.concurso_id_sorteioesp}`,
-      description: `${contest.qte_premios_sorteioesp} prêmios e ${contest.qtd_giros_sorteioesp} giros da sorte.`,
-      prize: contest.premio_01_sorteioesp || contest.giros_sorteioesp,
-      drawDate: new Date(`${contest.data_sorteioesp}T${time}-03:00`).toISOString(),
-      priceInCents: Math.round(contest.valor_bilhete_sorteioesp * 100),
-    }
+    const raffles = await this.getActiveRaffles()
+    const raffle = raffles[0]
+    if (!raffle) throw new DomainError('Nenhum concurso ativo encontrado.', 404, 'NO_ACTIVE_RAFFLE')
+    return raffle
   }
 
   async getAvailableTickets(raffleId: string): Promise<Ticket[]> {
@@ -104,6 +103,7 @@ export class LiveTicketGateway implements TicketGateway {
   }
 
   async fulfillOrder(order: Order) {
+    requireTicketApiTls(this.env.TICKET_API_BASE_URL)
     for (const item of order.items) {
       if (!item.validationBatch || !item.batchPosition) {
         throw new DomainError('Cartela sem dados de validação da API externa.', 502)
@@ -112,7 +112,7 @@ export class LiveTicketGateway implements TicketGateway {
         method: 'PUT',
         body: JSON.stringify({
           numero: item.code,
-          concurso_id: Number(order.raffleId),
+          concurso_id: Number(item.raffleId ?? order.raffleId),
           lote_validacao: item.validationBatch,
           estabelecimento_id: Number(this.env.TICKET_ESTABLISHMENT_ID),
           posicao_lote: item.batchPosition,
@@ -120,7 +120,6 @@ export class LiveTicketGateway implements TicketGateway {
       })
     }
   }
-
 }
 
 function mapTicket(ticket: z.infer<typeof externalTicketSchema>): Ticket {

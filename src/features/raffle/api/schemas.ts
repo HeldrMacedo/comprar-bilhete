@@ -14,8 +14,10 @@ export const raffleSchema = z.object({
   prize: z.string().min(1),
   drawDate: z.string().datetime(),
   priceInCents: z.number().int().positive(),
+  purchaseEnabled: z.boolean().optional(),
   cards: z.array(raffleCardSchema),
 })
 
 export const raffleSummarySchema = raffleSchema.omit({ cards: true })
+export const activeRafflesSchema = z.array(raffleSummarySchema)
 export const cardsSchema = z.array(raffleCardSchema)
