@@ -43,9 +43,18 @@ export async function buildApp(options: AppOptions = {}) {
   const customerGateway =
     options.customers ??
     (env.TICKET_PROVIDER === 'live'
-      ? new LiveCustomerGateway(env.TICKET_API_BASE_URL)
+      ? new LiveCustomerGateway(env.TICKET_API_BASE_URL, env.TICKET_API_ALLOW_HTTP)
       : new MockCustomerGateway())
   const customers = new CustomerService(customerGateway)
+  if (
+    env.TICKET_PROVIDER === 'live' &&
+    env.TICKET_API_ALLOW_HTTP &&
+    new URL(env.TICKET_API_BASE_URL).protocol === 'http:'
+  ) {
+    app.log.warn(
+      'TICKET_API_ALLOW_HTTP=true: CPF e telefone trafegam sem TLS até a API de bilhetes.',
+    )
+  }
   const now = options.now ?? (() => new Date())
   const service = new OrderService(
     new OrderRepository(database, now),

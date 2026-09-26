@@ -15,6 +15,7 @@ const env: ServerEnv = {
   TICKET_PROVIDER: 'mock',
   PAYMENT_PROVIDER: 'mock',
   TICKET_API_BASE_URL: 'http://66.94.99.64:9090',
+  TICKET_API_ALLOW_HTTP: false,
   TICKET_ESTABLISHMENT_ID: '4734',
   TICKET_REGIONAL_ID: '57',
   INFINITEPAY_API_BASE_URL: 'https://api.checkout.infinitepay.io',

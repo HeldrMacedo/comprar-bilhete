@@ -77,3 +77,61 @@ it('consulta concurso e cartelas por HTTP, bloqueando CPF e criação de pedido'
     vi.unstubAllGlobals()
   }
 })
+
+it('habilita compra por HTTP quando TICKET_API_ALLOW_HTTP=true', async () => {
+  const fetchMock = vi.fn().mockImplementation(
+    async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url.endsWith('/concurso/atual')
+            ? [
+                {
+                  concurso_id_sorteiocap: 2026041,
+                  data_sorteiocap: '2026-09-27',
+                  data_fim_sorteiocap: '2026-09-27 19:00:00',
+                  hora_sorteiocap: '20:00:00',
+                  qte_premios_sorteiocap: 4,
+                  qtd_giros_sorteiocap: 20,
+                  valor_bilhete_sorteiocap: 6,
+                  concurso_id_sorteioesp: 2026000,
+                },
+              ]
+            : { error: 'Pessoa não encontrada' },
+        ),
+        { status: url.endsWith('/concurso/atual') ? 200 : 404 },
+      ),
+  )
+  vi.stubGlobal('fetch', fetchMock)
+  const app = await buildApp({
+    env: parseServerEnv({
+      DATABASE_PATH: ':memory:',
+      TICKET_PROVIDER: 'live',
+      PAYMENT_PROVIDER: 'mock',
+      TICKET_API_BASE_URL: 'http://66.94.99.64:9090',
+      TICKET_API_ALLOW_HTTP: 'true',
+    }),
+    logger: false,
+    startWorker: false,
+    now: () => new Date('2026-09-25T12:00:00Z'),
+  })
+
+  try {
+    const raffles = await app.inject({ method: 'GET', url: '/api/v1/raffles/active' })
+    expect(raffles.json()).toEqual([
+      expect.objectContaining({ id: '2026041', purchaseEnabled: true }),
+    ])
+
+    const lookup = await app.inject({
+      method: 'GET',
+      url: '/api/v1/customers/lookup?cpf=52998224725',
+    })
+    expect(lookup.json()).not.toMatchObject({ code: 'TICKET_API_TLS_REQUIRED' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://66.94.99.64:9090/pessoa/cpf/52998224725',
+      expect.anything(),
+    )
+  } finally {
+    await app.close()
+    vi.unstubAllGlobals()
+  }
+})

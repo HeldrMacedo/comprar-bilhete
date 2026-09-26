@@ -30,7 +30,10 @@ const personResponseSchema = z.object({
 const mutationResponseSchema = z.object({ success: z.literal(true) }).passthrough()
 
 export class LiveCustomerGateway implements CustomerGateway {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly allowHttp = false,
+  ) {}
 
   findByCpf(cpf: string) {
     return this.find(`/pessoa/cpf/${encodeURIComponent(cpf)}`)
@@ -41,7 +44,7 @@ export class LiveCustomerGateway implements CustomerGateway {
   }
 
   async create(customer: NormalizedCustomerInput): Promise<void> {
-    requireTicketApiTls(this.baseUrl)
+    requireTicketApiTls(this.baseUrl, this.allowHttp)
     await fetchJson(`${this.baseUrl}/pessoa`, mutationResponseSchema, {
       method: 'POST',
       body: JSON.stringify({
@@ -60,7 +63,7 @@ export class LiveCustomerGateway implements CustomerGateway {
   }
 
   private async find(path: string): Promise<ExternalCustomer | null> {
-    requireTicketApiTls(this.baseUrl)
+    requireTicketApiTls(this.baseUrl, this.allowHttp)
     let response: Response
     try {
       response = await fetch(`${this.baseUrl}${path}`, {

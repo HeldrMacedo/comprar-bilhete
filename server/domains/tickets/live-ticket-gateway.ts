@@ -43,7 +43,10 @@ export class LiveTicketGateway implements TicketGateway {
     )
     return parseCurrentContests(contests, this.now()).map((raffle) => ({
       ...raffle,
-      purchaseEnabled: hasTicketApiTls(this.env.TICKET_API_BASE_URL),
+      purchaseEnabled: hasTicketApiTls(
+        this.env.TICKET_API_BASE_URL,
+        this.env.TICKET_API_ALLOW_HTTP,
+      ),
     }))
   }
 
@@ -103,7 +106,7 @@ export class LiveTicketGateway implements TicketGateway {
   }
 
   async fulfillOrder(order: Order) {
-    requireTicketApiTls(this.env.TICKET_API_BASE_URL)
+    requireTicketApiTls(this.env.TICKET_API_BASE_URL, this.env.TICKET_API_ALLOW_HTTP)
     for (const item of order.items) {
       if (!item.validationBatch || !item.batchPosition) {
         throw new DomainError('Cartela sem dados de validação da API externa.', 502)

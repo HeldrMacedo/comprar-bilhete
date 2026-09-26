@@ -10,6 +10,10 @@ const serverEnvSchema = z
     TICKET_PROVIDER: z.enum(['mock', 'live']).default('mock'),
     PAYMENT_PROVIDER: z.enum(['mock', 'infinitepay']).default('mock'),
     TICKET_API_BASE_URL: z.url().default('http://66.94.99.64:9090'),
+    TICKET_API_ALLOW_HTTP: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     TICKET_ESTABLISHMENT_ID: z.literal('4734').default('4734'),
     TICKET_REGIONAL_ID: z.literal('57').default('57'),
     INFINITEPAY_API_BASE_URL: z.url().default('https://api.checkout.infinitepay.io'),

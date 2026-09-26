@@ -32,7 +32,8 @@ export class OrderService {
   }
 
   async createOrder(input: CreateOrderInput) {
-    if (this.env.TICKET_PROVIDER === 'live') requireTicketApiTls(this.env.TICKET_API_BASE_URL)
+    if (this.env.TICKET_PROVIDER === 'live')
+      requireTicketApiTls(this.env.TICKET_API_BASE_URL, this.env.TICKET_API_ALLOW_HTTP)
     const customer = await this.customers.resolveForOrder(input.customer)
     if ('raffles' in input) return this.createGroupedOrder(input.raffles, customer)
     const raffle = await this.tickets.getActiveRaffle()
@@ -165,7 +166,8 @@ export class OrderService {
   }
 
   async createCheckout(orderId: string) {
-    if (this.env.TICKET_PROVIDER === 'live') requireTicketApiTls(this.env.TICKET_API_BASE_URL)
+    if (this.env.TICKET_PROVIDER === 'live')
+      requireTicketApiTls(this.env.TICKET_API_BASE_URL, this.env.TICKET_API_ALLOW_HTTP)
     const order = this.requireOrder(orderId)
     if (order.status !== 'pending') {
       throw new DomainError('Este pedido nao esta disponivel para pagamento.', 409)

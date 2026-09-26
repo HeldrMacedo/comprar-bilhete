@@ -5,7 +5,7 @@
 O React usa apenas `/api`, encaminhado pelo Vite ao Fastify local.
 
 - `GET /api/health` — saúde do servidor.
-- `GET /api/v1/raffles/active` — lista de concursos ativos normalizados, sem cartelas; `[]` quando ambos os blocos são ausentes ou expirados. Cada concurso inclui `purchaseEnabled`; é `false` quando a origem live usa HTTP.
+- `GET /api/v1/raffles/active` — lista de concursos ativos normalizados, sem cartelas; `[]` quando ambos os blocos são ausentes ou expirados. Cada concurso inclui `purchaseEnabled`; é `false` quando a origem live usa HTTP sem `TICKET_API_ALLOW_HTTP=true`.
 - `GET /api/v1/raffles/{id}/cards` — cartelas disponíveis normalizadas.
 - `POST /api/v1/orders` — cria pedido e reserva localmente as cartelas.
 - `POST /api/v1/orders/{id}/checkout` — cria ou reutiliza o link InfinitePay.
@@ -72,7 +72,7 @@ Auditada em 20/09/2026 contra `http://66.94.99.64:9090/swagger/doc/json`. Em uma
 
 Na amostra da nova resposta, CAP tinha ID `2026041` com sorteio em 27/09/2026 (domingo), enquanto ESP tinha ID `2026040` com sorteio em 23/09/2026 (quarta) e `data_fim_sorteioesp` já passada. O dia exibido é derivado de `data_sorteio*`, sem associar CAP/ESP a um dia fixo. Um concurso deixa de ser oferecido quando sua `data_fim_*`, incluindo o horário em `America/Fortaleza`, é atingida. A listagem de bilhetes disponíveis para ambos os IDs retornou `count: 0` no estabelecimento `4734`.
 
-A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026. O backend permite ler concursos e cartelas públicas nesse endereço, mas bloqueia consulta de CPF/telefone, criação de pedido e validação de bilhetes. É necessária uma origem HTTPS oficial antes de ativar pagamentos reais.
+A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026. O backend permite ler concursos e cartelas públicas nesse endereço, mas bloqueia consulta de CPF/telefone, criação de pedido e validação de bilhetes. Com `TICKET_API_ALLOW_HTTP=true`, o backend libera essas operações pela origem HTTP e registra um aviso no startup; CPF e telefone trafegam sem TLS entre o backend e a API de bilhetes. O padrão continua `false`.
 
 ### Leitura
 
