@@ -8,6 +8,7 @@ import type { PaymentGateway } from '../payments/payment-gateway.js'
 import type { TicketGateway } from '../tickets/ticket-gateway.js'
 import { OrderRepository, type PreparedOrderGroup } from './order-repository.js'
 import type { CreateOrderInput, Order, OrderDraft, PaymentEvent, Ticket } from './order-types.js'
+import type { TicketReservationCoordinator } from './ticket-reservation-coordinator.js'
 
 export class OrderService {
   constructor(
@@ -15,6 +16,7 @@ export class OrderService {
     private readonly tickets: TicketGateway,
     private readonly payments: PaymentGateway,
     private readonly customers: CustomerService,
+    private readonly reservations: TicketReservationCoordinator,
     private readonly env: ServerEnv,
     private readonly now: () => Date = () => new Date(),
   ) {}
@@ -59,7 +61,9 @@ export class OrderService {
 
     if (input.selection.mode === 'random') {
       const candidates = shuffle(await this.tickets.getAvailableTickets(raffle.id))
-      return this.repository.createRandom(draft, candidates, input.selection.quantity)
+      return this.holdRemotely(
+        this.repository.createRandom(draft, candidates, input.selection.quantity),
+      )
     }
 
     const requestedIds = new Set(input.selection.cardIds)
@@ -80,7 +84,7 @@ export class OrderService {
     }
 
     const order: Order = { ...draft, items }
-    return this.repository.createManual(order)
+    return this.holdRemotely(this.repository.createManual(order))
   }
 
   private async createGroupedOrder(
@@ -162,7 +166,24 @@ export class OrderService {
       createdAt: now.toISOString(),
       expiresAt: new Date(expiresAtMs).toISOString(),
     }
-    return this.repository.createGrouped(draft, groups)
+    return this.holdRemotely(this.repository.createGrouped(draft, groups))
+  }
+
+  private async holdRemotely(order: Order) {
+    const outcome = await this.reservations.acquire(order).catch((error: unknown) => {
+      this.repository.cancel(order.id)
+      throw error
+    })
+    if (outcome === 'conflict') {
+      this.repository.cancel(order.id)
+      throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
+    }
+    return order
+  }
+
+  async releaseAbandonedReservations() {
+    this.repository.expirePending()
+    return this.reservations.releaseAbandoned()
   }
 
   async createCheckout(orderId: string) {
@@ -253,9 +274,17 @@ export class OrderService {
     }
 
     try {
+      if (!(await this.reservations.confirmOwnership(order))) {
+        this.repository.markManualReview(
+          order.id,
+          'Reserva externa da cartela foi perdida antes da validacao.',
+        )
+        return
+      }
       await this.customers.ensureRegistered(order.customer)
       await this.tickets.fulfillOrder({ ...order, status: 'processing' })
       this.repository.markPaid(order.id)
+      this.reservations.markValidated(order.id)
     } catch (error) {
       this.repository.markManualReview(
         order.id,

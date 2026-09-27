@@ -4,7 +4,15 @@ import type { ServerEnv } from '../../config/env.js'
 import { MockCustomerGateway } from '../customers/mock-customer-gateway.js'
 import { MockPaymentGateway } from '../payments/mock-payment-gateway.js'
 import type { PaymentGateway } from '../payments/payment-gateway.js'
+import { createDatabase } from '../../shared/database.js'
+import { CustomerService } from '../customers/customer-service.js'
 import { MockTicketGateway } from '../tickets/mock-ticket-gateway.js'
+import { MockTicketReservationGateway } from '../tickets/mock-ticket-reservation-gateway.js'
+import type { TicketReservationGateway } from '../tickets/ticket-reservation-gateway.js'
+import { OrderRepository } from './order-repository.js'
+import { OrderService } from './order-service.js'
+import { RemoteReservationRepository } from './remote-reservation-repository.js'
+import { TicketReservationCoordinator } from './ticket-reservation-coordinator.js'
 
 const env: ServerEnv = {
   SERVER_PORT: 3333,
@@ -425,6 +433,81 @@ describe('pedido e pagamento', () => {
   })
 })
 
+describe('reserva externa do bilhete', () => {
+  const ttlMs = 30 * 60_000
+  const key = (ticketNumber: string) => ({ raffleId: 'sorteio-setembro', ticketNumber })
+
+  it('recusa cartela reservada por outro canal e desfaz as demais reservas', async () => {
+    const reservations = new MockTicketReservationGateway(ttlMs)
+    reservations.reserveFromAnotherChannel(key('card-041'))
+    const app = await buildApp({ env, reservations, logger: false, startWorker: false })
+    apps.push(app)
+
+    const conflict = await createOrder(app, { mode: 'manual', cardIds: ['card-040', 'card-041'] })
+
+    expect(conflict.statusCode).toBe(409)
+    expect(conflict.json()).toMatchObject({ code: 'TICKET_RESERVED' })
+    expect(await reservations.inspect(key('card-040'))).toMatchObject({ reserved: false })
+    const retry = await createOrder(app, { mode: 'manual', cardIds: ['card-040'] })
+    expect(retry.statusCode).toBe(201)
+  })
+
+  it('não valida o bilhete quando a reserva externa foi perdida antes do pagamento', async () => {
+    const reservations = new MockTicketReservationGateway(ttlMs)
+    const harness = await createPaymentHarness(undefined, undefined, reservations)
+    reservations.reserveFromAnotherChannel(key('card-020'))
+
+    const response = await harness.app.inject({
+      method: 'GET',
+      url: `/api/v1/orders/${harness.orderId}?transaction_nsu=mock-${harness.orderId}&slug=mock-${harness.orderId}`,
+    })
+
+    expect(response.json()).toMatchObject({ status: 'manual_review' })
+    expect(harness.fulfillOrder).not.toHaveBeenCalled()
+  })
+
+  it('valida o bilhete quando o pedido mantém a reserva externa', async () => {
+    const reservations = new MockTicketReservationGateway(ttlMs)
+    const harness = await createPaymentHarness(undefined, undefined, reservations)
+
+    const paid = await harness.app.inject({
+      method: 'GET',
+      url: `/api/v1/orders/${harness.orderId}?transaction_nsu=mock-${harness.orderId}&slug=mock-${harness.orderId}`,
+    })
+
+    expect(paid.json()).toMatchObject({ status: 'paid' })
+    expect(harness.fulfillOrder).toHaveBeenCalledTimes(1)
+  })
+
+  it('libera a reserva externa quando o pedido expira', async () => {
+    let currentTime = new Date('2026-09-23T10:00:00.000Z')
+    const now = () => currentTime
+    const database = createDatabase(':memory:')
+    const gateway = new MockTicketReservationGateway(ttlMs, now)
+    const service = new OrderService(
+      new OrderRepository(database, now),
+      new MockTicketGateway(),
+      new MockPaymentGateway(env),
+      new CustomerService(new MockCustomerGateway()),
+      new TicketReservationCoordinator(gateway, new RemoteReservationRepository(database, now)),
+      env,
+      now,
+    )
+    await service.createOrder({
+      raffleId: 'sorteio-setembro',
+      selection: { mode: 'manual', cardIds: ['card-045'] },
+      customer: existingCustomer,
+    })
+    expect(await gateway.inspect(key('card-045'))).toMatchObject({ reserved: true })
+
+    currentTime = new Date('2026-09-23T10:16:00.000Z')
+    await service.releaseAbandonedReservations()
+
+    expect(await gateway.inspect(key('card-045'))).toMatchObject({ reserved: false })
+    database.close()
+  })
+})
+
 function createOrder(
   app: Awaited<ReturnType<typeof buildApp>>,
   selection: { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number },
@@ -439,6 +522,7 @@ function createOrder(
 async function createPaymentHarness(
   now: (() => Date) | undefined = () => new Date('2026-09-23T10:00:00.000Z'),
   payments: PaymentGateway = new MockPaymentGateway(env),
+  reservations?: TicketReservationGateway,
 ) {
   const tickets = new MockTicketGateway()
   const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
@@ -446,6 +530,7 @@ async function createPaymentHarness(
     env,
     tickets,
     payments,
+    reservations,
     customers: new MockCustomerGateway(),
     now,
     logger: false,

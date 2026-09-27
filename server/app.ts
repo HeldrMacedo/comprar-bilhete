@@ -11,9 +11,15 @@ import { MockPaymentGateway } from './domains/payments/mock-payment-gateway.js'
 import type { PaymentGateway } from './domains/payments/payment-gateway.js'
 import { OrderRepository } from './domains/orders/order-repository.js'
 import { OrderService } from './domains/orders/order-service.js'
+import { RemoteReservationRepository } from './domains/orders/remote-reservation-repository.js'
+import { TicketReservationCoordinator } from './domains/orders/ticket-reservation-coordinator.js'
 import { LiveTicketGateway } from './domains/tickets/live-ticket-gateway.js'
+import { LiveTicketReservationGateway } from './domains/tickets/live-ticket-reservation-gateway.js'
 import { MockTicketGateway } from './domains/tickets/mock-ticket-gateway.js'
+import { MockTicketReservationGateway } from './domains/tickets/mock-ticket-reservation-gateway.js'
+import { NoopTicketReservationGateway } from './domains/tickets/noop-ticket-reservation-gateway.js'
 import type { TicketGateway } from './domains/tickets/ticket-gateway.js'
+import type { TicketReservationGateway } from './domains/tickets/ticket-reservation-gateway.js'
 import { registerRoutes } from './http/routes.js'
 import { createDatabase } from './shared/database.js'
 import { DomainError } from './shared/errors.js'
@@ -23,6 +29,7 @@ type AppOptions = {
   tickets?: TicketGateway
   payments?: PaymentGateway
   customers?: CustomerGateway
+  reservations?: TicketReservationGateway
   logger?: boolean
   startWorker?: boolean
   now?: () => Date
@@ -32,6 +39,7 @@ export async function buildApp(options: AppOptions = {}) {
   const env = options.env ?? parseServerEnv()
   const app = Fastify({ logger: options.logger ?? true })
   const database = createDatabase(env.DATABASE_PATH)
+  const now = options.now ?? (() => new Date())
   const tickets =
     options.tickets ??
     (env.TICKET_PROVIDER === 'live' ? new LiveTicketGateway(env) : new MockTicketGateway())
@@ -55,12 +63,22 @@ export async function buildApp(options: AppOptions = {}) {
       'TICKET_API_ALLOW_HTTP=true: CPF e telefone trafegam sem TLS até a API de bilhetes.',
     )
   }
-  const now = options.now ?? (() => new Date())
+  const reservationGateway =
+    options.reservations ??
+    (env.TICKET_RESERVATION_PROVIDER === 'live'
+      ? new LiveTicketReservationGateway(env)
+      : env.TICKET_RESERVATION_PROVIDER === 'mock'
+        ? new MockTicketReservationGateway(env.TICKET_RESERVATION_TTL_MINUTES * 60_000, now)
+        : new NoopTicketReservationGateway())
   const service = new OrderService(
     new OrderRepository(database, now),
     tickets,
     payments,
     customers,
+    new TicketReservationCoordinator(
+      reservationGateway,
+      new RemoteReservationRepository(database, now),
+    ),
     env,
     now,
   )
@@ -83,6 +101,7 @@ export async function buildApp(options: AppOptions = {}) {
   if (options.startWorker !== false) {
     worker = setInterval(() => {
       void service.processNextPaymentEvent().catch((error: unknown) => app.log.error(error))
+      void service.releaseAbandonedReservations().catch((error: unknown) => app.log.error(error))
     }, 5_000)
     worker.unref()
   }
