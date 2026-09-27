@@ -80,16 +80,19 @@ A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026.
 - `GET /bilhete/disponiveis?concurso_id=&estabelecimento_id=&pagina=`.
 - `GET /pessoa/cpf/{cpf}`.
 
+Os campos `reservado`, `data_reservado` e `validado` são opcionais na listagem e na consulta por número. Quando presentes, cartelas validadas ou com reserva dentro de `TICKET_RESERVATION_TTL_MINUTES` não são oferecidas.
+
 O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, com o concurso 2026041 ativo, `/bilhete/disponiveis` devolveu itens com `numero`, `lote_validacao: ""`, `posicao_lote: 0` e as dezenas em `dezenas` como texto separado por `|` (por exemplo, `"3|6|16"`), além de `dezenas2`, `numero2` e `identificacao`. O provider aceita `posicao_lote` zero e lê as dezenas de `numeros` (array) ou de `dezenas`. `dezenas2` (dupla chance) ainda não é exibido. `/bilhete/disponivel/numero` devolve o item em `bilhete` (não em `data`), com `encontrado` e `disponivel`; `disponivel: false` é tratado como indisponível, e bilhete não distribuído responde `404`.
 
 ### Escrita
 
 - `POST /pessoa` com `nome`, `cpf` e `fone` — formato ainda precisa de validação live.
 - `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API.
+- `PUT /bilhete/reservado` e `GET /bilhete/reservado?concurso_id=&numero=&estabelecimento_id=` — **provisório, ainda não publicado**. Reserva com `reservado: true` e recebe `data_reservado` (token); libera com `reservado: false` e o `data_reservado` recebido. `409` indica cartela já reservada/validada ou token que não é o dono. Contrato detalhado em [design-docs/2026-09-27-concorrencia-reserva-bilhete.md](design-docs/2026-09-27-concorrencia-reserva-bilhete.md).
 
 ## Limitações conhecidas
 
 - O estabelecimento é fixo em `4734` para a regional `57`; a API de bilhetes recebe `estabelecimento_id`, não `id_regional`.
 - Não havia concurso/cartela ativa em 25/09/2026 para validar o formato dos itens.
-- A API externa não oferece reserva com expiração nem venda atômica de várias cartelas.
+- A reserva externa em `bilhete.reservado` está implementada no backend e desligada (`TICKET_RESERVATION_PROVIDER=none`) até a API de bilhetes publicar os endpoints. Não há venda atômica de várias cartelas; o backend compensa reservas parciais.
 - Uma falha após pagamento coloca o pedido em `manual_review`; operação precisa reconciliar entrega ou estorno.

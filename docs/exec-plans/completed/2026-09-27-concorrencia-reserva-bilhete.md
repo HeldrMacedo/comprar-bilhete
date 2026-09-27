@@ -134,7 +134,7 @@ Regra de prazo: `TICKET_RESERVATION_TTL_MINUTES` (padrão 30) precisa ser maior 
 
 - Produz: `ServerEnv['TICKET_RESERVATION_PROVIDER']: 'none' | 'mock' | 'live'` e `ServerEnv['TICKET_RESERVATION_TTL_MINUTES']: number`.
 
-- [ ] **Passo 1: testes que falham** — acrescentar ao fim de `server/config/env.test.ts`:
+- [x] **Passo 1: testes que falham** — acrescentar ao fim de `server/config/env.test.ts`:
 
 ```ts
 it('mantém a reserva externa desligada por padrão', () => {
@@ -162,9 +162,9 @@ it('exige prazo da reserva externa maior que a expiração do pedido', () => {
 })
 ```
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/config/env.test.ts`. Esperado: FAIL (`TICKET_RESERVATION_PROVIDER` indefinido).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/config/env.test.ts`. Esperado: FAIL (`TICKET_RESERVATION_PROVIDER` indefinido).
 
-- [ ] **Passo 3: implementar** — em `server/config/env.ts`, após `TICKET_REGIONAL_ID`:
+- [x] **Passo 3: implementar** — em `server/config/env.ts`, após `TICKET_REGIONAL_ID`:
 
 ```ts
     TICKET_RESERVATION_PROVIDER: z.enum(['none', 'mock', 'live']).default('none'),
@@ -210,9 +210,9 @@ TICKET_RESERVATION_PROVIDER=none
 TICKET_RESERVATION_TTL_MINUTES=30
 ```
 
-- [ ] **Passo 4: confirmar sucesso** — `npx vitest run server/config/env.test.ts server/domains/orders/order-service.test.ts`. Esperado: PASS.
+- [x] **Passo 4: confirmar sucesso** — `npx vitest run server/config/env.test.ts server/domains/orders/order-service.test.ts`. Esperado: PASS.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/config/env.ts server/config/env.test.ts server/domains/orders/order-service.test.ts .env.example
@@ -241,7 +241,7 @@ git commit -m "feat: configurar provider de reserva externa de bilhetes"
   - `class NoopTicketReservationGateway`
   - `class MockTicketReservationGateway(ttlMs: number, now?: () => Date)` com `reserveFromAnotherChannel(key): void` para testes.
 
-- [ ] **Passo 1: teste que falha** — `server/domains/tickets/mock-ticket-reservation-gateway.test.ts`:
+- [x] **Passo 1: teste que falha** — `server/domains/tickets/mock-ticket-reservation-gateway.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -281,9 +281,9 @@ describe('MockTicketReservationGateway', () => {
 })
 ```
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/mock-ticket-reservation-gateway.test.ts`. Esperado: FAIL (módulo inexistente).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/mock-ticket-reservation-gateway.test.ts`. Esperado: FAIL (módulo inexistente).
 
-- [ ] **Passo 3: implementar**
+- [x] **Passo 3: implementar**
 
 `server/domains/tickets/ticket-reservation-gateway.ts`:
 
@@ -396,9 +396,9 @@ function leaseId(key: TicketReservationKey) {
 }
 ```
 
-- [ ] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS.
+- [x] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/domains/tickets/ticket-reservation-gateway.ts server/domains/tickets/noop-ticket-reservation-gateway.ts server/domains/tickets/mock-ticket-reservation-gateway.ts server/domains/tickets/mock-ticket-reservation-gateway.test.ts
@@ -420,7 +420,7 @@ git commit -m "feat: porta de reserva externa de bilhetes com providers none e m
 - Consome: tipos da Tarefa 2; `ServerEnv` da Tarefa 1.
 - Produz: `class LiveTicketReservationGateway(env: ServerEnv)`; `bitSchema` (Zod, saída `boolean`); `parseTicketApiDateTime(value: string): number` (epoch ms, `NaN` se inválido).
 
-- [ ] **Passo 1: teste que falha** — `server/domains/tickets/live-ticket-reservation-gateway.test.ts`:
+- [x] **Passo 1: teste que falha** — `server/domains/tickets/live-ticket-reservation-gateway.test.ts`:
 
 ```ts
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -542,9 +542,9 @@ describe('LiveTicketReservationGateway', () => {
 })
 ```
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/live-ticket-reservation-gateway.test.ts`. Esperado: FAIL (módulo inexistente).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/live-ticket-reservation-gateway.test.ts`. Esperado: FAIL (módulo inexistente).
 
-- [ ] **Passo 3: implementar**
+- [x] **Passo 3: implementar**
 
 `server/domains/tickets/ticket-api-fields.ts`:
 
@@ -677,9 +677,9 @@ function upstreamError() {
 }
 ```
 
-- [ ] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS.
+- [x] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/domains/tickets/ticket-api-fields.ts server/domains/tickets/live-ticket-reservation-gateway.ts server/domains/tickets/live-ticket-reservation-gateway.test.ts
@@ -705,7 +705,7 @@ git commit -m "feat: provider live de reserva de bilhetes com contrato provisór
   - `RemoteReservationRepository(database, now)` com `recordHeld(orderId, key, token)`, `listHeld(orderId): HeldReservation[]`, `hasAny(orderId): boolean`, `listAbandoned(limit): HeldReservation[]`, `mark(reservation, status: 'released' | 'lost')`, `markReleaseFailed(reservation, message)`, `markOrderValidated(orderId)`.
   - `OrderRepository.cancel(orderId): void` e `OrderRepository.expirePending(): void`.
 
-- [ ] **Passo 1: testes que falham** — em `server/shared/database.test.ts`:
+- [x] **Passo 1: testes que falham** — em `server/shared/database.test.ts`:
   - trocar as asserções `user_version: 3` por `user_version: 4` e o título `'creates an empty database at schema version 3'` por `'... version 4'`;
   - importar `RemoteReservationRepository` de `'../domains/orders/remote-reservation-repository.js'`;
   - acrescentar:
@@ -768,9 +768,9 @@ describe('RemoteReservationRepository', () => {
 })
 ```
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/shared/database.test.ts`. Esperado: FAIL (`user_version` 3 e módulo inexistente).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/shared/database.test.ts`. Esperado: FAIL (`user_version` 3 e módulo inexistente).
 
-- [ ] **Passo 3: implementar**
+- [x] **Passo 3: implementar**
 
 Em `server/shared/database-migrations.ts`:
 
@@ -949,9 +949,9 @@ Em `server/domains/orders/order-repository.ts`, após `markManualReview`:
 
 e trocar `private expirePending()` por `expirePending()`.
 
-- [ ] **Passo 4: confirmar sucesso** — `npx vitest run server/shared/database.test.ts`. Esperado: PASS.
+- [x] **Passo 4: confirmar sucesso** — `npx vitest run server/shared/database.test.ts`. Esperado: PASS.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/shared/database-migrations.ts server/shared/database.test.ts server/domains/orders/remote-reservation-repository.ts server/domains/orders/order-repository.ts
@@ -977,7 +977,7 @@ git commit -m "feat: persistir reservas externas de bilhetes (schema v4)"
   - `releaseOrder(orderId: string): Promise<void>`;
   - `releaseAbandoned(limit?: number): Promise<number>`.
 
-- [ ] **Passo 1: teste que falha** — `server/domains/orders/ticket-reservation-coordinator.test.ts`:
+- [x] **Passo 1: teste que falha** — `server/domains/orders/ticket-reservation-coordinator.test.ts`:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
@@ -1082,9 +1082,9 @@ describe('TicketReservationCoordinator', () => {
 })
 ```
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/domains/orders/ticket-reservation-coordinator.test.ts`. Esperado: FAIL (módulo inexistente).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/orders/ticket-reservation-coordinator.test.ts`. Esperado: FAIL (módulo inexistente).
 
-- [ ] **Passo 3: implementar** — `server/domains/orders/ticket-reservation-coordinator.ts`:
+- [x] **Passo 3: implementar** — `server/domains/orders/ticket-reservation-coordinator.ts`:
 
 ```ts
 import type {
@@ -1172,9 +1172,9 @@ function reservationKeys(order: Order): TicketReservationKey[] {
 }
 ```
 
-- [ ] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS.
+- [x] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/domains/orders/ticket-reservation-coordinator.ts server/domains/orders/ticket-reservation-coordinator.test.ts
@@ -1196,7 +1196,7 @@ git commit -m "feat: coordenar reserva externa, compensação e liberação de b
 - Consome: `TicketReservationCoordinator` (Tarefa 5), providers (Tarefas 2–3), `OrderRepository.cancel`/`expirePending` (Tarefa 4).
 - Produz: `new OrderService(repository, tickets, payments, customers, reservations, env, now)`; `OrderService.releaseAbandonedReservations(): Promise<number>`; `AppOptions.reservations?: TicketReservationGateway`.
 
-- [ ] **Passo 1: testes que falham** — em `server/domains/orders/order-service.test.ts`:
+- [x] **Passo 1: testes que falham** — em `server/domains/orders/order-service.test.ts`:
   - novos imports:
 
 ```ts
@@ -1292,9 +1292,9 @@ describe('reserva externa do bilhete', () => {
 
 Observação: os testes de pagamento usam o redirect (`?transaction_nsu=&slug=`) para reconciliar sem worker, como o primeiro teste do arquivo. Se `existingCustomer` não satisfizer o tipo de `CreateOrderInput`, declare-o com `satisfies CreateOrderInput['customer']`.
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/domains/orders/order-service.test.ts`. Esperado: FAIL (opção `reservations` ignorada e construtor com aridade diferente).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/orders/order-service.test.ts`. Esperado: FAIL (opção `reservations` ignorada e construtor com aridade diferente).
 
-- [ ] **Passo 3: implementar**
+- [x] **Passo 3: implementar**
 
 `server/domains/orders/order-service.ts`:
 
@@ -1393,9 +1393,9 @@ worker = setInterval(() => {
 }, 5_000)
 ```
 
-- [ ] **Passo 4: confirmar sucesso** — `npx vitest run server`. Esperado: PASS em todos, incluindo os testes antigos de pedido (provider `none`).
+- [x] **Passo 4: confirmar sucesso** — `npx vitest run server`. Esperado: PASS em todos, incluindo os testes antigos de pedido (provider `none`).
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/domains/orders/order-service.ts server/domains/orders/order-service.test.ts server/app.ts
@@ -1416,7 +1416,7 @@ git commit -m "feat: travar bilhete na API externa ao criar pedido e conferir po
 - Consome: `bitSchema`, `parseTicketApiDateTime` (Tarefa 3); `TICKET_RESERVATION_TTL_MINUTES` (Tarefa 1).
 - Produz: sem mudança de assinatura; `getAvailableTickets`/`getAvailableTicket` passam a omitir cartelas indisponíveis.
 
-- [ ] **Passo 1: teste que falha** — acrescentar ao `describe('LiveTicketGateway')`:
+- [x] **Passo 1: teste que falha** — acrescentar ao `describe('LiveTicketGateway')`:
 
 ```ts
 it('omite cartelas validadas ou com reserva externa dentro do prazo', async () => {
@@ -1463,9 +1463,9 @@ it('omite cartelas validadas ou com reserva externa dentro do prazo', async () =
 })
 ```
 
-- [ ] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/live-ticket-gateway.test.ts`. Esperado: FAIL (retorna as 4 cartelas).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/live-ticket-gateway.test.ts`. Esperado: FAIL (retorna as 4 cartelas).
 
-- [ ] **Passo 3: implementar** — em `server/domains/tickets/live-ticket-gateway.ts`:
+- [x] **Passo 3: implementar** — em `server/domains/tickets/live-ticket-gateway.ts`:
 - importar `{ bitSchema, parseTicketApiDateTime }` de `'./ticket-api-fields.js'`;
 - no `z.object` de `externalTicketSchema`, após `dezenas`:
 
@@ -1491,9 +1491,9 @@ it('omite cartelas validadas ou com reserva externa dentro do prazo', async () =
 
 Data inválida gera `NaN`, a comparação falha e a cartela fica oculta (lado seguro).
 
-- [ ] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS, inclusive os testes antigos (campos ausentes não filtram nada).
+- [x] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS, inclusive os testes antigos (campos ausentes não filtram nada).
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add server/domains/tickets/live-ticket-gateway.ts server/domains/tickets/live-ticket-gateway.test.ts
@@ -1509,19 +1509,19 @@ git commit -m "feat: ocultar cartelas reservadas ou validadas na listagem live"
 - Criar: `docs/design-docs/2026-09-27-concorrencia-reserva-bilhete.md`
 - Modificar: `docs/API_CONTRACTS.md`, `docs/BACKEND.md`, `docs/exec-plans/tech-debt-tracker.md`, este plano (Progresso/Validação)
 
-- [ ] **Passo 1: design doc** — status "aceito"; copiar as seções "Técnica de concorrência" e "Decisões" deste plano, em forma resumida (decisão, motivo, alternativas descartadas, contrato pedido à API de bilhetes com os SQL).
+- [x] **Passo 1: design doc** — status "aceito"; copiar as seções "Técnica de concorrência" e "Decisões" deste plano, em forma resumida (decisão, motivo, alternativas descartadas, contrato pedido à API de bilhetes com os SQL).
 
-- [ ] **Passo 2: `docs/API_CONTRACTS.md`**
+- [x] **Passo 2: `docs/API_CONTRACTS.md`**
   - em "Escrita", acrescentar: "`PUT /bilhete/reservado` e `GET /bilhete/reservado` — **provisório, ainda não publicado**. Reserva com `reservado: true`; libera com `reservado: false` e `data_reservado` (token). `409` indica cartela já reservada/validada ou token que não é o dono. Contrato detalhado em `docs/design-docs/2026-09-27-concorrencia-reserva-bilhete.md`.";
   - em "Leitura", registrar que `reservado`, `data_reservado` e `validado` são opcionais na listagem e, quando presentes, ocultam a cartela;
   - em "Limitações conhecidas", trocar "A API externa não oferece reserva com expiração..." por "Reserva externa implementada no backend e desligada (`TICKET_RESERVATION_PROVIDER=none`) até a API de bilhetes publicar os endpoints."
 
-- [ ] **Passo 3: `docs/BACKEND.md`**
+- [x] **Passo 3: `docs/BACKEND.md`**
   - no "Fluxo de pagamento", passo 2: "Persiste pedido e reservas com unicidade no SQLite e trava cada cartela na API de bilhetes (`reservado`), desfazendo tudo em conflito.";
   - passo 6: "Confere que a trava externa ainda pertence ao pedido; depois cadastra/consulta pessoa e valida cada cartela (`validado`).";
   - reescrever "Limitação da API externa": enquanto o provider for `none`, outro canal ainda pode vender a cartela entre seleção e pagamento (pedido pago vai para revisão manual); com `live`, a trava condicional em `reservado` elimina esse risco dentro do prazo `TICKET_RESERVATION_TTL_MINUTES`.
 
-- [ ] **Passo 4: dívida técnica** — em `docs/exec-plans/tech-debt-tracker.md`, substituir a linha "API externa não reserva nem vende lote atomicamente" e acrescentar:
+- [x] **Passo 4: dívida técnica** — em `docs/exec-plans/tech-debt-tracker.md`, substituir a linha "API externa não reserva nem vende lote atomicamente" e acrescentar:
 
 ```markdown
 | Endpoint de reserva em `bilhete.reservado` não publicado | reserva externa desligada (`none`) | API publicar `PUT`/`GET` com update condicional; ajustar `RESERVATION_PATH` e ativar `live` |
@@ -1530,9 +1530,9 @@ git commit -m "feat: ocultar cartelas reservadas ou validadas na listagem live"
 | Surpresinha não troca cartela em conflito externo | cliente precisa tentar de novo | medir frequência de `TICKET_RESERVED` em surpresinha |
 ```
 
-- [ ] **Passo 5: verificação** — rodar `npm run check` e `npm run test:e2e`. Esperado: ambos passam. Registrar resultado em "Validação" abaixo.
+- [x] **Passo 5: verificação** — rodar `npm run check` e `npm run test:e2e`. Esperado: ambos passam. Registrar resultado em "Validação" abaixo.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add docs/
@@ -1551,8 +1551,11 @@ git commit -m "docs: registrar concorrência na reserva de bilhetes"
 
 ## Progresso
 
-- 2026-09-27: plano criado; nenhuma tarefa executada.
+- 2026-09-27: plano criado e aprovado.
+- 2026-09-27: tarefas 1 a 8 executadas na branch `feat/concorrencia-reserva-bilhete`, um commit por tarefa. Provider padrão `none`; ativação `live` pendente da API de bilhetes (ver "Ativação" e rastreador de dívida).
 
 ## Validação
 
-- Pendente.
+- 2026-09-27: `npm run lint`, `validate:architecture`, `validate:docs`, `npm test` (22 arquivos, 111 testes) e `npm run build` passaram.
+- 2026-09-27: `npm run format` continua falhando por 13 arquivos que já estavam fora do padrão no `main` antes deste trabalho; os arquivos criados ou alterados aqui estão formatados.
+- 2026-09-27: `npm run test:e2e` passou (10 testes, chromium e mobile).

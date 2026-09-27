@@ -16,13 +16,11 @@ const heldRowsSchema = z.array(
       ticket_number: z.string(),
       token: z.string(),
     })
-    .transform(
-      (row): HeldReservation => ({
-        orderId: row.order_id,
-        key: { raffleId: row.raffle_id, ticketNumber: row.ticket_number },
-        token: row.token,
-      }),
-    ),
+    .transform((row): HeldReservation => ({
+      orderId: row.order_id,
+      key: { raffleId: row.raffle_id, ticketNumber: row.ticket_number },
+      token: row.token,
+    })),
 )
 
 // held: trava remota ativa; released/lost: trava liberada ou tomada por outro canal;
