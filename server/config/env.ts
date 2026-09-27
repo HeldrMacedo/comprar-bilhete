@@ -16,6 +16,8 @@ const serverEnvSchema = z
       .transform((value) => value === 'true'),
     TICKET_ESTABLISHMENT_ID: z.literal('4734').default('4734'),
     TICKET_REGIONAL_ID: z.literal('57').default('57'),
+    TICKET_RESERVATION_PROVIDER: z.enum(['none', 'mock', 'live']).default('none'),
+    TICKET_RESERVATION_TTL_MINUTES: z.coerce.number().int().positive().default(30),
     INFINITEPAY_API_BASE_URL: z.url().default('https://api.checkout.infinitepay.io'),
     INFINITEPAY_HANDLE: z.string().min(1).optional(),
   })
@@ -25,6 +27,23 @@ const serverEnvSchema = z
         code: 'custom',
         path: ['INFINITEPAY_HANDLE'],
         message: 'é obrigatório quando PAYMENT_PROVIDER=infinitepay',
+      })
+    }
+    if (env.TICKET_RESERVATION_PROVIDER === 'live' && env.TICKET_PROVIDER !== 'live') {
+      context.addIssue({
+        code: 'custom',
+        path: ['TICKET_RESERVATION_PROVIDER'],
+        message: 'live exige TICKET_PROVIDER=live',
+      })
+    }
+    if (
+      env.TICKET_RESERVATION_PROVIDER !== 'none' &&
+      env.TICKET_RESERVATION_TTL_MINUTES <= env.ORDER_EXPIRATION_MINUTES
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['TICKET_RESERVATION_TTL_MINUTES'],
+        message: 'deve ser maior que ORDER_EXPIRATION_MINUTES',
       })
     }
   })

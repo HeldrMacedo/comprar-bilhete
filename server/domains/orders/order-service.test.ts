@@ -18,6 +18,8 @@ const env: ServerEnv = {
   TICKET_API_ALLOW_HTTP: false,
   TICKET_ESTABLISHMENT_ID: '4734',
   TICKET_REGIONAL_ID: '57',
+  TICKET_RESERVATION_PROVIDER: 'none',
+  TICKET_RESERVATION_TTL_MINUTES: 30,
   INFINITEPAY_API_BASE_URL: 'https://api.checkout.infinitepay.io',
 }
 
