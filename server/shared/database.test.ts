@@ -11,6 +11,7 @@ import {
   ticket,
 } from '../domains/orders/order-test-fixtures.js'
 import { paymentEventSchema } from '../domains/orders/order-types.js'
+import { RemoteReservationRepository } from '../domains/orders/remote-reservation-repository.js'
 import { createDatabase } from './database.js'
 
 const temporaryDirectories: string[] = []
@@ -23,10 +24,10 @@ afterEach(() => {
 })
 
 describe('database migrations', () => {
-  it('creates an empty database at schema version 3', () => {
+  it('creates an empty database at schema version 4', () => {
     const database = createDatabase(':memory:')
 
-    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 3 })
+    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 4 })
     expect(database.prepare('PRAGMA table_info(orders)').all()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'selection_mode' }),
@@ -100,7 +101,7 @@ describe('database migrations', () => {
 
     const upgraded = createDatabase(path)
 
-    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 3 })
+    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 4 })
     expect(upgraded.prepare('SELECT * FROM orders').get()).toMatchObject({
       id: '00000000-0000-4000-8000-000000000001',
       selection_mode: 'manual',
@@ -217,6 +218,62 @@ describe('OrderRepository payment evidence', () => {
       paid_amount_in_cents: 1000,
       capture_method: 'pix',
     })
+    database.close()
+  })
+})
+
+describe('RemoteReservationRepository', () => {
+  const key = (ticketNumber: string) => ({ raffleId: 'sorteio-setembro', ticketNumber })
+
+  it('cria a tabela de reservas externas', () => {
+    const database = createDatabase(':memory:')
+
+    expect(database.prepare('PRAGMA table_info(remote_reservations)').all()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'token' }),
+        expect.objectContaining({ name: 'status' }),
+        expect.objectContaining({ name: 'last_error' }),
+      ]),
+    )
+    database.close()
+  })
+
+  it('lista para liberação somente reservas externas de pedidos cancelados ou expirados', () => {
+    const database = createDatabase(':memory:')
+    const orders = new OrderRepository(database, reservationTime)
+    const remote = new RemoteReservationRepository(database, reservationTime)
+    const active = order({ items: [ticket('card-001')] })
+    const cancelled = order({
+      id: '00000000-0000-4000-8000-000000000002',
+      items: [ticket('card-002')],
+    })
+    orders.createManual(active)
+    orders.createManual(cancelled)
+    remote.recordHeld(active.id, key('card-001'), 't1')
+    remote.recordHeld(cancelled.id, key('card-002'), 't2')
+
+    orders.cancel(cancelled.id)
+
+    expect(remote.listAbandoned(10)).toEqual([
+      { orderId: cancelled.id, key: key('card-002'), token: 't2' },
+    ])
+    expect(orders.isReserved('sorteio-setembro:card-002')).toBe(false)
+    expect(orders.get(cancelled.id)?.status).toBe('cancelled')
+    database.close()
+  })
+
+  it('marca como validadas as reservas externas do pedido pago', () => {
+    const database = createDatabase(':memory:')
+    const orders = new OrderRepository(database, reservationTime)
+    const remote = new RemoteReservationRepository(database, reservationTime)
+    const paid = order({ items: [ticket('card-003')] })
+    orders.createManual(paid)
+    remote.recordHeld(paid.id, key('card-003'), 't3')
+
+    remote.markOrderValidated(paid.id)
+
+    expect(remote.listHeld(paid.id)).toEqual([])
+    expect(remote.hasAny(paid.id)).toBe(true)
     database.close()
   })
 })

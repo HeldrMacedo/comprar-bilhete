@@ -186,6 +186,17 @@ export class OrderRepository {
       .run(message.slice(0, 500), orderId)
   }
 
+  cancel(orderId: string) {
+    this.withReservationTransaction(() => {
+      const result = this.database
+        .prepare("UPDATE orders SET status = 'cancelled' WHERE id = ? AND status = 'pending'")
+        .run(orderId)
+      if (result.changes === 1) {
+        this.database.prepare('DELETE FROM reservations WHERE order_id = ?').run(orderId)
+      }
+    })
+  }
+
   enqueuePaymentEvent(event: PaymentEvent) {
     const result = this.database
       .prepare(
@@ -293,7 +304,7 @@ export class OrderRepository {
     }
   }
 
-  private expirePending() {
+  expirePending() {
     this.database.exec('BEGIN IMMEDIATE')
     try {
       this.expirePendingWithinTransaction(this.now().toISOString())

@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 3
+const CURRENT_SCHEMA_VERSION = 4
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -24,6 +24,7 @@ export function migrateDatabase(database: DatabaseSync) {
     } else {
       if (version < 2) migrateToVersion2(database)
       if (version < 3) migrateToVersion3(database)
+      if (version < 4) migrateToVersion4(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -82,6 +83,7 @@ function createLatestSchema(database: DatabaseSync) {
     CREATE UNIQUE INDEX idx_payment_events_reference
       ON payment_events(transaction_nsu, invoice_slug);
   `)
+  database.exec(REMOTE_RESERVATIONS_SCHEMA)
 }
 
 function migrateToVersion2(database: DatabaseSync) {
@@ -144,6 +146,26 @@ function migrateToVersion3(database: DatabaseSync) {
       ON payment_events(transaction_nsu, invoice_slug)
       WHERE transaction_nsu IS NOT NULL AND invoice_slug IS NOT NULL;
   `)
+}
+
+const REMOTE_RESERVATIONS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS remote_reservations (
+    order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    raffle_id TEXT NOT NULL,
+    ticket_number TEXT NOT NULL,
+    token TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'held',
+    last_error TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (order_id, raffle_id, ticket_number)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_remote_reservations_status
+    ON remote_reservations(status, updated_at);
+`
+
+function migrateToVersion4(database: DatabaseSync) {
+  database.exec(REMOTE_RESERVATIONS_SCHEMA)
 }
 
 function tableColumns(database: DatabaseSync, table: string) {
