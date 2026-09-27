@@ -80,7 +80,7 @@ A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026.
 - `GET /bilhete/disponiveis?concurso_id=&estabelecimento_id=&pagina=`.
 - `GET /pessoa/cpf/{cpf}`.
 
-O valor do bilhete chega em reais e é convertido para centavos. O provider live espera nos itens de bilhete `numero`, `lote_validacao`, `posicao_lote` e `numeros`; esse formato ainda precisa ser confirmado com um concurso ativo.
+O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, com o concurso 2026041 ativo, `/bilhete/disponiveis` devolveu itens com `numero`, `lote_validacao: ""`, `posicao_lote: 0` e as dezenas em `dezenas` como texto separado por `|` (por exemplo, `"3|6|16"`), além de `dezenas2`, `numero2` e `identificacao`. O provider aceita `posicao_lote` zero e lê as dezenas de `numeros` (array) ou de `dezenas`. `dezenas2` (dupla chance) ainda não é exibido. `/bilhete/disponivel/numero` devolve o item em `bilhete` (não em `data`), com `encontrado` e `disponivel`; `disponivel: false` é tratado como indisponível, e bilhete não distribuído responde `404`.
 
 ### Escrita
 

@@ -120,7 +120,7 @@ export function HomePage() {
           <Spinner label="Buscando o sorteio..." />
         </div>
       ) : raffles.length === 0 ? (
-        <div style={{ width: '100%', backgroundColor: '#18dcff' }}>
+        <div className="empty-raffles-banner">
           <section
             className="container page-section"
             role={raffleQuery.isError ? 'alert' : 'status'}

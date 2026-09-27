@@ -7,22 +7,43 @@ import type { Order, Ticket } from '../orders/order-types.js'
 import { currentContestsEnvelopeSchema, parseCurrentContests } from './current-contests.js'
 import type { Raffle, TicketGateway } from './ticket-gateway.js'
 
-const externalTicketSchema = z.object({
-  numero: z.union([z.string(), z.number()]).transform(String),
-  lote_validacao: z.union([z.string(), z.number()]).transform(String),
-  posicao_lote: z.coerce.number().int().positive(),
-  numeros: z.array(z.coerce.number().int().positive()).default([]),
-})
+const pipedNumbersSchema = z
+  .string()
+  .transform((value) => value.split('|').filter(Boolean).map(Number))
+  .pipe(z.array(z.number().int().positive()))
+
+const externalTicketSchema = z
+  .object({
+    numero: z.union([z.string(), z.number()]).transform(String),
+    lote_validacao: z.union([z.string(), z.number()]).transform(String),
+    posicao_lote: z.coerce.number().int().nonnegative(),
+    numeros: z.array(z.coerce.number().int().positive()).optional(),
+    dezenas: pipedNumbersSchema.optional(),
+  })
+  .transform(({ numeros, dezenas, ...ticket }) => ({
+    ...ticket,
+    numeros: numeros ?? dezenas ?? [],
+  }))
 
 const availableResponseSchema = z.object({
   success: z.literal(true),
   data: z.array(externalTicketSchema),
 })
 
-const availableTicketResponseSchema = z.object({
-  success: z.literal(true),
-  data: z.union([externalTicketSchema, z.tuple([externalTicketSchema]).rest(externalTicketSchema)]),
-})
+const availableTicketResponseSchema = z.union([
+  z.object({
+    success: z.literal(true),
+    disponivel: z.boolean(),
+    bilhete: externalTicketSchema,
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.union([
+      externalTicketSchema,
+      z.tuple([externalTicketSchema]).rest(externalTicketSchema),
+    ]),
+  }),
+])
 
 const mutationResponseSchema = z
   .object({
@@ -101,6 +122,9 @@ export class LiveTicketGateway implements TicketGateway {
       )
     }
 
+    if ('bilhete' in parsed.data) {
+      return parsed.data.disponivel ? mapTicket(parsed.data.bilhete) : null
+    }
     const ticket = Array.isArray(parsed.data.data) ? parsed.data.data[0] : parsed.data.data
     return mapTicket(ticket)
   }
@@ -125,7 +149,7 @@ export class LiveTicketGateway implements TicketGateway {
   }
 }
 
-function mapTicket(ticket: z.infer<typeof externalTicketSchema>): Ticket {
+function mapTicket(ticket: z.output<typeof externalTicketSchema>): Ticket {
   return {
     id: ticket.numero,
     code: ticket.numero,

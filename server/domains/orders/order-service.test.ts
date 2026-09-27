@@ -130,6 +130,31 @@ describe('pedido e pagamento', () => {
     })
   })
 
+  it('reserva cartela manual com posição de lote zero, como a API de bilhetes informa', async () => {
+    const tickets = new MockTicketGateway()
+    const original = tickets.getAvailableTicket.bind(tickets)
+    tickets.getAvailableTicket = async (raffleId, ticketId) => {
+      const ticket = await original(raffleId, ticketId)
+      return ticket && { ...ticket, validationBatch: '', batchPosition: 0 }
+    }
+    const app = await buildApp({ env, tickets, logger: false, startWorker: false })
+    apps.push(app)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: {
+        raffles: [
+          { raffleId: 'sorteio-setembro', selection: { mode: 'manual', cardIds: ['card-001'] } },
+        ],
+        customer: existingCustomer,
+      },
+    })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({ items: [{ id: 'card-001' }] })
+  })
+
   it('aloca no backend a quantidade solicitada na surpresinha', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)

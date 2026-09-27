@@ -15,7 +15,7 @@ export const ticketSchema = z.object({
   raffleTitle: z.string().min(1).optional(),
   unitPriceInCents: z.number().int().positive().optional(),
   validationBatch: z.string().optional(),
-  batchPosition: z.number().int().positive().optional(),
+  batchPosition: z.number().int().nonnegative().optional(),
 })
 
 export const orderStatusSchema = z.enum([

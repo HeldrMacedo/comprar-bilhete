@@ -152,6 +152,49 @@ describe('LiveTicketGateway', () => {
     expect(url.searchParams.has('id_regional')).toBe(false)
   })
 
+  it('accepts the observed listing format with zero batch position and piped numbers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: true,
+            concurso_id: 2026041,
+            estabelecimento_id: 4734,
+            count: 1,
+            data: [
+              {
+                concurso_id: 2026041,
+                identificacao: '60410080001-22',
+                posicao_lote: 0,
+                online: 1,
+                dezenas: '3|6|16|20|22|24|26|28|31|34|37|41|46|52|54',
+                dezenas2: '6|17|20|30|31|34|37|40|41|42|48|50|54|57|59',
+                numero: '80001',
+                numero2: '257662',
+                lote_validacao: '',
+                data_sorteio: '2026-09-27',
+                valor: 6.0,
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const gateway = new LiveTicketGateway(liveEnv)
+
+    await expect(gateway.getAvailableTickets('2026041')).resolves.toEqual([
+      {
+        id: '80001',
+        code: '80001',
+        numbers: [3, 6, 16, 20, 22, 24, 26, 28, 31, 34, 37, 41, 46, 52, 54],
+        validationBatch: '',
+        batchPosition: 0,
+      },
+    ])
+  })
+
   it('loads a manual ticket through the exact-number endpoint', async () => {
     const fetchMock = vi
       .fn()
@@ -174,6 +217,61 @@ describe('LiveTicketGateway', () => {
     expect(url.searchParams.get('estabelecimento_id')).toBe('4734')
     expect(url.searchParams.get('numero')).toBe('000123')
     expect(url.searchParams.has('id_regional')).toBe(false)
+  })
+
+  it('reads the observed exact-number format under bilhete', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: true,
+            encontrado: true,
+            disponivel: true,
+            message: 'Bilhete encontrado com sucesso',
+            bilhete: {
+              concurso_id: 2026041,
+              identificacao: '60410080001-22',
+              posicao_lote: 0,
+              dezenas: '3|6|16',
+              numero: '80001',
+              lote_validacao: '',
+              valor: 6.0,
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const gateway = new LiveTicketGateway(liveEnv)
+
+    await expect(gateway.getAvailableTicket('2026041', '80001')).resolves.toEqual({
+      id: '80001',
+      code: '80001',
+      numbers: [3, 6, 16],
+      validationBatch: '',
+      batchPosition: 0,
+    })
+  })
+
+  it('maps an exact ticket reported as unavailable to null', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: true,
+            encontrado: true,
+            disponivel: false,
+            bilhete: { numero: '80001', lote_validacao: '', posicao_lote: 0, dezenas: '3|6|16' },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const gateway = new LiveTicketGateway(liveEnv)
+
+    await expect(gateway.getAvailableTicket('2026041', '80001')).resolves.toBeNull()
   })
 
   it('maps an exact-ticket 404 to null', async () => {
