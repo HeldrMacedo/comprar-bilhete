@@ -5,6 +5,7 @@ import { hasTicketApiTls, requireTicketApiTls } from '../../shared/ticket-api-tl
 import type { ServerEnv } from '../../config/env.js'
 import type { Order, Ticket } from '../orders/order-types.js'
 import { currentContestsEnvelopeSchema, parseCurrentContests } from './current-contests.js'
+import { bitSchema, parseTicketApiDateTime } from './ticket-api-fields.js'
 import type { Raffle, TicketGateway } from './ticket-gateway.js'
 
 const pipedNumbersSchema = z
@@ -19,6 +20,9 @@ const externalTicketSchema = z
     posicao_lote: z.coerce.number().int().nonnegative(),
     numeros: z.array(z.coerce.number().int().positive()).optional(),
     dezenas: pipedNumbersSchema.optional(),
+    reservado: bitSchema.optional(),
+    data_reservado: z.string().nullable().optional(),
+    validado: bitSchema.optional(),
   })
   .transform(({ numeros, dezenas, ...ticket }) => ({
     ...ticket,
@@ -88,7 +92,7 @@ export class LiveTicketGateway implements TicketGateway {
       `${this.env.TICKET_API_BASE_URL}/bilhete/disponiveis?${query.toString()}`,
       availableResponseSchema,
     )
-    return response.data.map(mapTicket)
+    return response.data.filter((ticket) => this.isOffered(ticket)).map(mapTicket)
   }
 
   async getAvailableTicket(raffleId: string, ticketId: string): Promise<Ticket | null> {
@@ -123,10 +127,20 @@ export class LiveTicketGateway implements TicketGateway {
     }
 
     if ('bilhete' in parsed.data) {
-      return parsed.data.disponivel ? mapTicket(parsed.data.bilhete) : null
+      return parsed.data.disponivel && this.isOffered(parsed.data.bilhete)
+        ? mapTicket(parsed.data.bilhete)
+        : null
     }
     const ticket = Array.isArray(parsed.data.data) ? parsed.data.data[0] : parsed.data.data
-    return mapTicket(ticket)
+    return this.isOffered(ticket) ? mapTicket(ticket) : null
+  }
+
+  private isOffered(ticket: z.output<typeof externalTicketSchema>) {
+    if (ticket.validado) return false
+    if (!ticket.reservado) return true
+    if (!ticket.data_reservado) return false
+    const reservedFor = this.now().getTime() - parseTicketApiDateTime(ticket.data_reservado)
+    return reservedFor >= this.env.TICKET_RESERVATION_TTL_MINUTES * 60_000
   }
 
   async fulfillOrder(order: Order) {

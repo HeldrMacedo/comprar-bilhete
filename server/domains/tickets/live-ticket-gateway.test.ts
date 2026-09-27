@@ -195,6 +195,43 @@ describe('LiveTicketGateway', () => {
     ])
   })
 
+  it('omite cartelas validadas ou com reserva externa dentro do prazo', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                ...externalTicket,
+                numero: '000001',
+                reservado: 1,
+                data_reservado: '2026-09-27 09:50:00',
+                validado: 0,
+              },
+              {
+                ...externalTicket,
+                numero: '000002',
+                reservado: 1,
+                data_reservado: '2026-09-27 09:00:00',
+                validado: 0,
+              },
+              { ...externalTicket, numero: '000003', reservado: 0, data_reservado: null, validado: 1 },
+              { ...externalTicket, numero: '000004' },
+            ],
+          }),
+        ),
+      ),
+    )
+    // 10:00 em America/Fortaleza; prazo padrão de 30 minutos.
+    const gateway = new LiveTicketGateway(liveEnv, () => new Date('2026-09-27T13:00:00.000Z'))
+
+    const tickets = await gateway.getAvailableTickets('2026041')
+
+    expect(tickets.map(({ id }) => id)).toEqual(['000002', '000004'])
+  })
+
   it('loads a manual ticket through the exact-number endpoint', async () => {
     const fetchMock = vi
       .fn()
