@@ -10,3 +10,5 @@ test-results/
 *.log
 data/
 .DS_Store
+.kilo
+.qodo
