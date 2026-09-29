@@ -8,6 +8,8 @@ export type CartContextValue = {
   totalInCents: number
   setSelections: (entries: Array<{ raffle: Raffle; selection: CartSelection }>) => void
   removeCard: (raffleId: string, cardId: string) => void
+  decreaseRandomQuantity: (raffleId: string) => void
+  removeEntry: (raffleId: string) => void
   clearCart: () => void
 }
 

@@ -26,7 +26,9 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 - Uma compra de dois sorteios gera um carrinho, um pedido, reservas atômicas e um pagamento; cada cartela conserva seu concurso e preço.
 - Conflito de reserva (`409`) devolve o usuário à seleção com mensagem clara.
 - Parâmetros de retorno da InfinitePay não comprovam pagamento; são apenas identificadores.
-- Busca de cliente é feita pelo backend em `GET /api/v1/customers/lookup`; o navegador não chama a API de bilhetes.
+- Busca de cliente é feita pelo backend em `GET /api/v1/customers/lookup`, somente por CPF; o navegador não chama a API de bilhetes. CPF e celular aparecem primeiro no formulário, e o celular é obrigatório mesmo sem ser critério de busca.
+- Compra para terceiro: ao marcar "Estou comprando para outra pessoa", o formulário pede o nome de quem vai concorrer. O cadastro (`pessoa`) continua sendo do comprador; o bilhete recebe o `pessoas_id` do comprador e o nome do terceiro. Sem a opção, o bilhete recebe o nome do comprador.
+- "Minhas compras" (`/minhas-compras`) lista os pedidos feitos no site para um CPF com valor, método de pagamento, data, status, cartelas e dezenas, comprovante e, se pendente, o link para pagar. O CPF pode ser digitado no cabeçalho, ao lado do carrinho, ou na própria página, e nunca vai para a URL. A tela de retorno do pagamento leva a essa página. `manual_review` aparece como "Em análise", nunca como pago.
 - Surpresinha envia apenas quantidade; o backend atribui e reserva IDs de cartelas em transação.
 - Menores de 18 anos não podem participar.
 
@@ -34,6 +36,7 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 
 - Funciona em 360 px e desktop, por mouse e teclado.
 - Mantém carrinho ao recarregar a página.
+- Esvazia o carrinho assim que o pedido é criado e o comprador é enviado ao pagamento; a partir daí o pedido no backend é a fonte da compra. Pedido expirado ou cancelado exige nova escolha de cartelas.
 - Possui estados de carregamento, vazio, erro, aguardando, pago e expirado.
 - Nenhum segredo fica no bundle.
 - Respostas de API fora do contrato falham de forma segura.

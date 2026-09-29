@@ -23,3 +23,14 @@ export function presentOrder(order: Order) {
         : undefined,
   }
 }
+
+// Resumo para "Minhas compras": nunca inclui nome, telefone, endereço ou nome do terceiro.
+export function presentPurchase(order: Order) {
+  return {
+    ...presentOrder(order),
+    createdAt: order.createdAt,
+    paidAt: order.paidAt,
+    paymentMethod: order.captureMethod,
+    checkoutUrl: order.status === 'pending' ? order.checkoutUrl : undefined,
+  }
+}

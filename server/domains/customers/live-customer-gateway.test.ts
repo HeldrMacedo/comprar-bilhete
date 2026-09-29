@@ -18,7 +18,7 @@ describe('LiveCustomerGateway', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('normalizes a person returned by phone', async () => {
+  it('normalizes a person returned by CPF', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -48,7 +48,7 @@ describe('LiveCustomerGateway', () => {
 
     const gateway = new LiveCustomerGateway('https://tickets.test')
 
-    await expect(gateway.findByPhone('84999855367')).resolves.toEqual({
+    await expect(gateway.findByCpf('52998224725')).resolves.toEqual({
       externalId: '2015',
       name: 'MARIA DA SILVA',
       cpf: '52998224725',
@@ -92,7 +92,7 @@ describe('LiveCustomerGateway', () => {
 
     const gateway = new LiveCustomerGateway('https://tickets.test')
 
-    await expect(gateway.findByPhone('84999855367')).resolves.toEqual({
+    await expect(gateway.findByCpf('52998224725')).resolves.toEqual({
       externalId: '2015',
       name: 'MARIA DA SILVA',
       cpf: '',

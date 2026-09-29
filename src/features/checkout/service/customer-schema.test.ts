@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createCustomerSchema } from './customer-schema'
+import { createCustomerSchema, toCheckoutCustomer } from './customer-schema'
 
 const base = {
   name: 'Cliente Novo',
@@ -24,5 +24,31 @@ describe('createCustomerSchema', () => {
         },
       }).success,
     ).toBe(true)
+  })
+
+  it('exige o nome do terceiro somente quando marcado', () => {
+    expect(
+      createCustomerSchema(false).safeParse({ ...base, buyingForThirdParty: true }).success,
+    ).toBe(false)
+    expect(
+      createCustomerSchema(false).safeParse({
+        ...base,
+        buyingForThirdParty: true,
+        beneficiaryName: 'João Terceiro',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('envia o nome do terceiro somente quando a opção está marcada', () => {
+    expect(
+      toCheckoutCustomer({ ...base, buyingForThirdParty: false, beneficiaryName: 'Ignorado' }),
+    ).toEqual(base)
+    expect(
+      toCheckoutCustomer({
+        ...base,
+        buyingForThirdParty: true,
+        beneficiaryName: ' João Terceiro ',
+      }),
+    ).toEqual({ ...base, beneficiaryName: 'João Terceiro' })
   })
 })

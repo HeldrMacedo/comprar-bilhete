@@ -22,7 +22,6 @@ function createGateway(records: ExternalCustomer[]) {
   const create = vi.fn<(customer: CustomerInput) => Promise<void>>().mockResolvedValue(undefined)
   const gateway: CustomerGateway = {
     findByCpf: async (cpf) => records.find((item) => item.cpf === cpf) ?? null,
-    findByPhone: async (phone) => records.find((item) => item.phone === phone) ?? null,
     create,
   }
   return { gateway, create }
@@ -38,16 +37,7 @@ describe('CustomerService', () => {
     })
   })
 
-  it('returns an existing customer found by phone', async () => {
-    const service = new CustomerService(createGateway([maria]).gateway)
-
-    await expect(service.lookup({ phone: maria.phone })).resolves.toEqual({
-      found: true,
-      customer: maria,
-    })
-  })
-
-  it('resolves matching CPF and phone to canonical external data', async () => {
+  it('resolves an existing CPF to canonical external data', async () => {
     const service = new CustomerService(createGateway([maria]).gateway)
 
     const result = await service.resolveForOrder({
@@ -62,8 +52,8 @@ describe('CustomerService', () => {
     })
   })
 
-  it('keeps submitted required data when the external customer omits it', async () => {
-    const incomplete = { ...maria, cpf: '' }
+  it('keeps the submitted phone when the external customer omits it', async () => {
+    const incomplete = { ...maria, phone: '' }
     const service = new CustomerService(createGateway([incomplete]).gateway)
 
     await expect(
@@ -81,13 +71,25 @@ describe('CustomerService', () => {
     })
   })
 
-  it('rejects CPF and phone owned by different people', async () => {
-    const other = { ...maria, externalId: '2020', cpf: '11144477735' }
-    const service = new CustomerService(createGateway([maria, other]).gateway)
+  it('ignores the phone when resolving the customer', async () => {
+    const service = new CustomerService(createGateway([maria]).gateway)
 
     await expect(
-      service.resolveForOrder({ name: 'Cliente', cpf: other.cpf, phone: maria.phone }),
-    ).rejects.toMatchObject({ statusCode: 409, code: 'CUSTOMER_CONFLICT' })
+      service.resolveForOrder({ name: 'Cliente', cpf: maria.cpf, phone: '84999998888' }),
+    ).resolves.toMatchObject({ externalId: maria.externalId, registrationStatus: 'existing' })
+  })
+
+  it('keeps the beneficiary name for a purchase made for someone else', async () => {
+    const service = new CustomerService(createGateway([maria]).gateway)
+
+    await expect(
+      service.resolveForOrder({
+        name: maria.name,
+        cpf: maria.cpf,
+        phone: maria.phone,
+        beneficiaryName: 'João Terceiro',
+      }),
+    ).resolves.toMatchObject({ name: maria.name, beneficiaryName: 'João Terceiro' })
   })
 
   it('requires a complete address for a new person', async () => {
@@ -117,18 +119,26 @@ describe('CustomerService', () => {
     })
   })
 
-  it('registers only a new customer', async () => {
-    const { gateway, create } = createGateway([])
+  it('registers only a new customer and returns its external id', async () => {
+    const records: ExternalCustomer[] = []
+    const { gateway, create } = createGateway(records)
+    create.mockImplementation(async (customer) => {
+      records.push({ ...customer, externalId: '3030' })
+    })
     const service = new CustomerService(gateway)
 
-    await service.ensureRegistered({ ...maria, registrationStatus: 'existing' })
-    await service.ensureRegistered({
-      name: 'Cliente Novo',
-      cpf: '11144477735',
-      phone: '84999998888',
-      address: maria.address,
-      registrationStatus: 'new',
-    })
+    await expect(
+      service.ensureRegistered({ ...maria, registrationStatus: 'existing' }),
+    ).resolves.toMatchObject({ externalId: maria.externalId })
+    await expect(
+      service.ensureRegistered({
+        name: 'Cliente Novo',
+        cpf: '11144477735',
+        phone: '84999998888',
+        address: maria.address,
+        registrationStatus: 'new',
+      }),
+    ).resolves.toMatchObject({ externalId: '3030' })
 
     expect(create).toHaveBeenCalledTimes(1)
     expect(create).toHaveBeenCalledWith({
@@ -137,5 +147,23 @@ describe('CustomerService', () => {
       phone: '84999998888',
       address: maria.address,
     })
+  })
+
+  it('reuses a person registered by a previous attempt', async () => {
+    const { gateway, create } = createGateway([
+      { ...maria, externalId: '4040', cpf: '11144477735' },
+    ])
+    const service = new CustomerService(gateway)
+
+    await expect(
+      service.ensureRegistered({
+        name: 'Cliente Novo',
+        cpf: '11144477735',
+        phone: '84999998888',
+        address: maria.address,
+        registrationStatus: 'new',
+      }),
+    ).resolves.toMatchObject({ externalId: '4040' })
+    expect(create).not.toHaveBeenCalled()
   })
 })

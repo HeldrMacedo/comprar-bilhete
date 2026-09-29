@@ -5,9 +5,11 @@
 O React usa apenas `/api`, encaminhado pelo Vite ao Fastify local.
 
 - `GET /api/health` — saúde do servidor.
+- `GET /api/v1/customers/lookup?cpf=` — consulta cadastro somente por CPF (11 dígitos); telefone não é critério de busca.
 - `GET /api/v1/raffles/active` — lista de concursos ativos normalizados, sem cartelas; `[]` quando ambos os blocos são ausentes ou expirados. Cada concurso inclui `purchaseEnabled`; é `false` quando a origem live usa HTTP sem `TICKET_API_ALLOW_HTTP=true`.
 - `GET /api/v1/raffles/{id}/cards` — cartelas disponíveis normalizadas.
 - `POST /api/v1/orders` — cria pedido e reserva localmente as cartelas.
+- `POST /api/v1/orders/lookup` — "Minhas compras": recebe `{ "cpf": "52998224725" }` no corpo e devolve `{ "orders": [...] }` com até 20 pedidos do CPF, do mais recente ao mais antigo. Cada pedido traz os campos públicos do pedido mais `createdAt`, `paidAt`, `paymentMethod` (`capture_method` da InfinitePay, por exemplo `pix`) e `checkoutUrl` apenas quando `pending`. Nunca devolve nome, telefone, endereço nem `beneficiaryName`. Limite de 10 consultas por minuto por IP (`429 RATE_LIMITED`).
 - `POST /api/v1/orders/{id}/checkout` — cria ou reutiliza o link InfinitePay.
 - `GET /api/v1/orders/{id}` — consulta status seguro do pedido.
 - `GET /api/v1/orders/{id}?transaction_nsu=&slug=` — reconcilia o redirect na InfinitePay.
@@ -24,10 +26,15 @@ Entrada de pedido com um ou dois concursos:
   "customer": {
     "name": "Maria da Silva",
     "cpf": "52998224725",
-    "phone": "84999855367"
+    "phone": "84999855367",
+    "beneficiaryName": "João Terceiro"
   }
 }
 ```
+
+`customer` é sempre o comprador: nome, CPF, telefone (obrigatório) e endereço formam o cadastro
+em `pessoa`. `beneficiaryName` é opcional e só é enviado quando a compra é para outra pessoa;
+ele não cria cadastro, apenas define o `nome` gravado no bilhete.
 
 O formato anterior para um concurso continua aceito:
 
@@ -78,7 +85,7 @@ A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026.
 
 - `GET /concurso/atual` e `GET /concurso/{id}`.
 - `GET /bilhete/disponiveis?concurso_id=&estabelecimento_id=&pagina=`.
-- `GET /pessoa/cpf/{cpf}`.
+- `GET /pessoa/cpf/{cpf}` — única consulta de pessoa usada pelo backend.
 
 Os campos `reservado`, `data_reservado` e `validado` são opcionais na listagem e na consulta por número. Quando presentes, cartelas validadas ou com reserva dentro de `TICKET_RESERVATION_TTL_MINUTES` não são oferecidas.
 
@@ -87,7 +94,7 @@ O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, 
 ### Escrita
 
 - `POST /pessoa` com `nome`, `cpf` e `fone` — formato ainda precisa de validação live.
-- `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API.
+- `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API. O backend envia também `pessoas_id` (ID do comprador em `pessoa`) e `nome` (`beneficiaryName` quando a compra é para terceiro; senão o nome do comprador), campos opcionais segundo o swagger. Para cliente novo, o backend cadastra a pessoa após o pagamento e relê `GET /pessoa/cpf/{cpf}` para obter `pessoas_id`, pois a resposta de `POST /pessoa` não documenta o ID.
 - `PUT /bilhete/reservado` e `GET /bilhete/reservado?concurso_id=&numero=&estabelecimento_id=` — **provisório, ainda não publicado**. Reserva com `reservado: true` e recebe `data_reservado` (token); libera com `reservado: false` e o `data_reservado` recebido. `409` indica cartela já reservada/validada ou token que não é o dono. Contrato detalhado em [design-docs/2026-09-27-concorrencia-reserva-bilhete.md](design-docs/2026-09-27-concorrencia-reserva-bilhete.md).
 
 ## Limitações conhecidas

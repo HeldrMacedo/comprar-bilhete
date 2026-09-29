@@ -4,16 +4,11 @@ import { onlyDigits } from '../../../shared/lib/forms'
 import type { CustomerRepository, LookupCriteria } from '../domain/types'
 import { customerRepository } from '../repository/customer-repository'
 
-type NormalizedLookup = { cpf: string } | { phone: string }
-
 export function createUseCustomerLookup(repository: CustomerRepository) {
   return function useCustomerLookup(criteria: LookupCriteria) {
-    const { cpf, phone } = criteria
-    const normalized = useMemo(
-      () => normalizeCriteria({ cpf, phone }),
-      [cpf, phone],
-    )
-    const [debounced, setDebounced] = useState<NormalizedLookup | null>(null)
+    const { cpf } = criteria
+    const normalized = useMemo(() => normalizeCriteria({ cpf }), [cpf])
+    const [debounced, setDebounced] = useState<LookupCriteria | null>(null)
 
     useEffect(() => {
       setDebounced(null)
@@ -33,10 +28,7 @@ export function createUseCustomerLookup(repository: CustomerRepository) {
 
 export const useCustomerLookup = createUseCustomerLookup(customerRepository)
 
-function normalizeCriteria(criteria: LookupCriteria): NormalizedLookup | null {
-  const cpf = onlyDigits(criteria.cpf ?? '')
-  if (cpf.length === 11) return { cpf }
-  const phone = onlyDigits(criteria.phone ?? '')
-  if (phone.length === 10 || phone.length === 11) return { phone }
-  return null
+function normalizeCriteria(criteria: LookupCriteria): LookupCriteria | null {
+  const cpf = onlyDigits(criteria.cpf)
+  return cpf.length === 11 ? { cpf } : null
 }

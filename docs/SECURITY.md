@@ -10,6 +10,7 @@
 - Variáveis `VITE_*` são públicas. Handle pode ser configuração pública, mas credenciais e controles ficam no backend.
 - Não logue payloads de cliente no console ou em telemetria.
 - Webhook não é prova suficiente por si só: o backend reconcilia `order_nsu`, transação, slug e valor em `payment_check`.
+- "Minhas compras" identifica o comprador só pelo CPF, que não é segredo: a resposta omite dados pessoais, o CPF trafega no corpo de um `POST` (fora de URL, histórico e logs de acesso) e há limite de 10 consultas por minuto por IP. Em produção atrás de proxy, configure `trustProxy` do Fastify para o limite usar o IP real do cliente.
 - CPF/telefone ficam no SQLite do servidor; proteja arquivo, backups e volume de produção com acesso mínimo e retenção definida.
 - URLs de redirect/webhook vêm da configuração do servidor, nunca de entrada arbitrária do navegador. A criação de pedido é sempre proxied pelo backend; credenciais InfinitePay não ficam em `VITE_*`.
 

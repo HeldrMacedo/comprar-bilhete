@@ -38,10 +38,10 @@ describe('useCustomerLookup', () => {
     const second = deferred<CustomerLookupResult>()
     const lookup = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
     const repository: CustomerRepository = { lookup }
-    const rendered = renderLookup({ cpf: '52998224725', phone: '' }, repository)
+    const rendered = renderLookup({ cpf: '52998224725' }, repository)
     await waitFor(() => expect(lookup).toHaveBeenCalledTimes(1), { timeout: 1_000 })
 
-    rendered.rerender({ criteria: { cpf: '', phone: '84999855367' } })
+    rendered.rerender({ criteria: { cpf: '11144477735' } })
     await waitFor(() => expect(lookup).toHaveBeenCalledTimes(2), { timeout: 1_000 })
     second.resolve({ found: true, customer: maria })
     await waitFor(() => expect(rendered.result.current.data).toMatchObject({ customer: maria }))
@@ -51,8 +51,15 @@ describe('useCustomerLookup', () => {
 
   it('does not query incomplete identifiers', async () => {
     const lookup = vi.fn()
-    renderLookup({ cpf: '529', phone: '' }, { lookup })
+    renderLookup({ cpf: '529' }, { lookup })
     await new Promise((resolve) => setTimeout(resolve, 450))
     expect(lookup).not.toHaveBeenCalled()
+  })
+
+  it('consulta somente pelo CPF', async () => {
+    const lookup = vi.fn().mockResolvedValue({ found: false })
+    renderLookup({ cpf: '529.982.247-25' }, { lookup })
+    await waitFor(() => expect(lookup).toHaveBeenCalledTimes(1), { timeout: 1_000 })
+    expect(lookup).toHaveBeenCalledWith({ cpf: '52998224725' }, expect.anything())
   })
 })

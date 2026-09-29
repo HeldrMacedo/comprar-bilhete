@@ -2,10 +2,7 @@ import { requestJson } from '../../../shared/api/http-client'
 import { apiRoutes } from '../../../shared/config/api-routes'
 import { env } from '../../../shared/config/env'
 import { customerLookupSchema } from '../api/schemas'
-import type {
-  CustomerRepository,
-  ExternalCustomer,
-} from '../domain/types'
+import type { CustomerRepository, ExternalCustomer } from '../domain/types'
 
 const mockMaria: ExternalCustomer = {
   externalId: '2015',
@@ -23,7 +20,7 @@ const liveCustomerRepository: CustomerRepository = {
 const mockCustomerRepository: CustomerRepository = {
   async lookup(criteria) {
     await new Promise((resolve) => window.setTimeout(resolve, 250))
-    if (criteria.cpf === mockMaria.cpf || criteria.phone === mockMaria.phone) {
+    if (criteria.cpf === mockMaria.cpf) {
       return { found: true, customer: structuredClone(mockMaria) }
     }
     return { found: false }

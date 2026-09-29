@@ -39,10 +39,6 @@ export class LiveCustomerGateway implements CustomerGateway {
     return this.find(`/pessoa/cpf/${encodeURIComponent(cpf)}`)
   }
 
-  findByPhone(phone: string) {
-    return this.find(`/pessoa/fone/${encodeURIComponent(phone)}`)
-  }
-
   async create(customer: NormalizedCustomerInput): Promise<void> {
     requireTicketApiTls(this.baseUrl, this.allowHttp)
     await fetchJson(`${this.baseUrl}/pessoa`, mutationResponseSchema, {

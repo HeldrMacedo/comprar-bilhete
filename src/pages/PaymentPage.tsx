@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Clock3, ExternalLink, House, RotateCw, XCircle } from 'lucide-react'
+import { Check, Clock3, ExternalLink, House, ReceiptText, RotateCw, XCircle } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCart } from '../features/cart/runtime/cart-context'
@@ -66,6 +66,9 @@ export function PaymentPage() {
             Ver comprovante <ExternalLink size={17} />
           </a>
         ) : null}
+        <Link className="button button--secondary" to="/minhas-compras">
+          <ReceiptText size={18} /> Ver minhas compras
+        </Link>
         <Link className="button button--primary" to="/">
           <House size={18} /> Voltar ao início
         </Link>
@@ -81,8 +84,11 @@ export function PaymentPage() {
         </div>
         <h1>Este pagamento não foi concluído</h1>
         <p>O pedido expirou ou foi cancelado. Suas cartelas não foram cobradas.</p>
-        <Link className="button button--primary" to="/carrinho">
-          Tentar novamente
+        <Link className="button button--primary" to="/">
+          Escolher cartelas novamente
+        </Link>
+        <Link className="button button--secondary" to="/minhas-compras">
+          <ReceiptText size={18} /> Ver minhas compras
         </Link>
       </section>
     )
@@ -118,6 +124,9 @@ export function PaymentPage() {
       >
         <RotateCw size={17} className={orderQuery.isFetching ? 'spin' : ''} /> Verificar agora
       </button>
+      <Link className="text-button" to="/minhas-compras">
+        Acompanhar em Minhas compras
+      </Link>
       {searchParams.get('demo') === 'true' ? (
         <small className="demo-note">
           Modo demonstração: a confirmação ocorre após alguns segundos.

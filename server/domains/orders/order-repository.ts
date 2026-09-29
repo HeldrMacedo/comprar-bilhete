@@ -121,6 +121,19 @@ export class OrderRepository {
     return row ? mapOrder(row as OrderRow) : null
   }
 
+  listByCustomerCpf(cpf: string, limit: number) {
+    this.expirePending()
+    const rows = this.database
+      .prepare(
+        `SELECT * FROM orders
+         WHERE json_extract(customer_json, '$.cpf') = ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(cpf, limit)
+    return rows.map((row) => mapOrder(row as OrderRow))
+  }
+
   isReserved(ticketKey: string) {
     return (
       this.database.prepare('SELECT 1 FROM reservations WHERE ticket_key = ?').get(ticketKey) !==

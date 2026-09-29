@@ -42,7 +42,7 @@ export async function buildApp(options: AppOptions = {}) {
   const now = options.now ?? (() => new Date())
   const tickets =
     options.tickets ??
-    (env.TICKET_PROVIDER === 'live' ? new LiveTicketGateway(env) : new MockTicketGateway())
+    (env.TICKET_PROVIDER === 'live' ? new LiveTicketGateway(env, now) : new MockTicketGateway())
   const payments =
     options.payments ??
     (env.PAYMENT_PROVIDER === 'infinitepay'

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, ChevronRight, Dices, ShieldCheck, Ticket } from 'lucide-react'
+import { CalendarDays, ChevronRight, Dices, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { CartSelection } from '../features/cart/domain/types'
@@ -25,8 +25,8 @@ function selectedQuantity(raffle: Raffle, draft: SelectionDraft) {
   return draft.mode === 'random'
     ? Math.min(draft.quantity, availableCount)
     : draft.manualSelection.filter((selected) =>
-        raffle.cards.some((card) => card.id === selected.id && card.available),
-      ).length
+      raffle.cards.some((card) => card.id === selected.id && card.available),
+    ).length
 }
 
 export function HomePage() {
@@ -68,11 +68,11 @@ export function HomePage() {
           draft.mode === 'random'
             ? { mode: 'random', quantity: selectedQuantity(raffle, draft) }
             : {
-                mode: 'manual',
-                cards: draft.manualSelection.filter((selected) =>
-                  raffle.cards.some((card) => card.id === selected.id && card.available),
-                ),
-              }
+              mode: 'manual',
+              cards: draft.manualSelection.filter((selected) =>
+                raffle.cards.some((card) => card.id === selected.id && card.available),
+              ),
+            }
         return { raffle, selection }
       }),
     )
@@ -192,6 +192,7 @@ export function HomePage() {
                   >
                     <Dices size={20} /> Escolha aleatória
                   </button>
+                  {/*}
                   <button
                     role="tab"
                     aria-selected={draft.mode === 'manual'}
@@ -200,6 +201,7 @@ export function HomePage() {
                   >
                     <Ticket size={20} /> Escolher cartelas
                   </button>
+                  */}
                 </div>
 
                 {draft.mode === 'random' ? (

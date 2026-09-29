@@ -203,6 +203,10 @@ export class OrderService {
     return this.requireOrder(orderId)
   }
 
+  listOrdersByCpf(cpf: string) {
+    return this.repository.listByCustomerCpf(cpf, 20)
+  }
+
   acceptWebhook(event: PaymentEvent) {
     const order = this.requireOrder(event.order_nsu)
     if (order.status === 'paid') return
@@ -281,8 +285,8 @@ export class OrderService {
         )
         return
       }
-      await this.customers.ensureRegistered(order.customer)
-      await this.tickets.fulfillOrder({ ...order, status: 'processing' })
+      const customer = await this.customers.ensureRegistered(order.customer)
+      await this.tickets.fulfillOrder({ ...order, customer, status: 'processing' })
       this.repository.markPaid(order.id)
       this.reservations.markValidated(order.id)
     } catch (error) {

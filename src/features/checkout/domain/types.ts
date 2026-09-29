@@ -13,9 +13,10 @@ export type Customer = {
   cpf: string
   phone: string
   address?: Address
+  beneficiaryName?: string
 }
 
-export type LookupCriteria = { cpf?: string; phone?: string }
+export type LookupCriteria = { cpf: string }
 
 export type ExternalCustomer = Customer & { externalId: string }
 

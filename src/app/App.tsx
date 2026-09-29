@@ -6,6 +6,7 @@ import { CartPage } from '../pages/CartPage'
 import { HomePage } from '../pages/HomePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { PaymentPage } from '../pages/PaymentPage'
+import { PurchasesPage } from '../pages/PurchasesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +24,7 @@ export function App() {
               <Route index element={<HomePage />} />
               <Route path="carrinho" element={<CartPage />} />
               <Route path="pagamento" element={<PaymentPage />} />
+              <Route path="minhas-compras" element={<PurchasesPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

@@ -1,14 +1,13 @@
 export const apiRoutes = {
-  customerLookup(criteria: { cpf?: string; phone?: string }) {
-    const query = new URLSearchParams()
-    if (criteria.cpf) query.set('cpf', criteria.cpf)
-    if (criteria.phone) query.set('phone', criteria.phone)
+  customerLookup(criteria: { cpf: string }) {
+    const query = new URLSearchParams({ cpf: criteria.cpf })
     return `/v1/customers/lookup?${query.toString()}`
   },
   activeRaffle: '/v1/raffles/active',
   availableCards: (raffleId: string) =>
     `/v1/raffles/${encodeURIComponent(raffleId)}/cards?status=available`,
   createOrder: '/v1/orders',
+  purchaseLookup: '/v1/orders/lookup',
   createCheckout: (orderId: string) => `/v1/orders/${encodeURIComponent(orderId)}/checkout`,
   order: (orderId: string, paymentReference?: { transactionNsu: string; slug: string }) => {
     const path = `/v1/orders/${encodeURIComponent(orderId)}`

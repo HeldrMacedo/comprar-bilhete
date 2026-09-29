@@ -67,7 +67,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
           })
           return entries.length ? { entries } : null
         }),
-      clearCart: () => setCart(null),
+      decreaseRandomQuantity: (raffleId) =>
+        setCart((current) => {
+          if (!current) return current
+          return {
+            entries: current.entries.map((entry) =>
+              entry.raffleId === raffleId && entry.selection.mode === 'random'
+                ? {
+                    ...entry,
+                    selection: {
+                      mode: 'random' as const,
+                      quantity: Math.max(1, entry.selection.quantity - 1),
+                    },
+                  }
+                : entry,
+            ),
+          }
+        }),
+      removeEntry: (raffleId) =>
+        setCart((current) => {
+          if (!current) return current
+          const entries = current.entries.filter((entry) => entry.raffleId !== raffleId)
+          return entries.length ? { entries } : null
+        }),
+      clearCart: () => {
+        // Remove já do armazenamento: a página pode ser descarregada antes do efeito rodar.
+        localStorage.removeItem(storageKey)
+        setCart(null)
+      },
     }),
     [cart],
   )

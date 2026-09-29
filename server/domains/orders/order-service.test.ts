@@ -378,12 +378,15 @@ describe('pedido e pagamento', () => {
     expect(harness.fulfillOrder).not.toHaveBeenCalled()
   })
 
-  it('cadastra cliente novo somente apos pagamento verificado', async () => {
+  it('cadastra cliente novo somente apos pagamento verificado e vincula o bilhete ao terceiro', async () => {
     const customers = new MockCustomerGateway()
     const createCustomer = vi.spyOn(customers, 'create')
+    const tickets = new MockTicketGateway()
+    const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
     const app = await buildApp({
       env,
       customers,
+      tickets,
       logger: false,
       startWorker: false,
       now: () => new Date('2026-09-23T10:00:00.000Z'),
@@ -399,6 +402,7 @@ describe('pedido e pagamento', () => {
           name: 'Cliente Novo',
           cpf: '11144477735',
           phone: '84999998888',
+          beneficiaryName: 'Joao Terceiro',
           address: {
             zipCode: '59062300',
             street: 'Avenida Lima e Silva',
@@ -430,6 +434,12 @@ describe('pedido e pagamento', () => {
     })
 
     await vi.waitFor(() => expect(createCustomer).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(fulfillOrder).toHaveBeenCalledTimes(1))
+    expect(fulfillOrder.mock.calls[0]?.[0].customer).toMatchObject({
+      name: 'Cliente Novo',
+      externalId: 'mock-2',
+      beneficiaryName: 'Joao Terceiro',
+    })
   })
 })
 

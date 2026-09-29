@@ -66,6 +66,40 @@ describe('LiveTicketGateway', () => {
     expect(contestIds).toEqual([2026040, 2026041])
   })
 
+  it.each([
+    { beneficiaryName: undefined, expectedName: 'Maria da Silva' },
+    { beneficiaryName: 'João Terceiro', expectedName: 'João Terceiro' },
+  ])(
+    'vincula o bilhete à pessoa e grava o nome $expectedName',
+    async ({ beneficiaryName, expectedName }) => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(
+          async () => new Response(JSON.stringify({ success: true }), { status: 200 }),
+        )
+      vi.stubGlobal('fetch', fetchMock)
+      const gateway = new LiveTicketGateway(liveEnv)
+      const base = order()
+
+      await gateway.fulfillOrder({ ...base, customer: { ...base.customer, beneficiaryName } })
+
+      const options = z.object({ body: z.string() }).parse(fetchMock.mock.calls[0]?.[1])
+      expect(JSON.parse(options.body)).toMatchObject({ pessoas_id: 2015, nome: expectedName })
+    },
+  )
+
+  it('não valida cartela sem pessoa cadastrada', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new LiveTicketGateway(liveEnv)
+    const base = order()
+
+    await expect(
+      gateway.fulfillOrder({ ...base, customer: { ...base.customer, externalId: undefined } }),
+    ).rejects.toMatchObject({ statusCode: 502, code: 'CUSTOMER_NOT_REGISTERED' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('loads both current contests and ignores a 000 sentinel', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

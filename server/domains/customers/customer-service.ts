@@ -14,34 +14,13 @@ export class CustomerService {
   constructor(private readonly gateway: CustomerGateway) {}
 
   async lookup(criteria: CustomerLookupCriteria): Promise<CustomerLookupResult> {
-    const values = [criteria.cpf, criteria.phone].filter(Boolean)
-    if (values.length !== 1) {
-      throw new DomainError('Informe CPF ou telefone, mas não ambos.', 400, 'CUSTOMER_LOOKUP_INVALID')
-    }
-
-    const customer = criteria.cpf
-      ? await this.gateway.findByCpf(criteria.cpf)
-      : await this.gateway.findByPhone(criteria.phone!)
-
+    const customer = await this.gateway.findByCpf(criteria.cpf)
     return customer ? { found: true, customer } : { found: false }
   }
 
   async resolveForOrder(input: CustomerInput): Promise<ResolvedCustomer> {
     const customer = customerInputSchema.parse(input)
-    const [byCpf, byPhone] = await Promise.all([
-      this.gateway.findByCpf(customer.cpf),
-      this.gateway.findByPhone(customer.phone),
-    ])
-
-    if (byCpf && byPhone && byCpf.externalId !== byPhone.externalId) {
-      throw new DomainError(
-        'CPF e telefone pertencem a cadastros diferentes.',
-        409,
-        'CUSTOMER_CONFLICT',
-      )
-    }
-
-    const existing = byCpf ?? byPhone
+    const existing = await this.gateway.findByCpf(customer.cpf)
     if (existing) {
       return resolvedCustomerSchema.parse({
         ...customer,
@@ -68,8 +47,13 @@ export class CustomerService {
     }
   }
 
-  async ensureRegistered(customer: ResolvedCustomer): Promise<void> {
-    if (customer.registrationStatus === 'existing') return
+  // Devolve o cliente com o `externalId` (pessoas_id) exigido para vincular o bilhete.
+  // Consulta por CPF antes de cadastrar para não duplicar a pessoa em reprocessamentos.
+  async ensureRegistered(customer: ResolvedCustomer): Promise<ResolvedCustomer> {
+    if (customer.externalId) return customer
+
+    const registered = await this.gateway.findByCpf(customer.cpf)
+    if (registered) return { ...customer, externalId: registered.externalId }
 
     await this.gateway.create(
       customerInputSchema.parse({
@@ -79,5 +63,14 @@ export class CustomerService {
         address: customer.address,
       }),
     )
+    const created = await this.gateway.findByCpf(customer.cpf)
+    if (!created) {
+      throw new DomainError(
+        'Cadastro da pessoa não foi localizado após a criação.',
+        502,
+        'CUSTOMER_NOT_REGISTERED',
+      )
+    }
+    return { ...customer, externalId: created.externalId }
   }
 }

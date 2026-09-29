@@ -145,6 +145,11 @@ export class LiveTicketGateway implements TicketGateway {
 
   async fulfillOrder(order: Order) {
     requireTicketApiTls(this.env.TICKET_API_BASE_URL, this.env.TICKET_API_ALLOW_HTTP)
+    const personId = Number(order.customer.externalId)
+    if (!Number.isSafeInteger(personId) || personId <= 0) {
+      throw new DomainError('Pessoa sem cadastro na API externa.', 502, 'CUSTOMER_NOT_REGISTERED')
+    }
+    const holderName = order.customer.beneficiaryName ?? order.customer.name
     for (const item of order.items) {
       if (!item.validationBatch || !item.batchPosition) {
         throw new DomainError('Cartela sem dados de validação da API externa.', 502)
@@ -157,6 +162,8 @@ export class LiveTicketGateway implements TicketGateway {
           lote_validacao: item.validationBatch,
           estabelecimento_id: Number(this.env.TICKET_ESTABLISHMENT_ID),
           posicao_lote: item.batchPosition,
+          pessoas_id: personId,
+          nome: holderName,
         }),
       })
     }

@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 4
+const CURRENT_SCHEMA_VERSION = 5
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -25,6 +25,7 @@ export function migrateDatabase(database: DatabaseSync) {
       if (version < 2) migrateToVersion2(database)
       if (version < 3) migrateToVersion3(database)
       if (version < 4) migrateToVersion4(database)
+      if (version < 5) migrateToVersion5(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -84,6 +85,7 @@ function createLatestSchema(database: DatabaseSync) {
       ON payment_events(transaction_nsu, invoice_slug);
   `)
   database.exec(REMOTE_RESERVATIONS_SCHEMA)
+  database.exec(ORDERS_CUSTOMER_CPF_INDEX)
 }
 
 function migrateToVersion2(database: DatabaseSync) {
@@ -166,6 +168,16 @@ const REMOTE_RESERVATIONS_SCHEMA = `
 
 function migrateToVersion4(database: DatabaseSync) {
   database.exec(REMOTE_RESERVATIONS_SCHEMA)
+}
+
+// Consulta "Minhas compras" filtra pedidos pelo CPF guardado no JSON do cliente.
+const ORDERS_CUSTOMER_CPF_INDEX = `
+  CREATE INDEX IF NOT EXISTS idx_orders_customer_cpf
+    ON orders(json_extract(customer_json, '$.cpf'), created_at);
+`
+
+function migrateToVersion5(database: DatabaseSync) {
+  database.exec(ORDERS_CUSTOMER_CPF_INDEX)
 }
 
 function tableColumns(database: DatabaseSync, table: string) {

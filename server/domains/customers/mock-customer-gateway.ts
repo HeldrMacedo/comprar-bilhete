@@ -19,10 +19,6 @@ export class MockCustomerGateway implements CustomerGateway {
     return this.clone(this.customers.find((customer) => customer.cpf === cpf) ?? null)
   }
 
-  async findByPhone(phone: string) {
-    return this.clone(this.customers.find((customer) => customer.phone === phone) ?? null)
-  }
-
   async create(customer: NormalizedCustomerInput): Promise<void> {
     this.customers.push(
       externalCustomerSchema.parse({

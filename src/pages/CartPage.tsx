@@ -7,6 +7,7 @@ import { useCart } from '../features/cart/runtime/cart-context'
 import { isReservationConflict, startCheckout } from '../features/checkout/service/checkout-service'
 import {
   createCustomerSchema,
+  toCheckoutCustomer,
   type CustomerForm,
 } from '../features/checkout/service/customer-schema'
 import { useCustomerLookup } from '../features/checkout/runtime/use-customer-lookup'
@@ -15,9 +16,18 @@ import { formatCpf, formatPhone, onlyDigits } from '../shared/lib/forms'
 import { Spinner } from '../shared/ui/Spinner'
 
 export function CartPage() {
-  const { cart, itemCount, totalInCents, removeCard, clearCart } = useCart()
+  const {
+    cart,
+    itemCount,
+    totalInCents,
+    removeCard,
+    decreaseRandomQuantity,
+    removeEntry,
+    clearCart,
+  } = useCart()
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
@@ -26,11 +36,17 @@ export function CartPage() {
     formState: { errors, isSubmitting },
   } = useForm<CustomerForm>({
     resolver: zodResolver(createCustomerSchema(false)),
-    defaultValues: { name: '', cpf: '', phone: '' },
+    defaultValues: {
+      name: '',
+      cpf: '',
+      phone: '',
+      buyingForThirdParty: false,
+      beneficiaryName: '',
+    },
   })
   const cpf = watch('cpf')
-  const phone = watch('phone')
-  const lookup = useCustomerLookup({ cpf, phone })
+  const buyingForThirdParty = watch('buyingForThirdParty')
+  const lookup = useCustomerLookup({ cpf })
   const addressRequired = lookup.data?.found === false
 
   useEffect(() => {
@@ -50,6 +66,18 @@ export function CartPage() {
     }
   }, [lookup.data, setValue])
 
+  if (checkoutUrl) {
+    return (
+      <section className="container empty-cart page-section" aria-live="polite">
+        <Spinner label="Abrindo o pagamento..." />
+        <p>Suas cartelas estão reservadas. Se o pagamento não abrir, use o botão abaixo.</p>
+        <a className="button button--primary" href={checkoutUrl}>
+          Abrir pagamento
+        </a>
+      </section>
+    )
+  }
+
   if (!cart) {
     return (
       <section className="container empty-cart page-section">
@@ -67,9 +95,7 @@ export function CartPage() {
 
   async function onSubmit(customer: CustomerForm) {
     if (!cart) return
-    const identifier = onlyDigits(cpf ?? '')
-    const phoneIdentifier = onlyDigits(phone ?? '')
-    if (!lookup.data && (identifier.length === 11 || [10, 11].includes(phoneIdentifier.length))) {
+    if (!lookup.data && onlyDigits(cpf).length === 11) {
       setSubmitError('Aguarde a consulta do cadastro antes de continuar.')
       return
     }
@@ -81,7 +107,10 @@ export function CartPage() {
     const currentCart = cart
     setSubmitError(null)
     try {
-      const { checkout } = await startCheckout(currentCart, customer)
+      const { checkout } = await startCheckout(currentCart, toCheckoutCustomer(customer))
+      // O pedido já existe no backend; o carrinho não pode sobreviver para gerar outra compra.
+      setCheckoutUrl(checkout.checkoutUrl)
+      clearCart()
       window.location.assign(checkout.checkoutUrl)
     } catch (error) {
       if (isReservationConflict(error)) {
@@ -116,18 +145,50 @@ export function CartPage() {
                 <span className="surface__label">Suas cartelas</span>
                 <h2>Sorteios selecionados</h2>
               </div>
-              <strong>
-                {itemCount} {itemCount === 1 ? 'unidade' : 'unidades'}
-              </strong>
+              <div className="surface__header-actions">
+                <strong>
+                  {itemCount} {itemCount === 1 ? 'unidade' : 'unidades'}
+                </strong>
+                <button type="button" className="text-button" onClick={clearCart}>
+                  <Trash2 size={15} /> Esvaziar carrinho
+                </button>
+              </div>
             </div>
             {cart.entries.map((entry) => (
               <div className="cart-group" key={entry.raffleId}>
                 <h3>{entry.raffleTitle}</h3>
                 {entry.selection.mode === 'random' ? (
-                  <p className="random-summary">
-                    {entry.selection.quantity} cartela(s) serão escolhidas pelo servidor a{' '}
-                    {formatCurrency(entry.priceInCents)} cada.
-                  </p>
+                  <div className="cart-items">
+                    <article className="cart-item">
+                      <p className="random-summary">
+                        {entry.selection.quantity} cartela(s) serão sorteadas aleatoriamente a{' '}
+                        {formatCurrency(entry.priceInCents)} cada.
+                      </p>
+                      <div className="cart-item__actions">
+                        <div
+                          className="quantity-picker quantity-picker--compact"
+                          aria-label={`Quantidade de cartelas de ${entry.raffleTitle}`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => decreaseRandomQuantity(entry.raffleId)}
+                            disabled={entry.selection.quantity <= 1}
+                            aria-label={`Diminuir quantidade de ${entry.raffleTitle}`}
+                          >
+                            −
+                          </button>
+                          <strong>{entry.selection.quantity}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeEntry(entry.raffleId)}
+                          aria-label={`Remover cartelas de ${entry.raffleTitle}`}
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    </article>
+                  </div>
                 ) : (
                   <div className="cart-items">
                     {entry.selection.cards.map((card) => (
@@ -169,18 +230,8 @@ export function CartPage() {
             <div className="surface__header">
               <div>
                 <span className="surface__label">Dados do participante</span>
-                <h2>Quem vai concorrer?</h2>
+                <h2>Dados do comprador</h2>
               </div>
-            </div>
-            <div className="field">
-              <label htmlFor="name">Nome completo</label>
-              <input
-                id="name"
-                autoComplete="name"
-                {...register('name')}
-                aria-invalid={!!errors.name}
-              />
-              {errors.name ? <small role="alert">{errors.name.message}</small> : null}
             </div>
             <div className="form-row">
               <div className="field">
@@ -226,6 +277,38 @@ export function CartPage() {
                 </button>
               ) : null}
             </div>
+            <div className="field">
+              <label htmlFor="name">Nome completo</label>
+              <input
+                id="name"
+                autoComplete="name"
+                {...register('name')}
+                aria-invalid={!!errors.name}
+              />
+              {errors.name ? <small role="alert">{errors.name.message}</small> : null}
+            </div>
+            <label className="checkbox-field" htmlFor="buyingForThirdParty">
+              <input
+                id="buyingForThirdParty"
+                type="checkbox"
+                {...register('buyingForThirdParty')}
+              />
+              Estou comprando para outra pessoa
+            </label>
+            {buyingForThirdParty ? (
+              <div className="field">
+                <label htmlFor="beneficiaryName">Nome de quem vai concorrer</label>
+                <input
+                  id="beneficiaryName"
+                  autoComplete="off"
+                  {...register('beneficiaryName')}
+                  aria-invalid={!!errors.beneficiaryName}
+                />
+                {errors.beneficiaryName ? (
+                  <small role="alert">{errors.beneficiaryName.message}</small>
+                ) : null}
+              </div>
+            ) : null}
             {addressRequired ? <AddressFields register={register} errors={errors} /> : null}
             <p className="privacy-note">
               <LockKeyhole size={16} /> Seus dados sao usados apenas para identificar a compra e o

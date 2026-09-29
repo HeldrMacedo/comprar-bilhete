@@ -3,7 +3,8 @@ import { z } from 'zod'
 import type { CustomerService } from '../domains/customers/customer-service.js'
 import type { OrderService } from '../domains/orders/order-service.js'
 import { createOrderInputSchema, paymentEventSchema } from '../domains/orders/order-types.js'
-import { presentOrder } from './order-presenter.js'
+import { presentOrder, presentPurchase } from './order-presenter.js'
+import { createRateLimiter } from './rate-limit.js'
 
 const orderParamsSchema = z.object({ id: z.string().uuid() })
 const raffleParamsSchema = z.object({ id: z.string().min(1) })
@@ -13,14 +14,12 @@ const orderQuerySchema = z.object({
 })
 
 const customerLookupQuerySchema = z
-  .object({
-    cpf: z.string().regex(/^\d{11}$/).optional(),
-    phone: z.string().regex(/^\d{10,11}$/).optional(),
-  })
+  .object({ cpf: z.string().regex(/^\d{11}$/, 'Informe um CPF com 11 dígitos.') })
   .strict()
-  .refine((value) => Number(Boolean(value.cpf)) + Number(Boolean(value.phone)) === 1, {
-    message: 'Informe CPF ou telefone, mas não ambos.',
-  })
+
+const purchaseLookupBodySchema = z
+  .object({ cpf: z.string().regex(/^\d{11}$/, 'Informe um CPF com 11 dígitos.') })
+  .strict()
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -28,6 +27,14 @@ export async function registerRoutes(
   customers: CustomerService,
 ) {
   app.get('/api/health', async () => ({ status: 'online' }))
+
+  const limitPurchaseLookup = createRateLimiter(10, 60_000)
+  // POST mantém o CPF fora da URL e, portanto, dos logs de acesso.
+  app.post('/api/v1/orders/lookup', async (request) => {
+    limitPurchaseLookup(request.ip)
+    const { cpf } = purchaseLookupBodySchema.parse(request.body)
+    return { orders: service.listOrdersByCpf(cpf).map(presentPurchase) }
+  })
 
   app.get('/api/v1/customers/lookup', async (request) => {
     const query = customerLookupQuerySchema.parse(request.query)
