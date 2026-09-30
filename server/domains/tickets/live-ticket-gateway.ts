@@ -151,8 +151,12 @@ export class LiveTicketGateway implements TicketGateway {
     }
     const holderName = order.customer.beneficiaryName ?? order.customer.name
     for (const item of order.items) {
-      if (!item.validationBatch || !item.batchPosition) {
-        throw new DomainError('Cartela sem dados de validação da API externa.', 502)
+      if (
+        !item.validationBatch ||
+        typeof item.batchPosition !== 'number' ||
+        item.batchPosition < 0
+      ) {
+        throw new DomainError('Cartela sem dados de validacao sequencial.', 502)
       }
       await fetchJson(`${this.env.TICKET_API_BASE_URL}/bilhete/validar`, mutationResponseSchema, {
         method: 'PUT',

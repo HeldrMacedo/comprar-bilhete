@@ -203,7 +203,7 @@ main {
   letter-spacing: -0.055em;
 }
 
-.hero__copy>p {
+.hero__copy > p {
   max-width: 580px;
   color: #94a3b8;
   font-size: 18px;
@@ -225,7 +225,7 @@ main {
   color: var(--cyan);
 }
 
-.eyebrow>span {
+.eyebrow > span {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -362,12 +362,12 @@ main {
   margin-top: 34px;
 }
 
-.raffle-selection+.raffle-selection {
+.raffle-selection + .raffle-selection {
   padding-top: 34px;
   border-top: 1px solid var(--line);
 }
 
-.raffle-selection>h3 {
+.raffle-selection > h3 {
   margin: 0 0 20px;
   color: var(--ink);
   font:
@@ -379,7 +379,7 @@ main {
   margin-top: 24px;
 }
 
-.cart-group+.cart-group {
+.cart-group + .cart-group {
   padding-top: 24px;
   border-top: 1px solid var(--line);
 }
@@ -399,8 +399,8 @@ main {
   gap: 18px;
 }
 
-.section-heading>span,
-.page-title>span {
+.section-heading > span,
+.page-title > span {
   width: 40px;
   height: 40px;
   flex: none;
@@ -662,8 +662,8 @@ main {
   gap: 5px;
 }
 
-.number-grid>span,
-.number-list>span {
+.number-grid > span,
+.number-list > span {
   width: 25px;
   height: 25px;
   display: grid;
@@ -675,7 +675,7 @@ main {
   font-weight: 700;
 }
 
-.raffle-card--selected .number-grid>span {
+.raffle-card--selected .number-grid > span {
   background: #ffffff;
   color: var(--primary);
   font-weight: 800;
@@ -704,7 +704,7 @@ main {
   box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.22);
 }
 
-.selection-bar>div {
+.selection-bar > div {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -839,8 +839,8 @@ main {
   letter-spacing: -0.03em;
 }
 
-.surface__header>strong,
-.surface__header-actions>strong {
+.surface__header > strong,
+.surface__header-actions > strong {
   font-size: 12px;
   color: var(--green-dark);
   background: var(--green-light);
@@ -874,7 +874,7 @@ main {
   padding-bottom: 0;
 }
 
-.cart-item>div:first-child>strong {
+.cart-item > div:first-child > strong {
   display: block;
   margin-bottom: 10px;
 }
@@ -885,7 +885,7 @@ main {
   gap: 14px;
 }
 
-.cart-item__actions>button {
+.cart-item__actions > button {
   width: 34px;
   height: 34px;
   border: 0;
@@ -900,7 +900,7 @@ main {
     transform 0.15s;
 }
 
-.cart-item__actions>button:hover {
+.cart-item__actions > button:hover {
   background: #fee2e2;
   transform: scale(1.05);
 }
@@ -1000,7 +1000,7 @@ main {
   top: 94px;
 }
 
-.order-summary>.surface__label {
+.order-summary > .surface__label {
   display: block;
   margin-bottom: 20px;
 }
@@ -1091,7 +1091,7 @@ main {
 }
 
 .empty-cart p,
-.payment-state>p {
+.payment-state > p {
   max-width: 560px;
   margin: 0 0 25px;
   color: var(--muted);
@@ -1248,7 +1248,7 @@ main {
     font-size: 42px;
   }
 
-  .hero__copy>p {
+  .hero__copy > p {
     font-size: 16px;
   }
 
@@ -1324,7 +1324,6 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {

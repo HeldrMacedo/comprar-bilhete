@@ -79,7 +79,11 @@ export class OrderRepository {
           const key = `${group.raffleId}:${ticket.id}`
           if (reserved.has(key) || this.isReserved(key)) {
             if (group.mode === 'manual') {
-              throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
+              throw new DomainError(
+                'Uma ou mais cartelas ja estao reservadas.',
+                409,
+                'TICKET_RESERVED',
+              )
             }
             continue
           }
@@ -181,6 +185,55 @@ export class OrderRepository {
         .run(orderId)
       this.database.exec('COMMIT')
       return result.changes === 1
+    } catch (error) {
+      this.database.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  assignBatchPositions(orderId: string): boolean {
+    this.database.exec('BEGIN IMMEDIATE')
+    try {
+      const order = this.database
+        .prepare('SELECT items_json, raffle_id FROM orders WHERE id = ?')
+        .get(orderId) as { items_json: string; raffle_id: string } | undefined
+      if (!order) {
+        this.database.exec('ROLLBACK')
+        return false
+      }
+
+      const items: Array<Record<string, unknown>> = JSON.parse(order.items_json)
+      const raffleId = order.raffle_id
+
+      this.database
+        .prepare(
+          `INSERT INTO batch_sequences (raffle_id, next_position, updated_at)
+           VALUES (?, 1, ?)
+           ON CONFLICT(raffle_id) DO NOTHING`,
+        )
+        .run(raffleId, this.now().toISOString())
+
+      const seq = this.database
+        .prepare('SELECT next_position FROM batch_sequences WHERE raffle_id = ?')
+        .get(raffleId) as { next_position: number }
+
+      let currentPosition = seq.next_position
+      const updatedItems = items.map((item) => ({
+        ...item,
+        validationBatch: '84734',
+        batchPosition: currentPosition++,
+      }))
+
+      this.database
+        .prepare('UPDATE batch_sequences SET next_position = ?, updated_at = ? WHERE raffle_id = ?')
+        .run(currentPosition, this.now().toISOString(), raffleId)
+
+      this.database
+        .prepare('UPDATE orders SET items_json = ? WHERE id = ?')
+        .run(JSON.stringify(updatedItems), orderId)
+
+      this.database.exec('COMMIT')
+      return true
     } catch (error) {
       this.database.exec('ROLLBACK')
       throw error
@@ -307,11 +360,7 @@ export class OrderRepository {
     } catch (error) {
       this.database.exec('ROLLBACK')
       if (String(error).includes('UNIQUE constraint failed: reservations.ticket_key')) {
-        throw new DomainError(
-          'Uma ou mais cartelas ja estao reservadas.',
-          409,
-          'TICKET_RESERVED',
-        )
+        throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
       }
       throw error
     }
@@ -333,10 +382,12 @@ export class OrderRepository {
       .prepare("UPDATE orders SET status = 'expired' WHERE status = 'pending' AND expires_at < ?")
       .run(now)
     this.database
-      .prepare(`
+      .prepare(
+        `
         DELETE FROM reservations
         WHERE order_id IN (SELECT id FROM orders WHERE status IN ('expired', 'cancelled'))
-      `)
+      `,
+      )
       .run()
   }
 }

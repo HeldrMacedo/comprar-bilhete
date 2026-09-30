@@ -25,8 +25,8 @@ function selectedQuantity(raffle: Raffle, draft: SelectionDraft) {
   return draft.mode === 'random'
     ? Math.min(draft.quantity, availableCount)
     : draft.manualSelection.filter((selected) =>
-      raffle.cards.some((card) => card.id === selected.id && card.available),
-    ).length
+        raffle.cards.some((card) => card.id === selected.id && card.available),
+      ).length
 }
 
 export function HomePage() {
@@ -68,11 +68,11 @@ export function HomePage() {
           draft.mode === 'random'
             ? { mode: 'random', quantity: selectedQuantity(raffle, draft) }
             : {
-              mode: 'manual',
-              cards: draft.manualSelection.filter((selected) =>
-                raffle.cards.some((card) => card.id === selected.id && card.available),
-              ),
-            }
+                mode: 'manual',
+                cards: draft.manualSelection.filter((selected) =>
+                  raffle.cards.some((card) => card.id === selected.id && card.available),
+                ),
+              }
         return { raffle, selection }
       }),
     )

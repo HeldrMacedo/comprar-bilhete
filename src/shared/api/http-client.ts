@@ -61,7 +61,10 @@ export async function requestJson<T>(
 
 const errorBodySchema = z.object({
   message: z.string().optional(),
-  code: z.string().regex(/^[A-Z0-9_]{1,64}$/).optional(),
+  code: z
+    .string()
+    .regex(/^[A-Z0-9_]{1,64}$/)
+    .optional(),
 })
 
 async function readApiError(response: Response): Promise<{ message: string; code?: string }> {

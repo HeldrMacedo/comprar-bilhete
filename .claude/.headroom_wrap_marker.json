@@ -1,1 +1,8 @@
-{"pid": 5646, "start_src": "proc", "start_time": 130170.0, "port": 8787, "key": "ANTHROPIC_BASE_URL", "previous": null}
+{
+  "pid": 25380,
+  "start_src": null,
+  "start_time": null,
+  "port": 8787,
+  "key": "ANTHROPIC_BASE_URL",
+  "previous": null
+}

@@ -14,7 +14,10 @@ it('envia as seleções de cada sorteio para um único pedido', async () => {
         raffleId: 'quarta',
         raffleTitle: 'Sorteio de Quarta',
         priceInCents: 1000,
-        selection: { mode: 'manual', cards: [{ id: 'card-001', code: '#001', numbers: [1], available: true }] },
+        selection: {
+          mode: 'manual',
+          cards: [{ id: 'card-001', code: '#001', numbers: [1], available: true }],
+        },
       },
       {
         raffleId: 'domingo',
@@ -33,7 +36,11 @@ it('envia as seleções de cada sorteio para um único pedido', async () => {
     checkoutUrl: 'https://checkout.example',
   })
 
-  await startCheckout(cart, { name: 'Maria da Silva', cpf: '529.982.247-25', phone: '(84) 99985-5367' })
+  await startCheckout(cart, {
+    name: 'Maria da Silva',
+    cpf: '529.982.247-25',
+    phone: '(84) 99985-5367',
+  })
 
   expect(checkoutRepository.createOrder).toHaveBeenCalledWith({
     raffles: [

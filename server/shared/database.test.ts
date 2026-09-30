@@ -4,12 +4,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { OrderRepository } from '../domains/orders/order-repository.js'
-import {
-  existingMaria,
-  order,
-  orderDraft,
-  ticket,
-} from '../domains/orders/order-test-fixtures.js'
+import { existingMaria, order, orderDraft, ticket } from '../domains/orders/order-test-fixtures.js'
 import { paymentEventSchema } from '../domains/orders/order-types.js'
 import { RemoteReservationRepository } from '../domains/orders/remote-reservation-repository.js'
 import { createDatabase } from './database.js'
@@ -24,10 +19,10 @@ afterEach(() => {
 })
 
 describe('database migrations', () => {
-  it('creates an empty database at schema version 4', () => {
+  it('creates an empty database at schema version 6', () => {
     const database = createDatabase(':memory:')
 
-    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 5 })
+    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 6 })
     expect(database.prepare('PRAGMA table_info(orders)').all()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'selection_mode' }),
@@ -80,12 +75,14 @@ describe('database migrations', () => {
       );
     `)
     legacy
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO orders (
           id, raffle_id, raffle_title, status, total_in_cents, customer_json,
           items_json, created_at, expires_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
+      `,
+      )
       .run(
         '00000000-0000-4000-8000-000000000001',
         'sorteio-setembro',
@@ -101,7 +98,7 @@ describe('database migrations', () => {
 
     const upgraded = createDatabase(path)
 
-    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 5 })
+    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 6 })
     expect(upgraded.prepare('SELECT * FROM orders').get()).toMatchObject({
       id: '00000000-0000-4000-8000-000000000001',
       selection_mode: 'manual',
@@ -118,18 +115,23 @@ describe('OrderRepository reservations', () => {
     repository.createManual(order())
 
     expect(() =>
-      repository.createManual(
-        order({ id: '00000000-0000-4000-8000-000000000002' }),
-      ),
+      repository.createManual(order({ id: '00000000-0000-4000-8000-000000000002' })),
     ).toThrowError(expect.objectContaining({ code: 'TICKET_RESERVED' }))
-    expect(database.prepare('SELECT COUNT(*) AS count FROM orders').get()).toMatchObject({ count: 1 })
+    expect(database.prepare('SELECT COUNT(*) AS count FROM orders').get()).toMatchObject({
+      count: 1,
+    })
     database.close()
   })
 
   it('assigns distinct tickets across random reservations', () => {
     const database = createDatabase(':memory:')
     const repository = new OrderRepository(database, reservationTime)
-    const candidates = [ticket('card-001'), ticket('card-002'), ticket('card-003'), ticket('card-004')]
+    const candidates = [
+      ticket('card-001'),
+      ticket('card-002'),
+      ticket('card-003'),
+      ticket('card-004'),
+    ]
 
     const first = repository.createRandom(orderDraft('first'), candidates, 2)
     const second = repository.createRandom(orderDraft('second'), candidates, 2)
@@ -164,10 +166,7 @@ describe('OrderRepository reservations', () => {
         expiresAt: '2026-09-23T10:05:00.000Z',
       }),
     )
-    repository.markManualReview(
-      '00000000-0000-4000-8000-000000000002',
-      'Pagamento exige análise.',
-    )
+    repository.markManualReview('00000000-0000-4000-8000-000000000002', 'Pagamento exige análise.')
 
     currentTime = new Date('2026-09-23T10:06:00.000Z')
     expect(repository.get('00000000-0000-4000-8000-000000000001')?.status).toBe('expired')
@@ -211,7 +210,9 @@ describe('OrderRepository payment evidence', () => {
 
     repository.recordPaymentEvidence(paidEvent)
 
-    expect(database.prepare('SELECT * FROM orders WHERE id = ?').get(paidEvent.order_nsu)).toMatchObject({
+    expect(
+      database.prepare('SELECT * FROM orders WHERE id = ?').get(paidEvent.order_nsu),
+    ).toMatchObject({
       status: 'pending',
       transaction_nsu: 'transaction-001',
       invoice_slug: 'invoice-001',

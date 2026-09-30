@@ -278,6 +278,11 @@ export class OrderService {
     }
 
     try {
+      if (!this.repository.assignBatchPositions(order.id)) {
+        this.repository.markManualReview(order.id, 'Falha ao atribuir posicoes de lote.')
+        return
+      }
+
       if (!(await this.reservations.confirmOwnership(order))) {
         this.repository.markManualReview(
           order.id,
@@ -285,8 +290,9 @@ export class OrderService {
         )
         return
       }
+      const updatedOrder = this.requireOrder(order.id)
       const customer = await this.customers.ensureRegistered(order.customer)
-      await this.tickets.fulfillOrder({ ...order, customer, status: 'processing' })
+      await this.tickets.fulfillOrder({ ...updatedOrder, customer, status: 'processing' })
       this.repository.markPaid(order.id)
       this.reservations.markValidated(order.id)
     } catch (error) {

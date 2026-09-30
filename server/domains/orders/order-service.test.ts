@@ -516,6 +516,89 @@ describe('reserva externa do bilhete', () => {
     expect(await gateway.inspect(key('card-045'))).toMatchObject({ reserved: false })
     database.close()
   })
+
+  describe('posicao_lote sequencial', () => {
+    it('atribui posicoes sequenciais e envia para validacao externa', async () => {
+      const { app, orderId, paidWebhook, fulfillOrder } = await createPaymentHarness()
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/webhooks/infinitepay',
+        payload: paidWebhook,
+      })
+      await new Promise((r) => setTimeout(r, 100))
+
+      const paid = await app.inject({ method: 'GET', url: `/api/v1/orders/${orderId}` })
+      expect(paid.json()).toMatchObject({ status: 'paid' })
+      expect(fulfillOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'card-020',
+              validationBatch: '84734',
+              batchPosition: expect.any(Number),
+            }),
+          ]),
+        }),
+      )
+      const call = fulfillOrder.mock.calls[0]?.[0]
+      expect(call?.items[0]?.batchPosition).toBeGreaterThan(0)
+    })
+
+    it('atribui posicoes incrementais para pagamentos sequenciais no mesmo sorteio', async () => {
+      const tickets = new MockTicketGateway()
+      const fulfillSpy = vi.spyOn(tickets, 'fulfillOrder')
+      const app = await buildApp({
+        env,
+        tickets,
+        customers: new MockCustomerGateway(),
+        logger: false,
+        startWorker: false,
+      })
+      apps.push(app)
+
+      const order1 = await createOrder(app, { mode: 'manual', cardIds: ['card-030'] })
+      const { id: id1 } = order1.json<{ id: string }>()
+      await app.inject({ method: 'POST', url: `/api/v1/orders/${id1}/checkout` })
+
+      const order2 = await createOrder(app, { mode: 'manual', cardIds: ['card-031'] })
+      const { id: id2 } = order2.json<{ id: string }>()
+      await app.inject({ method: 'POST', url: `/api/v1/orders/${id2}/checkout` })
+
+      const webhook1 = {
+        invoice_slug: `mock-${id1}`,
+        amount: 1000,
+        paid_amount: 1000,
+        installments: 1,
+        capture_method: 'pix',
+        transaction_nsu: `mock-${id1}`,
+        order_nsu: id1,
+        receipt_url: 'https://example.com/1',
+        items: [],
+      }
+      const webhook2 = {
+        invoice_slug: `mock-${id2}`,
+        amount: 1000,
+        paid_amount: 1000,
+        installments: 1,
+        capture_method: 'pix',
+        transaction_nsu: `mock-${id2}`,
+        order_nsu: id2,
+        receipt_url: 'https://example.com/2',
+        items: [],
+      }
+
+      await app.inject({ method: 'POST', url: '/api/v1/webhooks/infinitepay', payload: webhook1 })
+      await new Promise((r) => setTimeout(r, 100))
+      const pos1 = fulfillSpy.mock.calls[0]?.[0]?.items[0]?.batchPosition
+
+      await app.inject({ method: 'POST', url: '/api/v1/webhooks/infinitepay', payload: webhook2 })
+      await new Promise((r) => setTimeout(r, 100))
+      const pos2 = fulfillSpy.mock.calls[1]?.[0]?.items[0]?.batchPosition
+
+      expect(pos1).toBe(1)
+      expect(pos2).toBe(2)
+    })
+  })
 })
 
 function createOrder(

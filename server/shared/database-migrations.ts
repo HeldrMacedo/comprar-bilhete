@@ -1,11 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 5
+const CURRENT_SCHEMA_VERSION = 6
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
-    | { user_version: number }
-    | undefined
+    { user_version: number } | undefined
   const version = versionRow?.user_version ?? 0
 
   if (version > CURRENT_SCHEMA_VERSION) {
@@ -26,6 +25,7 @@ export function migrateDatabase(database: DatabaseSync) {
       if (version < 3) migrateToVersion3(database)
       if (version < 4) migrateToVersion4(database)
       if (version < 5) migrateToVersion5(database)
+      if (version < 6) migrateToVersion6(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -86,6 +86,7 @@ function createLatestSchema(database: DatabaseSync) {
   `)
   database.exec(REMOTE_RESERVATIONS_SCHEMA)
   database.exec(ORDERS_CUSTOMER_CPF_INDEX)
+  database.exec(BATCH_SEQUENCES_SCHEMA)
 }
 
 function migrateToVersion2(database: DatabaseSync) {
@@ -178,6 +179,18 @@ const ORDERS_CUSTOMER_CPF_INDEX = `
 
 function migrateToVersion5(database: DatabaseSync) {
   database.exec(ORDERS_CUSTOMER_CPF_INDEX)
+}
+
+const BATCH_SEQUENCES_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS batch_sequences (
+    raffle_id TEXT PRIMARY KEY,
+    next_position INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL
+  );
+`
+
+function migrateToVersion6(database: DatabaseSync) {
+  database.exec(BATCH_SEQUENCES_SCHEMA)
 }
 
 function tableColumns(database: DatabaseSync, table: string) {

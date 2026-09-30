@@ -107,9 +107,7 @@ O formulário não coletará e-mail, pois não é requisito desta jornada e o ca
 ## Contrato de criação do pedido
 
 ```ts
-type OrderSelection =
-  | { mode: 'manual'; cardIds: string[] }
-  | { mode: 'random'; quantity: number }
+type OrderSelection = { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number }
 
 type CreateOrderInput = {
   raffleId: string
