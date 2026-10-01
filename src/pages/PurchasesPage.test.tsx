@@ -7,10 +7,16 @@ import { AppLayout } from '../app/AppLayout'
 import { CartProvider } from '../features/cart/runtime/CartProvider'
 import type { Purchase } from '../features/purchases/domain/types'
 import { purchaseRepository } from '../features/purchases/repository/purchase-repository'
+import { createReceiptFiles, shareReceipts } from '../features/purchases/runtime/share-receipt'
 import { PurchasesPage } from './PurchasesPage'
 
 vi.mock('../features/purchases/repository/purchase-repository', () => ({
   purchaseRepository: { lookupByCpf: vi.fn() },
+}))
+
+vi.mock('../features/purchases/runtime/share-receipt', () => ({
+  createReceiptFiles: vi.fn(),
+  shareReceipts: vi.fn(),
 }))
 
 const paid: Purchase = {
@@ -129,6 +135,68 @@ describe('PurchasesPage', () => {
       'href',
       'https://checkout.example/3',
     )
+  })
+
+  it('compartilha no WhatsApp o comprovante de cada cartela do pedido pago', async () => {
+    const second = { ...paid.items![0]!, id: 'card-002', code: '#002' }
+    const order: Purchase = { ...paid, items: [...paid.items!, second] }
+    const files = [new File(['png'], 'bilhete-001.png'), new File(['png'], 'bilhete-002.png')]
+    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([order])
+    vi.mocked(createReceiptFiles).mockResolvedValue(files)
+    vi.mocked(shareReceipts).mockResolvedValue('shared')
+    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+
+    const card = await screen.findByRole('article', { name: '11111111' })
+    await userEvent.click(within(card).getByRole('button', { name: /compartilhar no whatsapp/i }))
+
+    expect(createReceiptFiles).toHaveBeenCalledWith(order, order.items)
+    expect(shareReceipts).toHaveBeenCalledWith(files)
+
+    await userEvent.click(
+      within(card).getByRole('button', { name: 'Compartilhar cartela #002 no WhatsApp' }),
+    )
+    expect(createReceiptFiles).toHaveBeenLastCalledWith(order, [second])
+  })
+
+  it('avisa quando as imagens foram baixadas em vez de compartilhadas', async () => {
+    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([paid])
+    vi.mocked(createReceiptFiles).mockResolvedValue([new File(['png'], 'bilhete-001.png')])
+    vi.mocked(shareReceipts).mockResolvedValue('downloaded')
+    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+
+    const card = await screen.findByRole('article', { name: '11111111' })
+    await userEvent.click(within(card).getByRole('button', { name: /compartilhar no whatsapp/i }))
+
+    expect(await within(card).findByRole('status')).toHaveTextContent(
+      'Comprovantes salvos. Anexe no WhatsApp.',
+    )
+  })
+
+  it('mantém as imagens prontas quando o navegador exige novo toque para compartilhar', async () => {
+    const files = [new File(['png'], 'bilhete-001.png')]
+    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([paid])
+    vi.mocked(createReceiptFiles).mockResolvedValue(files)
+    vi.mocked(shareReceipts)
+      .mockRejectedValueOnce(new DOMException('sem gesto', 'NotAllowedError'))
+      .mockResolvedValueOnce('shared')
+    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+
+    const card = await screen.findByRole('article', { name: '11111111' })
+    const button = within(card).getByRole('button', { name: /compartilhar no whatsapp/i })
+    await userEvent.click(button)
+    expect(await within(card).findByRole('status')).toHaveTextContent('Toque de novo')
+
+    await userEvent.click(button)
+    expect(createReceiptFiles).toHaveBeenCalledTimes(1)
+    expect(shareReceipts).toHaveBeenLastCalledWith(files)
+  })
+
+  it('não oferece comprovante para pedido em análise ou pendente', async () => {
+    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([inReview, pending])
+    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+
+    await screen.findByRole('article', { name: '22222222' })
+    expect(screen.queryByRole('button', { name: /compartilhar/i })).not.toBeInTheDocument()
   })
 
   it('informa quando o CPF não tem compras', async () => {

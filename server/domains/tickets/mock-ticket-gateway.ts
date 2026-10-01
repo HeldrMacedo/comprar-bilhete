@@ -10,6 +10,8 @@ const raffle: Raffle = {
   drawDate: '2026-09-30T21:00:00.000Z',
   priceInCents: 1000,
   purchaseEnabled: true,
+  prizes: ['1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 HONDA START 160 + 20 MIL'],
+  luckySpins: { count: 10, label: 'R$ 300,00' },
 }
 
 const sundayRaffle: Raffle = {
@@ -20,6 +22,7 @@ const sundayRaffle: Raffle = {
   drawDate: '2026-10-04T23:00:00.000Z',
   priceInCents: 600,
   purchaseEnabled: true,
+  prizes: ['R$: 3 MIL REAIS', 'R$: 3 MIL REAIS', 'R$: 3 MIL REAIS', '1 HONDA BROS 160 0KM'],
 }
 
 const raffles = [raffle, sundayRaffle]
@@ -35,6 +38,7 @@ const tickets: Ticket[] = Array.from({ length: 48 }, (_, index) => ({
     { length: 10 },
     (__, numberIndex) => ((index * 11 + numberIndex * 17) % 90) + 1,
   ).sort((a, b) => a - b),
+  identification: `6041008${String(index + 1).padStart(4, '0')}-${String((index * 37) % 100).padStart(2, '0')}`,
   validationBatch: 'mock',
   batchPosition: index + 1,
 }))

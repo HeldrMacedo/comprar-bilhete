@@ -23,8 +23,15 @@ const mockPurchase: Purchase = {
       raffleId: 'sorteio-setembro',
       raffleTitle: 'Sorteio Especial de Setembro',
       unitPriceInCents: 1000,
+      identification: '60410080001-00',
+      drawDate: '2026-09-30T21:00:00.000Z',
+      prizes: ['1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 HONDA START 160 + 20 MIL'],
+      luckySpins: { count: 10, label: 'R$ 300,00' },
+      validationBatch: '84734',
+      batchPosition: 1,
     },
   ],
+  customer: { name: 'Maria da Silva', phone: '84999855367', cpf: '52998224725' },
 }
 
 const liveRepository: PurchaseRepository = {

@@ -9,6 +9,8 @@ export type Raffle = {
   salesEndAt?: string
   priceInCents: number
   purchaseEnabled?: boolean
+  prizes?: string[]
+  luckySpins?: { count: number; label: string }
 }
 
 export interface TicketGateway {

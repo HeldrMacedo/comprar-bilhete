@@ -19,6 +19,7 @@ test('consulta a compra paga em Minhas compras após o retorno do pagamento', as
   await expect(purchase.getByText('Pago', { exact: true })).toBeVisible()
   await expect(purchase.getByText('Pix')).toBeVisible()
   await expect(purchase.getByLabel(/dezenas da cartela/i).first()).toBeVisible()
+  await expect(purchase.getByRole('button', { name: /compartilhar no whatsapp/i })).toBeVisible()
   expect(page.url()).not.toContain('52998224725')
 })
 

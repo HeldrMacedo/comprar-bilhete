@@ -26,7 +26,7 @@ function lookup(app: Awaited<ReturnType<typeof buildApp>>, cpf: string) {
 }
 
 describe('consulta de compras por CPF', () => {
-  it('lista pedidos do CPF com valor, método, dezenas das duas chances e status, sem dados pessoais', async () => {
+  it('lista pedidos pagos com dezenas, dados do comprovante e dados do cliente', async () => {
     const app = await createApp()
     const created = await app.inject({
       method: 'POST',
@@ -59,19 +59,53 @@ describe('consulta de compras por CPF', () => {
       status: 'paid',
       totalInCents: 1000,
       paymentMethod: 'pix',
+      customer: { name: 'João Terceiro', phone: '84999855367', cpf: '52998224725' },
       items: [
-        expect.objectContaining({
+        {
           id: 'card-001',
           numbers: expect.any(Array),
           secondChanceNumbers: expect.arrayContaining([expect.any(Number)]),
-        }),
+          identification: expect.any(String),
+          drawDate: '2026-09-30T21:00:00.000Z',
+          prizes: expect.arrayContaining(['1 AVELLOZ AZ1']),
+          luckySpins: { count: 10, label: 'R$ 300,00' },
+          validationBatch: '84734',
+          batchPosition: expect.any(Number),
+        },
       ],
     })
     expect(body.orders[0]).toHaveProperty('paidAt')
     expect(body.orders[0]).not.toHaveProperty('checkoutUrl')
-    const serialized = response.body
+    expect(response.body).not.toContain('Maria da Silva')
+  })
+
+  it('não devolve dados pessoais de pedido que não foi pago', async () => {
+    const app = await createApp()
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: {
+        raffleId: 'sorteio-setembro',
+        selection: { mode: 'manual', cardIds: ['card-003'] },
+        customer: {
+          name: 'Maria da Silva',
+          cpf: '52998224725',
+          phone: '84999855367',
+          beneficiaryName: 'João Terceiro',
+        },
+      },
+    })
+
+    const response = await lookup(app, '52998224725')
+
+    const order = response.json<{ orders: Array<Record<string, unknown>> }>().orders[0]
+    expect(order).toMatchObject({ status: 'pending' })
+    expect(order).not.toHaveProperty('customer')
+    expect(order?.items).toEqual([
+      expect.not.objectContaining({ batchPosition: expect.anything() }),
+    ])
     for (const personal of ['Maria da Silva', '84999855367', 'João Terceiro', '52998224725']) {
-      expect(serialized).not.toContain(personal)
+      expect(response.body).not.toContain(personal)
     }
   })
 

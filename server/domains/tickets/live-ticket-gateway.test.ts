@@ -224,6 +224,7 @@ describe('LiveTicketGateway', () => {
         code: '80001',
         numbers: [3, 6, 16, 20, 22, 24, 26, 28, 31, 34, 37, 41, 46, 52, 54],
         secondChanceNumbers: [6, 17, 20, 30, 31, 34, 37, 40, 41, 42, 48, 50, 54, 57, 59],
+        identification: '60410080001-22',
         validationBatch: '',
         batchPosition: 0,
       },
@@ -329,6 +330,7 @@ describe('LiveTicketGateway', () => {
       code: '80001',
       numbers: [3, 6, 16],
       secondChanceNumbers: [],
+      identification: '60410080001-22',
       validationBatch: '',
       batchPosition: 0,
     })

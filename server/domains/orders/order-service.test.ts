@@ -87,6 +87,58 @@ describe('pedido e pagamento', () => {
     }
   })
 
+  it('guarda em cada cartela a data do sorteio, os prêmios e os giros do concurso', async () => {
+    const tickets = new MockTicketGateway()
+    const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
+    const app = await buildApp({
+      env,
+      tickets,
+      customers: new MockCustomerGateway(),
+      logger: false,
+      startWorker: false,
+    })
+    apps.push(app)
+
+    const single = await createOrder(app, { mode: 'manual', cardIds: ['card-003'] })
+    const grouped = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      payload: {
+        raffles: [
+          { raffleId: 'sorteio-setembro', selection: { mode: 'random', quantity: 1 } },
+          { raffleId: 'sorteio-domingo', selection: { mode: 'manual', cardIds: ['card-004'] } },
+        ],
+        customer: existingCustomer,
+      },
+    })
+    for (const created of [single, grouped]) {
+      const { id } = created.json<{ id: string }>()
+      await app.inject({ method: 'POST', url: `/api/v1/orders/${id}/checkout` })
+      await app.inject({
+        method: 'GET',
+        url: `/api/v1/orders/${id}?transaction_nsu=mock-${id}&slug=mock-${id}`,
+      })
+    }
+
+    const wednesday = {
+      drawDate: '2026-09-30T21:00:00.000Z',
+      prizes: expect.arrayContaining(['1 HONDA START 160 + 20 MIL']),
+      luckySpins: { count: 10, label: 'R$ 300,00' },
+    }
+    expect(fulfillOrder.mock.calls[0]?.[0].items).toEqual([
+      expect.objectContaining({ id: 'card-003', identification: expect.any(String), ...wednesday }),
+    ])
+    const groupedItems = fulfillOrder.mock.calls[1]?.[0].items
+    expect(groupedItems?.[0]).toMatchObject({ raffleId: 'sorteio-setembro', ...wednesday })
+    expect(groupedItems?.[1]).toMatchObject({
+      id: 'card-004',
+      raffleId: 'sorteio-domingo',
+      drawDate: '2026-10-04T23:00:00.000Z',
+      prizes: expect.arrayContaining(['1 HONDA BROS 160 0KM']),
+    })
+    expect(groupedItems?.[1]).not.toHaveProperty('luckySpins')
+  })
+
   it('desfaz todas as reservas se uma das seleções conjuntas conflitar', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)

@@ -5,7 +5,7 @@ import { requireTicketApiTls } from '../../shared/ticket-api-tls.js'
 import type { CustomerService } from '../customers/customer-service.js'
 import type { ResolvedCustomer } from '../customers/customer-types.js'
 import type { PaymentGateway } from '../payments/payment-gateway.js'
-import type { TicketGateway } from '../tickets/ticket-gateway.js'
+import type { Raffle, TicketGateway } from '../tickets/ticket-gateway.js'
 import { OrderRepository, type PreparedOrderGroup } from './order-repository.js'
 import type { CreateOrderInput, Order, OrderDraft, PaymentEvent, Ticket } from './order-types.js'
 import type { TicketReservationCoordinator } from './ticket-reservation-coordinator.js'
@@ -60,7 +60,9 @@ export class OrderService {
     }
 
     if (input.selection.mode === 'random') {
-      const candidates = shuffle(await this.tickets.getAvailableTickets(raffle.id))
+      const candidates = shuffle(await this.tickets.getAvailableTickets(raffle.id)).map((ticket) =>
+        withRaffleDetails(ticket, raffle),
+      )
       return this.holdRemotely(
         this.repository.createRandom(draft, candidates, input.selection.quantity),
       )
@@ -83,7 +85,10 @@ export class OrderService {
       )
     }
 
-    const order: Order = { ...draft, items }
+    const order: Order = {
+      ...draft,
+      items: items.map((ticket) => withRaffleDetails(ticket, raffle)),
+    }
     return this.holdRemotely(this.repository.createManual(order))
   }
 
@@ -129,7 +134,7 @@ export class OrderService {
           unitPriceInCents: raffle.priceInCents,
           mode: selection.mode,
           quantity,
-          tickets,
+          tickets: tickets.map((ticket) => withRaffleDetails(ticket, raffle)),
         }
       }),
     )
@@ -319,6 +324,16 @@ function shuffle<T>(values: T[]): T[] {
     shuffled[target] = current!
   }
   return shuffled
+}
+
+// Cópia do concurso na cartela: o comprovante não depende do concurso continuar ativo.
+function withRaffleDetails(ticket: Ticket, raffle: Raffle): Ticket {
+  return {
+    ...ticket,
+    drawDate: raffle.drawDate,
+    ...(raffle.prizes?.length ? { prizes: raffle.prizes } : {}),
+    ...(raffle.luckySpins ? { luckySpins: raffle.luckySpins } : {}),
+  }
 }
 
 function hasOnlyTickets(items: Array<Ticket | null>): items is Ticket[] {

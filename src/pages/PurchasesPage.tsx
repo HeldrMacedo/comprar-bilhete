@@ -8,6 +8,7 @@ import {
   describePaymentMethod,
   describeStatus,
 } from '../features/purchases/service/purchase-labels'
+import { ShareReceiptButton } from '../features/purchases/ui/ShareReceiptButton'
 import { formatCurrency } from '../shared/lib/currency'
 import { formatCpf, isValidCpf, onlyDigits } from '../shared/lib/forms'
 import { ErrorState } from '../shared/ui/ErrorState'
@@ -103,6 +104,7 @@ export function PurchasesPage() {
 function PurchaseCard({ purchase }: { purchase: Purchase }) {
   const status = describeStatus(purchase.status)
   const items = purchase.items ?? []
+  const canShare = purchase.status === 'paid' && items.length > 0
 
   return (
     <article className="surface purchase-card" aria-labelledby={`purchase-${purchase.id}`}>
@@ -150,12 +152,28 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
               numbers={item.numbers}
               secondChanceNumbers={item.secondChanceNumbers}
             />
+            {canShare ? (
+              <ShareReceiptButton
+                purchase={purchase}
+                items={[item]}
+                label="Compartilhar"
+                ariaLabel={`Compartilhar cartela ${item.code} no WhatsApp`}
+                compact
+              />
+            ) : null}
           </li>
         ))}
       </ul>
 
-      {purchase.checkoutUrl || purchase.receiptUrl ? (
+      {canShare || purchase.checkoutUrl || purchase.receiptUrl ? (
         <div className="purchase-card__actions">
+          {canShare ? (
+            <ShareReceiptButton
+              purchase={purchase}
+              items={items}
+              label="Compartilhar no WhatsApp"
+            />
+          ) : null}
           {purchase.checkoutUrl ? (
             <a className="button button--primary" href={purchase.checkoutUrl}>
               Pagar agora

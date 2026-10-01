@@ -13,6 +13,11 @@ export const ticketSchema = z.object({
   numbers: z.array(z.number().int().positive()),
   // Dezenas da segunda chance (dupla chance). Pedidos antigos não têm o campo.
   secondChanceNumbers: z.array(z.number().int().positive()).optional(),
+  // Dados do comprovante, copiados na criação do pedido. Pedidos antigos não têm.
+  identification: z.string().min(1).optional(),
+  drawDate: z.iso.datetime().optional(),
+  prizes: z.array(z.string().min(1)).optional(),
+  luckySpins: z.object({ count: z.number().int().positive(), label: z.string() }).optional(),
   raffleId: z.string().min(1).optional(),
   raffleTitle: z.string().min(1).optional(),
   unitPriceInCents: z.number().int().positive().optional(),

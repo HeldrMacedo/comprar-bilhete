@@ -34,6 +34,10 @@ const capSchema = z.object({
   qtd_giros_sorteiocap: z.number().int().nonnegative(),
   giros_sorteiocap: z.string().nullish(),
   premio_01_sorteiocap: z.string().nullish(),
+  premio_02_sorteiocap: z.string().nullish(),
+  premio_03_sorteiocap: z.string().nullish(),
+  premio_04_sorteiocap: z.string().nullish(),
+  premio_05_sorteiocap: z.string().nullish(),
   valor_bilhete_sorteiocap: z.number().positive(),
 })
 
@@ -49,6 +53,10 @@ const espSchema = z.object({
   qtd_giros_sorteioesp: z.number().int().nonnegative(),
   giros_sorteioesp: z.string().nullish(),
   premio_01_sorteioesp: z.string().nullish(),
+  premio_02_sorteioesp: z.string().nullish(),
+  premio_03_sorteioesp: z.string().nullish(),
+  premio_04_sorteioesp: z.string().nullish(),
+  premio_05_sorteioesp: z.string().nullish(),
   valor_bilhete_sorteioesp: z.number().positive(),
 })
 
@@ -77,6 +85,14 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
         prize: cap.premio_01_sorteiocap || cap.giros_sorteiocap || 'Prêmios a confirmar',
         drawDate: toDrawDate(cap.data_sorteiocap, cap.hora_sorteiocap),
         priceInCents: toCents(cap.valor_bilhete_sorteiocap),
+        prizes: toPrizes([
+          cap.premio_01_sorteiocap,
+          cap.premio_02_sorteiocap,
+          cap.premio_03_sorteiocap,
+          cap.premio_04_sorteiocap,
+          cap.premio_05_sorteiocap,
+        ]),
+        ...toLuckySpins(cap.qtd_giros_sorteiocap, cap.giros_sorteiocap),
       })
     }
   }
@@ -98,11 +114,31 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
         prize: esp.premio_01_sorteioesp || esp.giros_sorteioesp || 'Prêmios a confirmar',
         drawDate: toDrawDate(esp.data_sorteioesp, esp.hora_sorteioesp),
         priceInCents: toCents(esp.valor_bilhete_sorteioesp),
+        prizes: toPrizes([
+          esp.premio_01_sorteioesp,
+          esp.premio_02_sorteioesp,
+          esp.premio_03_sorteioesp,
+          esp.premio_04_sorteioesp,
+          esp.premio_05_sorteioesp,
+        ]),
+        ...toLuckySpins(esp.qtd_giros_sorteioesp, esp.giros_sorteioesp),
       })
     }
   }
 
   return raffles
+}
+
+function toPrizes(values: Array<string | null | undefined>): string[] {
+  return values.map((value) => normalizeText(value)).filter(Boolean)
+}
+
+function toLuckySpins(count: number, label: string | null | undefined) {
+  return count > 0 ? { luckySpins: { count, label: normalizeText(label) } } : {}
+}
+
+function normalizeText(value: string | null | undefined) {
+  return (value ?? '').replace(/\s+/g, ' ').trim()
 }
 
 function toDrawDate(date: string, time: string): string {

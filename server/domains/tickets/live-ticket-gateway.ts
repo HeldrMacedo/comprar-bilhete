@@ -21,6 +21,7 @@ const externalTicketSchema = z
     numeros: z.array(z.coerce.number().int().positive()).optional(),
     dezenas: pipedNumbersSchema.optional(),
     dezenas2: pipedNumbersSchema.optional(),
+    identificacao: z.string().trim().nullish(),
     reservado: bitSchema.optional(),
     data_reservado: z.string().nullable().optional(),
     validado: bitSchema.optional(),
@@ -181,6 +182,7 @@ function mapTicket(ticket: z.output<typeof externalTicketSchema>): Ticket {
     code: ticket.numero,
     numbers: ticket.numeros,
     secondChanceNumbers: ticket.dezenas2 ?? [],
+    ...(ticket.identificacao ? { identification: ticket.identificacao } : {}),
     validationBatch: ticket.lote_validacao,
     batchPosition: ticket.posicao_lote,
   }

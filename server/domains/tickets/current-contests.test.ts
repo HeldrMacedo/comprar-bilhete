@@ -77,6 +77,28 @@ describe('parseCurrentContests', () => {
     ).toEqual(['2026041'])
   })
 
+  it('lista os prêmios preenchidos e os giros da sorte de cada concurso', () => {
+    const [cap, esp] = parseCurrentContests(
+      {
+        ...currentResponse,
+        premio_01_sorteiocap: '1 AVELLOZ  AZ1',
+        premio_02_sorteiocap: '1 HONDA START 160  + 20 MIL ',
+        premio_03_sorteiocap: '',
+        premio_04_sorteiocap: null,
+        premio_02_sorteioesp: '1 HONDA  BROS 160  0KM',
+        premio_05_sorteioesp: '',
+      },
+      new Date('2026-09-22T00:00:00Z'),
+    )
+
+    expect(cap).toMatchObject({
+      prizes: ['1 AVELLOZ AZ1', '1 HONDA START 160 + 20 MIL'],
+      luckySpins: { count: 20, label: 'R$: 500,00' },
+    })
+    expect(esp).toMatchObject({ prizes: ['R$: 3 MIL REAIS', '1 HONDA BROS 160 0KM'] })
+    expect(esp).not.toHaveProperty('luckySpins')
+  })
+
   it('ignora campos incompletos de um concurso cujo prazo terminou', () => {
     expect(
       parseCurrentContests(
