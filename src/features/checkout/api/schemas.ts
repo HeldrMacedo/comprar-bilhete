@@ -35,6 +35,7 @@ export const orderSchema = z.object({
         id: z.string(),
         code: z.string(),
         numbers: z.array(z.number()),
+        secondChanceNumbers: z.array(z.number()).optional(),
         raffleId: z.string().min(1),
         raffleTitle: z.string().min(1),
         unitPriceInCents: z.number().int().positive(),

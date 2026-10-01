@@ -655,6 +655,24 @@ main {
   color: var(--primary);
 }
 
+.ticket-numbers {
+  display: grid;
+  gap: 8px;
+}
+
+.ticket-numbers__group {
+  display: grid;
+  gap: 4px;
+}
+
+.ticket-numbers__chance {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .number-grid,
 .number-list {
   display: flex;
@@ -1570,7 +1588,7 @@ main {
   gap: 2px;
 }
 
-.purchase-card__items li span {
+.purchase-card__items li > div:first-child span {
   color: var(--muted);
   font-size: 13px;
 }

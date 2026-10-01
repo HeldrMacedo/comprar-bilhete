@@ -26,7 +26,7 @@ function lookup(app: Awaited<ReturnType<typeof buildApp>>, cpf: string) {
 }
 
 describe('consulta de compras por CPF', () => {
-  it('lista pedidos do CPF com valor, método, dezenas e status, sem dados pessoais', async () => {
+  it('lista pedidos do CPF com valor, método, dezenas das duas chances e status, sem dados pessoais', async () => {
     const app = await createApp()
     const created = await app.inject({
       method: 'POST',
@@ -59,7 +59,13 @@ describe('consulta de compras por CPF', () => {
       status: 'paid',
       totalInCents: 1000,
       paymentMethod: 'pix',
-      items: [expect.objectContaining({ id: 'card-001', numbers: expect.any(Array) })],
+      items: [
+        expect.objectContaining({
+          id: 'card-001',
+          numbers: expect.any(Array),
+          secondChanceNumbers: expect.arrayContaining([expect.any(Number)]),
+        }),
+      ],
     })
     expect(body.orders[0]).toHaveProperty('paidAt')
     expect(body.orders[0]).not.toHaveProperty('checkoutUrl')

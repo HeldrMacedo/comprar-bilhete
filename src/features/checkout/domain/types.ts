@@ -48,6 +48,7 @@ export type Order = {
     id: string
     code: string
     numbers: number[]
+    secondChanceNumbers?: number[]
     raffleId: string
     raffleTitle: string
     unitPriceInCents: number

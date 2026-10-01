@@ -19,6 +19,7 @@ const mockPurchase: Purchase = {
       id: 'card-001',
       code: '#001',
       numbers: [1, 2, 14, 15, 27, 28, 40, 53, 66, 79],
+      secondChanceNumbers: [1, 3, 18, 20, 35, 37, 52, 69, 76, 86],
       raffleId: 'sorteio-setembro',
       raffleTitle: 'Sorteio Especial de Setembro',
       unitPriceInCents: 1000,

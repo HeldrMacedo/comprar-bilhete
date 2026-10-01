@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { TicketNumbers } from '../../../shared/ui/TicketNumbers'
 import type { RaffleCard } from '../domain/types'
 
 export function RaffleCardOption({
@@ -22,11 +23,12 @@ export function RaffleCardOption({
         <strong>Cartela {card.code}</strong>
         {selected ? <Check size={18} aria-label="Selecionada" /> : null}
       </span>
-      <span className="number-grid" aria-label={`Números: ${card.numbers.join(', ')}`}>
-        {card.numbers.map((number, index) => (
-          <span key={`${card.id}-${index}`}>{String(number).padStart(2, '0')}</span>
-        ))}
-      </span>
+      <TicketNumbers
+        cardCode={card.code}
+        numbers={card.numbers}
+        secondChanceNumbers={card.secondChanceNumbers}
+        variant="grid"
+      />
       {!card.available ? <span className="raffle-card__unavailable">Indisponível</span> : null}
     </button>
   )

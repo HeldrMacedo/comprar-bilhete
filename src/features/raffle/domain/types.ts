@@ -2,6 +2,7 @@ export type RaffleCard = {
   id: string
   code: string
   numbers: number[]
+  secondChanceNumbers?: number[]
   available: boolean
 }
 

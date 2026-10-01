@@ -3,3 +3,4 @@ dist
 coverage
 playwright-report
 package-lock.json
+.claude

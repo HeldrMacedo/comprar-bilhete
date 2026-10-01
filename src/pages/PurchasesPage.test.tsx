@@ -26,6 +26,7 @@ const paid: Purchase = {
       id: 'card-001',
       code: '#001',
       numbers: [1, 14, 27],
+      secondChanceNumbers: [5, 30, 42],
       raffleId: 'quarta',
       raffleTitle: 'Sorteio de Quarta',
       unitPriceInCents: 1000,
@@ -90,7 +91,12 @@ describe('PurchasesPage', () => {
     expect(within(card).getByText('R$ 16,00')).toBeVisible()
     expect(within(card).getByText('Pix')).toBeVisible()
     expect(within(card).getByText('Cartela #001')).toBeVisible()
-    expect(within(card).getByLabelText('Dezenas da cartela #001')).toHaveTextContent('011427')
+    expect(within(card).getByLabelText('Dezenas da cartela #001 (1ª chance)')).toHaveTextContent(
+      '011427',
+    )
+    expect(within(card).getByLabelText('Dezenas da cartela #001 (2ª chance)')).toHaveTextContent(
+      '053042',
+    )
     expect(within(card).getByRole('link', { name: /ver comprovante/i })).toHaveAttribute(
       'href',
       'https://recibo.example/1',

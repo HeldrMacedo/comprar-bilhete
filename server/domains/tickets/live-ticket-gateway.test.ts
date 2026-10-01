@@ -223,6 +223,7 @@ describe('LiveTicketGateway', () => {
         id: '80001',
         code: '80001',
         numbers: [3, 6, 16, 20, 22, 24, 26, 28, 31, 34, 37, 41, 46, 52, 54],
+        secondChanceNumbers: [6, 17, 20, 30, 31, 34, 37, 40, 41, 42, 48, 50, 54, 57, 59],
         validationBatch: '',
         batchPosition: 0,
       },
@@ -285,6 +286,7 @@ describe('LiveTicketGateway', () => {
       id: '000123',
       code: '000123',
       numbers: [1, 2, 3, 4, 5],
+      secondChanceNumbers: [],
       validationBatch: '77',
       batchPosition: 3,
     })
@@ -326,6 +328,7 @@ describe('LiveTicketGateway', () => {
       id: '80001',
       code: '80001',
       numbers: [3, 6, 16],
+      secondChanceNumbers: [],
       validationBatch: '',
       batchPosition: 0,
     })

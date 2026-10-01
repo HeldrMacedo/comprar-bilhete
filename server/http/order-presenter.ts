@@ -7,14 +7,17 @@ export function presentOrder(order: Order) {
     selectionMode: order.selectionMode,
     unitPriceInCents: order.unitPriceInCents,
     totalInCents: order.totalInCents,
-    items: order.items.map(({ id, code, numbers, raffleId, raffleTitle, unitPriceInCents }) => ({
-      id,
-      code,
-      numbers,
-      raffleId: raffleId ?? order.raffleId,
-      raffleTitle: raffleTitle ?? order.raffleTitle,
-      unitPriceInCents: unitPriceInCents ?? order.unitPriceInCents,
-    })),
+    items: order.items.map(
+      ({ id, code, numbers, secondChanceNumbers, raffleId, raffleTitle, unitPriceInCents }) => ({
+        id,
+        code,
+        numbers,
+        secondChanceNumbers: secondChanceNumbers ?? [],
+        raffleId: raffleId ?? order.raffleId,
+        raffleTitle: raffleTitle ?? order.raffleTitle,
+        unitPriceInCents: unitPriceInCents ?? order.unitPriceInCents,
+      }),
+    ),
     receiptUrl: order.receiptUrl,
     expiresAt: order.expiresAt,
     message:

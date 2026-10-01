@@ -12,6 +12,7 @@ import { formatCurrency } from '../shared/lib/currency'
 import { formatCpf, isValidCpf, onlyDigits } from '../shared/lib/forms'
 import { ErrorState } from '../shared/ui/ErrorState'
 import { Spinner } from '../shared/ui/Spinner'
+import { TicketNumbers } from '../shared/ui/TicketNumbers'
 
 // O CPF chega por `history.state` (cabeçalho ou retorno do pagamento), nunca pela URL.
 const locationStateSchema = z.object({ cpf: z.string().regex(/^\d{11}$/) })
@@ -144,11 +145,11 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
               <strong>Cartela {item.code}</strong>
               <span>{item.raffleTitle}</span>
             </div>
-            <div className="number-list" aria-label={`Dezenas da cartela ${item.code}`}>
-              {item.numbers.map((number, index) => (
-                <span key={`${item.id}-${index}`}>{String(number).padStart(2, '0')}</span>
-              ))}
-            </div>
+            <TicketNumbers
+              cardCode={item.code}
+              numbers={item.numbers}
+              secondChanceNumbers={item.secondChanceNumbers}
+            />
           </li>
         ))}
       </ul>

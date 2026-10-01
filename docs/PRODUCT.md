@@ -18,6 +18,7 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 ## Regras
 
 - Somente cartelas disponíveis podem ser selecionadas.
+- Onde as dezenas de uma cartela aparecem (escolha, carrinho e "Minhas compras"), aparecem as da 1ª chance e, se houver, as da 2ª chance, cada grupo identificado.
 - Seleção aleatória não pode repetir cartela.
 - CPF e celular são validados antes do envio, mas o backend valida novamente.
 - O total exibido é `quantidade × preço unitário`; o backend recalcula o total.

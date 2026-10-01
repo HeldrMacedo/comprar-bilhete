@@ -11,6 +11,8 @@ export const ticketSchema = z.object({
   id: z.string().min(1),
   code: z.string().min(1),
   numbers: z.array(z.number().int().positive()),
+  // Dezenas da segunda chance (dupla chance). Pedidos antigos não têm o campo.
+  secondChanceNumbers: z.array(z.number().int().positive()).optional(),
   raffleId: z.string().min(1).optional(),
   raffleTitle: z.string().min(1).optional(),
   unitPriceInCents: z.number().int().positive().optional(),

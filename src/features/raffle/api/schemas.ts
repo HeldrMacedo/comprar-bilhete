@@ -4,6 +4,7 @@ export const raffleCardSchema = z.object({
   id: z.string().min(1),
   code: z.string().min(1),
   numbers: z.array(z.number().int().positive()).min(1),
+  secondChanceNumbers: z.array(z.number().int().positive()).optional(),
   available: z.boolean(),
 })
 

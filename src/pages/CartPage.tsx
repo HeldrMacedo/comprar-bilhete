@@ -14,6 +14,7 @@ import { useCustomerLookup } from '../features/checkout/runtime/use-customer-loo
 import { formatCurrency } from '../shared/lib/currency'
 import { formatCpf, formatPhone, onlyDigits } from '../shared/lib/forms'
 import { Spinner } from '../shared/ui/Spinner'
+import { TicketNumbers } from '../shared/ui/TicketNumbers'
 
 export function CartPage() {
   const {
@@ -195,13 +196,11 @@ export function CartPage() {
                       <article className="cart-item" key={card.id}>
                         <div>
                           <strong>Cartela {card.code}</strong>
-                          <div className="number-list">
-                            {card.numbers.map((number, index) => (
-                              <span key={`${card.id}-${index}`}>
-                                {String(number).padStart(2, '0')}
-                              </span>
-                            ))}
-                          </div>
+                          <TicketNumbers
+                            cardCode={card.code}
+                            numbers={card.numbers}
+                            secondChanceNumbers={card.secondChanceNumbers}
+                          />
                         </div>
                         <div className="cart-item__actions">
                           <strong>{formatCurrency(entry.priceInCents)}</strong>

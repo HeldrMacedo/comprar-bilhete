@@ -1,5 +1,4 @@
 import { DatabaseSync } from 'node:sqlite'
-import { readFileSync } from 'node:fs'
 
 const dbPath = process.argv[2] ?? 'app.db'
 
@@ -50,11 +49,9 @@ try {
         totalUpdated++
       }
 
-      db.prepare('UPDATE batch_sequences SET next_position = ?, updated_at = ? WHERE raffle_id = ?').run(
-        position,
-        now,
-        raffle_id,
-      )
+      db.prepare(
+        'UPDATE batch_sequences SET next_position = ?, updated_at = ? WHERE raffle_id = ?',
+      ).run(position, now, raffle_id)
 
       console.log(`  ✅ Atualizados ${orders.length} pedidos. Proxima posicao: ${position}`)
     }

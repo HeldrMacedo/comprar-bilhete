@@ -15,6 +15,10 @@ const mockCards: RaffleCard[] = Array.from({ length: 48 }, (_, index) => ({
     { length: 10 },
     (__, numberIndex) => ((index * 7 + numberIndex * 13) % 90) + 1,
   ).sort((a, b) => a - b),
+  secondChanceNumbers: Array.from(
+    { length: 10 },
+    (__, numberIndex) => ((index * 11 + numberIndex * 17) % 90) + 1,
+  ).sort((a, b) => a - b),
   available: ![5, 12, 21, 33].includes(index + 1),
 }))
 
