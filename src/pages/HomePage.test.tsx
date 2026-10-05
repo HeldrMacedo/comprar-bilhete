@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -66,6 +66,9 @@ describe('HomePage sem concurso', () => {
         prize: 'R$ 10.000',
         drawDate: '2026-09-30T21:00:00.000Z',
         priceInCents: 1000,
+        prizes: ['Vale compras 5 mil', 'Vale compras 40 mil'],
+        luckySpins: { count: 20, label: 'R$ 500,00' },
+        doubleChance: true,
         cards,
       },
       {
@@ -82,11 +85,35 @@ describe('HomePage sem concurso', () => {
 
     renderHomePage()
 
-    expect(await screen.findByRole('checkbox', { name: /quarta-feira/i })).toBeChecked()
-    await userEvent.click(screen.getByRole('checkbox', { name: /domingo/i }))
-    expect(screen.getByRole('checkbox', { name: /domingo/i })).toBeChecked()
+    expect(await screen.findByRole('button', { name: 'Todos' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getAllByRole('article')).toHaveLength(2)
     expect(screen.getByText('R$ 16,00')).toBeVisible()
-    expect(screen.getByRole('button', { name: /Ir para o carrinho/i })).toBeEnabled()
+    expect(screen.getByText('Vale compras 5 mil')).toBeVisible()
+    expect(screen.getByText(/20 giros da sorte/i)).toBeVisible()
+    expect(screen.getByText('2026040')).toBeVisible()
+    expect(screen.getByText('Sim')).toBeVisible()
+    const carousel = screen.getByRole('region', { name: 'Concursos ativos' })
+    expect(within(carousel).getByText('R$ 10.000')).toBeVisible()
+    const nextContest = within(carousel).getByRole('button', { name: 'Próximo concurso' })
+    nextContest.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(within(carousel).getByText('R$ 5.000')).toBeVisible()
+    expect(within(carousel).getByText('2 de 2')).toBeVisible()
+    expect(
+      within(carousel).getByRole('button', { name: 'Mostrar concurso 2026041' }),
+    ).toHaveAttribute('aria-current', 'true')
+    await userEvent.click(within(carousel).getByRole('button', { name: 'Concurso anterior' }))
+    expect(within(carousel).getByText('R$ 10.000')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Domingo' }))
+    expect(screen.getByRole('button', { name: 'Domingo' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(within(carousel).getByText('R$ 5.000')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Todos' }))
+    expect(screen.getAllByRole('article')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /Adicionar todos ao carrinho/i })).toBeEnabled()
   })
 
   it('mostra o concurso HTTP para consulta sem permitir compra', async () => {
@@ -103,8 +130,12 @@ describe('HomePage sem concurso', () => {
       },
     ])
     renderHomePage()
-    expect(await screen.findByRole('checkbox', { name: /domingo/i })).toBeChecked()
+    expect(await screen.findByRole('button', { name: 'Domingo' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument()
     expect(screen.getByText(/apenas para consulta/i)).toBeVisible()
-    expect(screen.getByRole('button', { name: /Ir para o carrinho/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Adicionar ao carrinho/i })).toBeDisabled()
   })
 })

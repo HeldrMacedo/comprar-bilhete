@@ -17,3 +17,16 @@ const weekdayFormatter = new Intl.DateTimeFormat('pt-BR', {
 export function formatWeekday(date: string) {
   return weekdayFormatter.format(new Date(date))
 }
+
+const drawDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'America/Fortaleza',
+})
+
+export function formatDrawDate(date: string) {
+  return drawDateFormatter.format(new Date(date))
+}

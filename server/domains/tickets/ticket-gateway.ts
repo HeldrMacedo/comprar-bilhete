@@ -11,6 +11,7 @@ export type Raffle = {
   purchaseEnabled?: boolean
   prizes?: string[]
   luckySpins?: { count: number; label: string }
+  doubleChance?: boolean
 }
 
 export interface TicketGateway {

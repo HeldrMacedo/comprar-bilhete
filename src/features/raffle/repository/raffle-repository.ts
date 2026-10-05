@@ -29,6 +29,9 @@ const mockRaffle: Raffle = {
   prize: 'R$ 10.000 em prêmios',
   drawDate: '2026-09-30T21:00:00.000Z',
   priceInCents: 1000,
+  prizes: ['1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 HONDA START 160 + 20 MIL'],
+  luckySpins: { count: 10, label: 'R$ 300,00' },
+  doubleChance: true,
   cards: mockCards,
 }
 
@@ -39,6 +42,8 @@ const mockSundayRaffle: Raffle = {
   prize: 'R$ 5.000 em prêmios',
   drawDate: '2026-10-04T23:00:00.000Z',
   priceInCents: 600,
+  prizes: ['R$: 3 MIL REAIS', 'R$: 3 MIL REAIS', 'R$: 3 MIL REAIS', '1 HONDA BROS 160 0KM'],
+  doubleChance: true,
   cards: mockCards,
 }
 

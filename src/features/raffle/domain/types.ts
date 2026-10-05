@@ -13,6 +13,9 @@ export type Raffle = {
   prize: string
   drawDate: string
   priceInCents: number
+  prizes?: string[]
+  luckySpins?: { count: number; label: string }
+  doubleChance?: boolean
   purchaseEnabled?: boolean
   cards: RaffleCard[]
 }

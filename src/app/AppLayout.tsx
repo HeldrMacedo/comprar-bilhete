@@ -1,4 +1,4 @@
-import { ReceiptText, ShoppingBag, Sparkles } from 'lucide-react'
+import { ReceiptText, ShoppingBag } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { useCart } from '../features/cart/runtime/cart-context'
@@ -19,13 +19,14 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <Link className="brand" to="/" aria-label="Bilhete da Sorte — início">
-          <span className="brand__mark" aria-hidden="true">
-            <Sparkles size={20} />
-          </span>
-          <span>
-            <strong>Bilhete</strong> da Sorte
-          </span>
+        <Link className="brand" to="/" aria-label="Sol da Sorte — início">
+          <img
+            src="https://sistemalotericoba.com.br/wp-content/uploads/2022/05/logo-sol-da-sorte-2.png"
+            alt="Sol da Sorte"
+            className="brand__logo"
+            width={624}
+            height={357}
+          />
         </Link>
         <div className="site-header__actions">
           <form className="purchase-search" role="search" onSubmit={openPurchases}>
@@ -49,6 +50,14 @@ export function AppLayout() {
           >
             <ShoppingBag size={20} aria-hidden="true" />
             <span className="cart-link__label">Carrinho</span>
+            <img
+              src="https://sistemalotericoba.com.br/wp-content/uploads/2022/07/MASCOTE-SOL_COREL-1-150x150.png"
+              alt=""
+              aria-hidden="true"
+              className="cart-link__mascot"
+              width={150}
+              height={150}
+            />
             {itemCount > 0 ? <span className="cart-link__count">{itemCount}</span> : null}
           </Link>
         </div>

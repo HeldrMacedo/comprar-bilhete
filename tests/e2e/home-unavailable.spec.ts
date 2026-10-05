@@ -15,7 +15,7 @@ test('home mantém o banner acima do aviso quando não há concurso atual', asyn
   const notice = page.getByRole('heading', { name: 'Sem sorteios ativo no momento' })
   await expect(banner).toBeVisible()
   await expect(notice).toBeVisible()
-  await expect(page.getByRole('button', { name: /Ir para o carrinho/i })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Adicionar ao carrinho/i })).toHaveCount(0)
 
   const bannerBox = await banner.boundingBox()
   const noticeBox = await notice.boundingBox()
@@ -47,7 +47,8 @@ test('mostra concurso HTTP para consulta e desabilita a compra', async ({ page }
     }),
   )
   await page.goto('/')
-  await expect(page.getByRole('checkbox', { name: /domingo/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Domingo' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Todos' })).toHaveCount(0)
   await expect(page.getByText(/apenas para consulta/i)).toBeVisible()
-  await expect(page.getByRole('button', { name: /Ir para o carrinho/i })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /Adicionar ao carrinho/i })).toBeDisabled()
 })

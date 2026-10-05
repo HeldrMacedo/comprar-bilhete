@@ -32,6 +32,7 @@ const capSchema = z.object({
     .default('12:00:00'),
   qte_premios_sorteiocap: z.number().int().nonnegative(),
   qtd_giros_sorteiocap: z.number().int().nonnegative(),
+  dupla_chance_sorteiocap: z.union([z.literal(0), z.literal(1)]).optional(),
   giros_sorteiocap: z.string().nullish(),
   premio_01_sorteiocap: z.string().nullish(),
   premio_02_sorteiocap: z.string().nullish(),
@@ -51,6 +52,7 @@ const espSchema = z.object({
     .default('12:00:00'),
   qte_premios_sorteioesp: z.number().int().nonnegative(),
   qtd_giros_sorteioesp: z.number().int().nonnegative(),
+  dupla_chance_sorteioesp: z.union([z.literal(0), z.literal(1)]).optional(),
   giros_sorteioesp: z.string().nullish(),
   premio_01_sorteioesp: z.string().nullish(),
   premio_02_sorteioesp: z.string().nullish(),
@@ -82,9 +84,12 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
         salesEndAt,
         title: `Sorteio CAP #${cap.concurso_id_sorteiocap}`,
         description: `${cap.qte_premios_sorteiocap} prêmios e ${cap.qtd_giros_sorteiocap} giros da sorte.`,
-        prize: cap.premio_01_sorteiocap || cap.giros_sorteiocap || 'Prêmios a confirmar',
+        prize: cap.premio_01_sorteiocap || 'Prêmios a confirmar',
         drawDate: toDrawDate(cap.data_sorteiocap, cap.hora_sorteiocap),
         priceInCents: toCents(cap.valor_bilhete_sorteiocap),
+        ...(cap.dupla_chance_sorteiocap !== undefined && {
+          doubleChance: cap.dupla_chance_sorteiocap === 1,
+        }),
         prizes: toPrizes([
           cap.premio_01_sorteiocap,
           cap.premio_02_sorteiocap,
@@ -111,9 +116,12 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
         salesEndAt,
         title: `Sorteio Especial #${esp.concurso_id_sorteioesp}`,
         description: `${esp.qte_premios_sorteioesp} prêmios e ${esp.qtd_giros_sorteioesp} giros da sorte.`,
-        prize: esp.premio_01_sorteioesp || esp.giros_sorteioesp || 'Prêmios a confirmar',
+        prize: esp.premio_01_sorteioesp || 'Prêmios a confirmar',
         drawDate: toDrawDate(esp.data_sorteioesp, esp.hora_sorteioesp),
         priceInCents: toCents(esp.valor_bilhete_sorteioesp),
+        ...(esp.dupla_chance_sorteioesp !== undefined && {
+          doubleChance: esp.dupla_chance_sorteioesp === 1,
+        }),
         prizes: toPrizes([
           esp.premio_01_sorteioesp,
           esp.premio_02_sorteioesp,

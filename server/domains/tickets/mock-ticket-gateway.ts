@@ -12,6 +12,7 @@ const raffle: Raffle = {
   purchaseEnabled: true,
   prizes: ['1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 AVELLOZ AZ1', '1 HONDA START 160 + 20 MIL'],
   luckySpins: { count: 10, label: 'R$ 300,00' },
+  doubleChance: true,
 }
 
 const sundayRaffle: Raffle = {
@@ -23,6 +24,7 @@ const sundayRaffle: Raffle = {
   priceInCents: 600,
   purchaseEnabled: true,
   prizes: ['R$: 3 MIL REAIS', 'R$: 3 MIL REAIS', 'R$: 3 MIL REAIS', '1 HONDA BROS 160 0KM'],
+  doubleChance: true,
 }
 
 const raffles = [raffle, sundayRaffle]

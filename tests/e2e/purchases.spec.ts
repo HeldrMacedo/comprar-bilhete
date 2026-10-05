@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 
 test('consulta a compra paga em Minhas compras após o retorno do pagamento', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: /ir para o carrinho/i }).click()
+  await page.getByRole('button', { name: 'Quarta' }).click()
+  await page.getByRole('button', { name: /adicionar ao carrinho/i }).click()
   await page.getByLabel('CPF', { exact: true }).fill('52998224725')
   await page.getByLabel('Celular com DDD').fill('84999855367')
   await expect(page.getByText('Cliente encontrado')).toBeVisible()

@@ -6,7 +6,7 @@ Permitir que uma pessoa compre uma ou mais cartelas de um sorteio com poucos pas
 
 ## Jornada principal
 
-1. Ver os sorteios ativos de quarta e domingo, prêmio, data e preço unitário de cada um.
+1. Ver os sorteios ativos de quarta e domingo em um destaque navegável, com prêmio, data, preço unitário e contagem regressiva em tempo real até cada sorteio.
 2. Escolher quarta, domingo ou ambos e definir quantidade aleatória ou cartelas específicas por sorteio.
 3. Revisar/remover cartelas no carrinho.
 4. Informar nome completo, CPF e celular.
