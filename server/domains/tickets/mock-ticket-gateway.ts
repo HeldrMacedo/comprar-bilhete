@@ -1,5 +1,11 @@
 import { DomainError } from '../../shared/errors.js'
 import type { Order, Ticket } from '../orders/order-types.js'
+import type {
+  ContestAdminGateway,
+  ContestSlot,
+  ContestSource,
+  ContestValues,
+} from './contest-admin-gateway.js'
 import type { Raffle, TicketGateway } from './ticket-gateway.js'
 
 const raffle: Raffle = {
@@ -29,6 +35,16 @@ const sundayRaffle: Raffle = {
 
 const raffles = [raffle, sundayRaffle]
 
+// Fuso dos sorteios (America/Fortaleza, UTC-3) para converter entre ISO e hora local.
+function toLocalParts(iso: string) {
+  const local = new Date(Date.parse(iso) - 3 * 60 * 60_000).toISOString()
+  return { date: local.slice(0, 10), time: local.slice(11, 16), dateTime: local.slice(0, 16) }
+}
+
+function fromLocal(dateTime: string) {
+  return new Date(`${dateTime}:00-03:00`).toISOString()
+}
+
 const tickets: Ticket[] = Array.from({ length: 48 }, (_, index) => ({
   id: `card-${String(index + 1).padStart(3, '0')}`,
   code: `#${String(index + 1).padStart(3, '0')}`,
@@ -45,19 +61,81 @@ const tickets: Ticket[] = Array.from({ length: 48 }, (_, index) => ({
   batchPosition: index + 1,
 }))
 
-export class MockTicketGateway implements TicketGateway {
+const SOURCES: Array<{ source: ContestSource; raffleId: string }> = [
+  { source: 'cap', raffleId: raffle.id },
+  { source: 'esp', raffleId: sundayRaffle.id },
+]
+
+export class MockTicketGateway implements TicketGateway, ContestAdminGateway {
   private readonly soldTickets = new Set<string>()
+  // Cada instância edita a própria cópia: testes e o painel em modo mock não se afetam.
+  private readonly raffles = structuredClone(raffles)
+  private readonly salesStart = new Map<string, string>()
 
   async getActiveRaffles() {
-    return structuredClone(raffles)
+    return structuredClone(this.raffles)
   }
 
   async getActiveRaffle() {
-    return structuredClone(raffle)
+    return structuredClone(this.raffles[0]!)
+  }
+
+  async listContests() {
+    return SOURCES.map(({ source, raffleId }) => this.toSlot(source, this.requireRaffle(raffleId)))
+  }
+
+  async updateContest(source: ContestSource, values: ContestValues) {
+    const raffleId = SOURCES.find((item) => item.source === source)?.raffleId
+    if (!raffleId) throw new DomainError('Este sorteio não está disponível para edição.', 404)
+    const current = this.requireRaffle(raffleId)
+    Object.assign(current, {
+      drawDate: fromLocal(`${values.drawDate}T${values.drawTime}`),
+      salesEndAt: fromLocal(values.salesEndAt),
+      priceInCents: values.priceInCents,
+      prize: values.prizes[0],
+      prizes: [...values.prizes],
+      doubleChance: values.doubleChance,
+    })
+    if (values.luckySpinsCount > 0) {
+      current.luckySpins = { count: values.luckySpinsCount, label: values.luckySpinsLabel }
+    } else {
+      delete current.luckySpins
+    }
+    this.salesStart.set(raffleId, values.salesStartAt)
+    return this.toSlot(source, current)
+  }
+
+  private requireRaffle(raffleId: string) {
+    const found = this.raffles.find((item) => item.id === raffleId)
+    if (!found) throw new DomainError('Sorteio não encontrado.', 404)
+    return found
+  }
+
+  private toSlot(source: ContestSource, current: Raffle): ContestSlot {
+    const draw = toLocalParts(current.drawDate)
+    const salesEnd = toLocalParts(
+      current.salesEndAt ?? new Date(Date.parse(current.drawDate) - 60 * 60_000).toISOString(),
+    )
+    const salesStart = toLocalParts(
+      new Date(Date.parse(current.drawDate) - 30 * 86_400_000).toISOString(),
+    )
+    return {
+      source,
+      contestId: current.id,
+      salesStartAt: this.salesStart.get(current.id) ?? salesStart.dateTime,
+      salesEndAt: salesEnd.dateTime,
+      drawDate: draw.date,
+      drawTime: draw.time,
+      priceInCents: current.priceInCents,
+      prizes: current.prizes ?? [current.prize],
+      luckySpinsCount: current.luckySpins?.count ?? 0,
+      luckySpinsLabel: current.luckySpins?.label ?? '',
+      doubleChance: current.doubleChance ?? false,
+    }
   }
 
   async getAvailableTickets(raffleId: string) {
-    if (!raffles.some((item) => item.id === raffleId)) {
+    if (!this.raffles.some((item) => item.id === raffleId)) {
       throw new DomainError('Sorteio não encontrado.', 404)
     }
     return structuredClone(
@@ -66,7 +144,7 @@ export class MockTicketGateway implements TicketGateway {
   }
 
   async getAvailableTicket(raffleId: string, ticketId: string) {
-    if (!raffles.some((item) => item.id === raffleId)) {
+    if (!this.raffles.some((item) => item.id === raffleId)) {
       throw new DomainError('Sorteio não encontrado.', 404)
     }
     const ticket = tickets.find((item) => item.id === ticketId)

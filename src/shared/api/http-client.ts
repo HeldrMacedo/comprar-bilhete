@@ -25,9 +25,10 @@ export async function requestJson<T>(
     response = await fetch(`${env.VITE_API_BASE_URL}${path}`, {
       ...options,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      // Content-Type sem corpo faz o Fastify recusar DELETE com 400.
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json',
+        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...options.headers,
       },
     })
@@ -45,7 +46,7 @@ export async function requestJson<T>(
     throw new ApiError(apiError.message, response.status, apiError.code)
   }
 
-  const data: unknown = await response.json()
+  const data: unknown = response.status === 204 ? undefined : await response.json()
   const parsed = schema.safeParse(data)
   if (!parsed.success) {
     console.error('Resposta fora do contrato', parsed.error.flatten())
@@ -57,6 +58,28 @@ export async function requestJson<T>(
     )
   }
   return parsed.data
+}
+
+// Download autenticado (CSV): devolve o arquivo e o nome sugerido pelo servidor.
+export async function requestFile(path: string, fallbackName: string) {
+  let response: Response
+  try {
+    response = await fetch(`${env.VITE_API_BASE_URL}${path}`)
+  } catch (error) {
+    throw new ApiError(
+      'Nao foi possivel conectar ao servidor. Tente novamente.',
+      undefined,
+      undefined,
+      error,
+    )
+  }
+  if (!response.ok) {
+    const apiError = await readApiError(response)
+    throw new ApiError(apiError.message, response.status, apiError.code)
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const fileName = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName
+  return { blob: await response.blob(), fileName }
 }
 
 const errorBodySchema = z.object({

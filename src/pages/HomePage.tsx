@@ -8,6 +8,7 @@ import type { Raffle, RaffleCard } from '../features/raffle/domain/types'
 import { raffleRepository } from '../features/raffle/repository/raffle-repository'
 import { DrawCountdown } from '../features/raffle/ui/DrawCountdown'
 import { RaffleCardOption } from '../features/raffle/ui/RaffleCardOption'
+import { DrawVideo } from '../features/site/ui/DrawVideo'
 import { formatCurrency } from '../shared/lib/currency'
 import { formatDate, formatDrawDate, formatWeekday } from '../shared/lib/date'
 import { Spinner } from '../shared/ui/Spinner'
@@ -338,6 +339,7 @@ export function HomePage() {
                       </div>
                     </div>
                   )}
+
                   <footer className="raffle-selection__footer">
                     {draft.mode === 'random' ? (
                       <div className="raffle-selection__quantity">
@@ -430,6 +432,8 @@ export function HomePage() {
           ) : null}
         </section>
       )}
+
+      <DrawVideo />
     </>
   )
 }

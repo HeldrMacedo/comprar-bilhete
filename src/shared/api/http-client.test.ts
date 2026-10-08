@@ -22,4 +22,15 @@ describe('requestJson', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 409, code: 'TICKET_RESERVED' })
   })
+
+  it('sends Content-Type only with a body and accepts 204 responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(requestJson('/session', z.undefined(), { method: 'DELETE' })).resolves.toBe(
+      undefined,
+    )
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
+    expect(init?.headers).not.toHaveProperty('Content-Type')
+  })
 })

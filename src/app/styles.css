@@ -329,6 +329,76 @@ main {
   padding-block: 68px 110px;
 }
 
+/* Vídeo do sorteio (configurado no painel). */
+.draw-video {
+  padding-top: 56px;
+  margin-bottom: 10px;
+}
+
+.draw-video h2 {
+  margin: 0 0 18px;
+  font:
+    800 26px Manrope,
+    sans-serif;
+}
+
+.draw-video__frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #0f172a;
+  box-shadow: var(--shadow);
+}
+
+.draw-video__frame iframe,
+.draw-video__poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.draw-video__poster {
+  padding: 0;
+  cursor: pointer;
+  background: #0f172a;
+}
+
+.draw-video__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+}
+
+.draw-video__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #ff0033;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s;
+}
+
+.draw-video__poster:hover .draw-video__play,
+.draw-video__poster:focus-visible .draw-video__play {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.draw-video__poster:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: -3px;
+}
+
 .cart-group {
   margin-top: 24px;
 }
@@ -1318,6 +1388,7 @@ main {
     transition-duration: 0.01ms !important;
   }
 }
+
 .checkbox-field {
   display: flex;
   align-items: center;
@@ -1620,6 +1691,7 @@ main {
     align-items: flex-start;
   }
 }
+
 .raffle-choices {
   display: flex;
   flex-wrap: wrap;
@@ -2041,18 +2113,22 @@ main {
     transform: scale(1);
     filter: brightness(1);
   }
+
   14% {
     transform: scale(1.03);
     filter: brightness(1.1);
   }
+
   28% {
     transform: scale(1);
     filter: brightness(1);
   }
+
   42% {
     transform: scale(1.03);
     filter: brightness(1.1);
   }
+
   70% {
     transform: scale(1);
     filter: brightness(1);

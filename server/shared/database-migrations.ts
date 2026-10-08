@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 6
+const CURRENT_SCHEMA_VERSION = 7
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -26,6 +26,7 @@ export function migrateDatabase(database: DatabaseSync) {
       if (version < 4) migrateToVersion4(database)
       if (version < 5) migrateToVersion5(database)
       if (version < 6) migrateToVersion6(database)
+      if (version < 7) migrateToVersion7(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -87,6 +88,7 @@ function createLatestSchema(database: DatabaseSync) {
   database.exec(REMOTE_RESERVATIONS_SCHEMA)
   database.exec(ORDERS_CUSTOMER_CPF_INDEX)
   database.exec(BATCH_SEQUENCES_SCHEMA)
+  database.exec(ADMIN_SCHEMA)
 }
 
 function migrateToVersion2(database: DatabaseSync) {
@@ -191,6 +193,48 @@ const BATCH_SEQUENCES_SCHEMA = `
 
 function migrateToVersion6(database: DatabaseSync) {
   database.exec(BATCH_SEQUENCES_SCHEMA)
+}
+
+// Painel administrativo: usuários, sessões por cookie, auditoria e configurações do site.
+const ADMIN_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS admin_users (
+    id TEXT PRIMARY KEY,
+    login TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_sessions_user ON admin_sessions(user_id);
+
+  CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    action TEXT NOT NULL,
+    target_id TEXT,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+`
+
+function migrateToVersion7(database: DatabaseSync) {
+  database.exec(ADMIN_SCHEMA)
 }
 
 function tableColumns(database: DatabaseSync, table: string) {

@@ -282,27 +282,90 @@ export class OrderService {
       return
     }
 
+    await this.fulfill(order.id)
+  }
+
+  // Aprovação manual de pedido pendente: o administrador confirma o pagamento recebido fora
+  // do fluxo automático; a entrega segue o mesmo caminho do webhook.
+  async approvePending(orderId: string) {
+    const order = this.requireOrder(orderId)
+    if (order.status !== 'pending') {
+      throw new DomainError('Somente pedidos pendentes podem receber baixa manual.', 409)
+    }
+    if (!this.repository.tryStartProcessing(order.id, order.items.length)) {
+      throw new DomainError(
+        'A reserva deste pedido expirou ou foi cancelada; ele não pode mais ser aprovado.',
+        409,
+        'ORDER_RESERVATION_LOST',
+      )
+    }
+    this.repository.recordManualPayment(order.id)
+    await this.fulfill(order.id)
+    return this.requireOrder(order.id)
+  }
+
+  // Nova tentativa de entrega para pedido em análise. Antes de validar, reconfirma a reserva
+  // local e a disponibilidade na API de bilhetes, porque a validação externa não é condicional.
+  async retryManualReview(orderId: string) {
+    const order = this.requireOrder(orderId)
+    if (order.status !== 'manual_review') {
+      throw new DomainError('Somente pedidos em análise podem ser reprocessados.', 409)
+    }
+    for (const item of order.items) {
+      const available = await this.tickets.getAvailableTicket(
+        item.raffleId ?? order.raffleId,
+        item.id,
+      )
+      if (!available) {
+        throw new DomainError(
+          `O bilhete ${item.code} não está mais disponível. Cancele o pedido e estorne o pagamento.`,
+          409,
+          'TICKET_UNAVAILABLE',
+        )
+      }
+    }
+    if (!this.repository.claimManualReviewRetry(order.id)) {
+      throw new DomainError('O pedido mudou de status. Atualize a lista e tente novamente.', 409)
+    }
+    if (!order.captureMethod) this.repository.recordManualPayment(order.id)
+    await this.fulfill(order.id)
+    return this.requireOrder(order.id)
+  }
+
+  async cancelByAdmin(orderId: string) {
+    const order = this.requireOrder(orderId)
+    if (order.status !== 'pending' && order.status !== 'manual_review') {
+      throw new DomainError('Somente pedidos pendentes ou em análise podem ser cancelados.', 409)
+    }
+    if (!this.repository.cancelByAdmin(order.id, order.status)) {
+      throw new DomainError('O pedido mudou de status. Atualize a lista e tente novamente.', 409)
+    }
+    await this.reservations.releaseOrder(order.id)
+    return this.requireOrder(order.id)
+  }
+
+  private async fulfill(orderId: string) {
     try {
-      if (!this.repository.assignBatchPositions(order.id)) {
-        this.repository.markManualReview(order.id, 'Falha ao atribuir posicoes de lote.')
+      if (!this.repository.assignBatchPositions(orderId)) {
+        this.repository.markManualReview(orderId, 'Falha ao atribuir posicoes de lote.')
         return
       }
 
-      if (!(await this.reservations.confirmOwnership(order))) {
+      if (!(await this.reservations.confirmOwnership(this.requireOrder(orderId)))) {
         this.repository.markManualReview(
-          order.id,
+          orderId,
           'Reserva externa da bilhete foi perdida antes da validacao.',
         )
         return
       }
-      const updatedOrder = this.requireOrder(order.id)
-      const customer = await this.customers.ensureRegistered(order.customer)
+      const updatedOrder = this.requireOrder(orderId)
+      const customer = await this.customers.ensureRegistered(updatedOrder.customer)
       await this.tickets.fulfillOrder({ ...updatedOrder, customer, status: 'processing' })
-      this.repository.markPaid(order.id)
-      this.reservations.markValidated(order.id)
+      this.repository.markPaid(orderId)
+      this.reservations.markValidated(orderId)
     } catch (error) {
       this.repository.markManualReview(
-        order.id,
+        orderId,
         error instanceof Error ? error.message : 'Falha ao validar bilhetes.',
       )
     }

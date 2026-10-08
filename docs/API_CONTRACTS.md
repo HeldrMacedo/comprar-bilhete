@@ -14,6 +14,33 @@ O React usa apenas `/api`, encaminhado pelo Vite ao Fastify local.
 - `GET /api/v1/orders/{id}` — consulta status seguro do pedido.
 - `GET /api/v1/orders/{id}?transaction_nsu=&slug=` — reconcilia o redirect na InfinitePay.
 - `POST /api/v1/webhooks/infinitepay` — persiste notificação e agenda reconciliação.
+- `GET /api/v1/site-settings` — `{ "youtubeVideoId": string | null }` para a seção "Assista ao sorteio" da Home.
+
+### Painel administrativo
+
+Todas as rotas abaixo respondem com `Cache-Control: no-store`. Métodos de escrita com `Origin` diferente de `PUBLIC_APP_URL` recebem `403 ADMIN_FORBIDDEN_ORIGIN`.
+
+- `POST /api/v1/admin/session` — `{ "login", "password" }`; devolve `{ "user" }` e grava o cookie `admin_session` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/admin`, `Secure` quando `PUBLIC_APP_URL` é HTTPS). Credencial inválida ou usuário inativo: `401 ADMIN_INVALID_CREDENTIALS`, sem revelar qual. Após 10 tentativas com falha no mesmo minuto, o IP recebe `429 RATE_LIMITED` até a janela acabar; login correto não consome o limite.
+- `GET /api/v1/admin/session` — `{ "user" }` ou `401 ADMIN_UNAUTHENTICATED`.
+- `DELETE /api/v1/admin/session` — encerra a sessão; `204`.
+- `GET /api/v1/admin/users` — `{ "users": [...] }` com `id`, `login`, `name`, `active`, `createdAt`, `updatedAt`. Hash de senha nunca é exposto.
+- `POST /api/v1/admin/users` — `{ "login", "name", "password" }`; `201 { "user" }`. Login em minúsculas (3–40 caracteres `a-z0-9._-`), senha de 12 a 128 caracteres; login repetido: `409 ADMIN_LOGIN_TAKEN`.
+- `PATCH /api/v1/admin/users/{id}` — campos opcionais `login`, `name`, `password`, `active`. Não permite desativar a si mesmo nem o último ativo (`409`). Trocar senha encerra as outras sessões do usuário; desativar encerra todas.
+- `DELETE /api/v1/admin/users/{id}` — `204`; não exclui a si mesmo nem o último ativo (`409`).
+
+- `GET /api/v1/admin/dashboard` — `totals` (`customers`: CPFs distintos com pedido; `paidTickets`, `paidOrders` e `revenueInCents` de pedidos `paid`; `pendingTickets` e `pendingOrders` de pedidos `pending` não expirados; `manualReviewOrders`), `dailySales` (30 dias até hoje no fuso `America/Fortaleza`, pela data de pagamento, dias sem venda com zero), `ordersByStatus`, `ticketsByRaffle` (bilhetes pagos e receita por concurso de cada bilhete) e `upcomingRaffles` (concursos ativos do gateway, com bilhetes vendidos no site). Se a API de bilhetes falhar, `upcomingRaffles` é `null` e `upcomingRafflesError` explica; os indicadores locais continuam.
+- `GET /api/v1/admin/orders?q=&status=&from=&to=&page=&pageSize=` — `{ page, pageSize, total, orders }`, do mais recente ao mais antigo; `pageSize` até 100 (padrão 20). `q` busca por nome (comprador ou terceiro), CPF ou celular (a partir de 3 dígitos), início do ID do pedido, código, ID ou identificação do bilhete. `from`/`to` (`AAAA-MM-DD`) são dias no fuso `America/Fortaleza`, ambos inclusivos. Cada pedido traz `customer` com nome, CPF, celular e `beneficiaryName`, além de `captureMethod` (`manual` para baixa no painel) e `lastError`.
+- `GET /api/v1/admin/orders/export` — mesmos filtros, sem paginação; CSV (`;`, UTF-8 com BOM, CRLF, valores com vírgula decimal, células iniciadas por `=`, `+`, `-` ou `@` prefixadas com `'`). Mais de 20.000 linhas: `413 EXPORT_TOO_LARGE`. Cada exportação é auditada com os filtros.
+- `POST /api/v1/admin/orders/{id}/approve` — `{ "reason" }` (5 a 500 caracteres). `pending` com reserva ativa: registra `captureMethod = manual` e entrega pelo mesmo fluxo do webhook, resultando em `paid` ou `manual_review`. `manual_review`: confere se cada bilhete continua disponível na API (`409 TICKET_UNAVAILABLE` se não), reocupa a reserva local e tenta a entrega de novo, mantendo as posições de lote já atribuídas. Outros status ou reserva perdida: `409`. Devolve `{ "order" }`.
+- `POST /api/v1/admin/orders/{id}/cancel` — `{ "reason" }`. `pending`: libera reservas local e externa. `manual_review`: marca `cancelled` sem estorno (feito fora do sistema). Outros status: `409`.
+- `GET /api/v1/admin/customers?q=&purchase=paid|unpaid&from=&to=&page=&pageSize=` — um cliente por CPF, derivado dos pedidos locais: nome, celular e endereço do pedido mais recente, `orderCount`, `paidOrderCount`, `paidTotalInCents`, `ticketCount` (bilhetes pagos), `firstOrderAt`, `lastOrderAt`. `from`/`to` filtram o último pedido.
+- `GET /api/v1/admin/customers/export` — mesmos filtros; CSV no mesmo formato da exportação de vendas.
+
+- `GET /api/v1/admin/raffles` — `{ raffles }` com os concursos do registro atual da API de bilhetes: `source` (`cap` = quarta, `esp` = domingo), `contestId`, `salesStartAt`, `salesEndAt` (`AAAA-MM-DDTHH:MM`), `drawDate`, `drawTime`, `priceInCents`, `prizes` (até 5), `luckySpinsCount`, `luckySpinsLabel`, `doubleChance`. Datas e horas são locais de `America/Fortaleza`, como a API guarda.
+- `PUT /api/v1/admin/raffles/{cap|esp}` — mesmos campos (sem `source`/`contestId`). Valida início antes do fim das vendas, fim até o horário do sorteio, de 1 a 5 prêmios e preço inteiro em centavos. Grava na API de bilhetes (ver "Escrita") e devolve `{ raffle }`; se a releitura não confirmar os valores, `502 UPSTREAM_NOT_APPLIED`. Auditado com valores antes e depois.
+- `GET`/`PUT /api/v1/admin/settings` — `{ youtubeVideoId, youtubeUrl }`; o `PUT` recebe `{ "youtubeUrl" }`. Só aceita `https` em `youtube.com`, `www.youtube.com`, `m.youtube.com` ou `youtu.be` (`watch?v=`, `/embed/`, `/shorts/`, `/live/` ou link curto) e guarda apenas o ID de 11 caracteres; vazio remove o vídeo. Link inválido: `400 INVALID_YOUTUBE_URL`.
+
+Sem sessão válida, rotas protegidas devolvem `401 ADMIN_UNAUTHENTICATED`. A sessão expira após 8 horas sem uso e, em qualquer caso, 24 horas após o login.
 
 Entrada de pedido com um ou dois concursos:
 
@@ -95,6 +122,7 @@ O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, 
 
 - `POST /pessoa` com `nome`, `cpf` e `fone` — formato ainda precisa de validação live.
 - `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API. O backend envia também `pessoas_id` (ID do comprador em `pessoa`) e `nome` (`beneficiaryName` quando a compra é para terceiro; senão o nome do comprador), campos opcionais segundo o swagger. Para cliente novo, o backend cadastra a pessoa após o pagamento e relê `GET /pessoa/cpf/{cpf}` para obter `pessoas_id`, pois a resposta de `POST /pessoa` não documenta o ID.
+- `PUT /concurso/{id}` — usado pelo painel. O swagger não documenta o corpo; o backend lê `GET /concurso/atual`, troca só os campos `*_sorteiocap` ou `*_sorteioesp` do concurso editado (`data_inicio_*`, `data_fim_*` como `AAAA-MM-DD HH:MM:SS`, `data_*`, `hora_*`, `valor_bilhete_*` decimal, `qte_premios_*`, `premio_01..05_*` com `null` nos vazios, `qtd_giros_*`, `giros_*` (`"0"` sem giros) e `dupla_chance_*` 0/1), envia o registro inteiro e relê para confirmar. Formato ainda não validado contra a API real.
 - `PUT /bilhete/reservado` e `GET /bilhete/reservado?concurso_id=&numero=&estabelecimento_id=` — **provisório, ainda não publicado**. Reserva com `reservado: true` e recebe `data_reservado` (token); libera com `reservado: false` e o `data_reservado` recebido. `409` indica bilhete já reservada/validada ou token que não é o dono. Contrato detalhado em [design-docs/2026-09-27-concorrencia-reserva-bilhete.md](design-docs/2026-09-27-concorrencia-reserva-bilhete.md).
 
 ## Limitações conhecidas

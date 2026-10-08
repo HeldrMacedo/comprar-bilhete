@@ -2,6 +2,15 @@ import cors from '@fastify/cors'
 import Fastify from 'fastify'
 import { ZodError } from 'zod'
 import { parseServerEnv, type ServerEnv } from './config/env.js'
+import { AdminAuthService } from './domains/admin/admin-auth-service.js'
+import { AdminDashboardRepository } from './domains/admin/admin-dashboard-repository.js'
+import { AdminDashboardService } from './domains/admin/admin-dashboard-service.js'
+import { AdminRaffleService } from './domains/admin/admin-raffle-service.js'
+import { AdminRepository } from './domains/admin/admin-repository.js'
+import { AdminSalesRepository } from './domains/admin/admin-sales-repository.js'
+import { AdminSalesService } from './domains/admin/admin-sales-service.js'
+import { AdminUserService } from './domains/admin/admin-user-service.js'
+import { SiteSettingsService } from './domains/admin/site-settings.js'
 import type { CustomerGateway } from './domains/customers/customer-gateway.js'
 import { CustomerService } from './domains/customers/customer-service.js'
 import { LiveCustomerGateway } from './domains/customers/live-customer-gateway.js'
@@ -18,8 +27,11 @@ import { LiveTicketReservationGateway } from './domains/tickets/live-ticket-rese
 import { MockTicketGateway } from './domains/tickets/mock-ticket-gateway.js'
 import { MockTicketReservationGateway } from './domains/tickets/mock-ticket-reservation-gateway.js'
 import { NoopTicketReservationGateway } from './domains/tickets/noop-ticket-reservation-gateway.js'
+import type { ContestAdminGateway } from './domains/tickets/contest-admin-gateway.js'
+import { LiveContestAdminGateway } from './domains/tickets/live-contest-admin-gateway.js'
 import type { TicketGateway } from './domains/tickets/ticket-gateway.js'
 import type { TicketReservationGateway } from './domains/tickets/ticket-reservation-gateway.js'
+import { registerAdminRoutes } from './http/admin-routes.js'
 import { registerRoutes } from './http/routes.js'
 import { createDatabase } from './shared/database.js'
 import { DomainError } from './shared/errors.js'
@@ -30,6 +42,7 @@ type AppOptions = {
   payments?: PaymentGateway
   customers?: CustomerGateway
   reservations?: TicketReservationGateway
+  contestAdmin?: ContestAdminGateway
   logger?: boolean
   startWorker?: boolean
   now?: () => Date
@@ -70,8 +83,9 @@ export async function buildApp(options: AppOptions = {}) {
       : env.TICKET_RESERVATION_PROVIDER === 'mock'
         ? new MockTicketReservationGateway(env.TICKET_RESERVATION_TTL_MINUTES * 60_000, now)
         : new NoopTicketReservationGateway())
+  const orderRepository = new OrderRepository(database, now)
   const service = new OrderService(
-    new OrderRepository(database, now),
+    orderRepository,
     tickets,
     payments,
     customers,
@@ -83,9 +97,18 @@ export async function buildApp(options: AppOptions = {}) {
     now,
   )
 
-  await app.register(cors, { origin: env.PUBLIC_APP_URL })
-  await registerRoutes(app, service, customers)
+  const adminRepository = new AdminRepository(database)
+  const adminAuth = new AdminAuthService(adminRepository, now)
+  if (env.ADMIN_BOOTSTRAP_LOGIN && env.ADMIN_BOOTSTRAP_PASSWORD) {
+    const created = await adminAuth.bootstrap(
+      env.ADMIN_BOOTSTRAP_LOGIN,
+      'Administrador',
+      env.ADMIN_BOOTSTRAP_PASSWORD,
+    )
+    if (created) app.log.info(`Administrador inicial "${env.ADMIN_BOOTSTRAP_LOGIN}" criado.`)
+  }
 
+  // Antes dos plugins: escopos registrados com app.register herdam o handler vigente.
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
       return reply.status(400).send({ message: 'Dados inválidos.', issues: error.issues })
@@ -95,6 +118,37 @@ export async function buildApp(options: AppOptions = {}) {
     }
     app.log.error(error)
     return reply.status(500).send({ message: 'Erro interno do servidor.' })
+  })
+
+  await app.register(cors, { origin: env.PUBLIC_APP_URL })
+  const siteSettings = new SiteSettingsService(database, adminRepository, now)
+  // Modo mock edita o próprio gateway de bilhetes, para a Home refletir a mudança.
+  const contestAdmin =
+    options.contestAdmin ??
+    (env.TICKET_PROVIDER === 'live'
+      ? new LiveContestAdminGateway(env)
+      : tickets instanceof MockTicketGateway
+        ? tickets
+        : new MockTicketGateway())
+  await registerRoutes(app, service, customers, siteSettings)
+  await registerAdminRoutes(app, env, {
+    auth: adminAuth,
+    users: new AdminUserService(adminRepository, now),
+    sales: new AdminSalesService(
+      new AdminSalesRepository(database),
+      orderRepository,
+      service,
+      adminRepository,
+      now,
+    ),
+    raffles: new AdminRaffleService(contestAdmin, adminRepository, now),
+    settings: siteSettings,
+    dashboard: new AdminDashboardService(
+      new AdminDashboardRepository(database),
+      orderRepository,
+      () => service.getActiveRaffles(),
+      now,
+    ),
   })
 
   let worker: ReturnType<typeof setInterval> | undefined

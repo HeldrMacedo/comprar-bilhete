@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { adminLoginSchema, adminPasswordSchema } from '../domains/admin/admin-types.js'
+
+const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value)
 
 const serverEnvSchema = z
   .object({
@@ -20,6 +23,8 @@ const serverEnvSchema = z
     TICKET_RESERVATION_TTL_MINUTES: z.coerce.number().int().positive().default(30),
     INFINITEPAY_API_BASE_URL: z.url().default('https://api.checkout.infinitepay.io'),
     INFINITEPAY_HANDLE: z.string().min(1).optional(),
+    ADMIN_BOOTSTRAP_LOGIN: z.preprocess(emptyToUndefined, adminLoginSchema.optional()),
+    ADMIN_BOOTSTRAP_PASSWORD: z.preprocess(emptyToUndefined, adminPasswordSchema.optional()),
   })
   .superRefine((env, context) => {
     if (env.PAYMENT_PROVIDER === 'infinitepay' && !env.INFINITEPAY_HANDLE) {
@@ -34,6 +39,13 @@ const serverEnvSchema = z
         code: 'custom',
         path: ['TICKET_RESERVATION_PROVIDER'],
         message: 'live exige TICKET_PROVIDER=live',
+      })
+    }
+    if (Boolean(env.ADMIN_BOOTSTRAP_LOGIN) !== Boolean(env.ADMIN_BOOTSTRAP_PASSWORD)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['ADMIN_BOOTSTRAP_PASSWORD'],
+        message: 'ADMIN_BOOTSTRAP_LOGIN e ADMIN_BOOTSTRAP_PASSWORD devem ser informados juntos',
       })
     }
     if (

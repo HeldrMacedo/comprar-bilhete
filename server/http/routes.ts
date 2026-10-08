@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import type { SiteSettingsService } from '../domains/admin/site-settings.js'
 import type { CustomerService } from '../domains/customers/customer-service.js'
 import type { OrderService } from '../domains/orders/order-service.js'
 import { createOrderInputSchema, paymentEventSchema } from '../domains/orders/order-types.js'
@@ -25,8 +26,11 @@ export async function registerRoutes(
   app: FastifyInstance,
   service: OrderService,
   customers: CustomerService,
+  settings: SiteSettingsService,
 ) {
   app.get('/api/health', async () => ({ status: 'online' }))
+
+  app.get('/api/v1/site-settings', async () => settings.getPublic())
 
   const limitPurchaseLookup = createRateLimiter(10, 60_000)
   // POST mantém o CPF fora da URL e, portanto, dos logs de acesso.

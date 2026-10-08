@@ -9,7 +9,7 @@ import {
   type Ticket,
 } from './order-types.js'
 
-type OrderRow = Record<string, unknown>
+export type OrderRow = Record<string, unknown>
 
 export type PreparedOrderGroup = {
   raffleId: string
@@ -218,11 +218,14 @@ export class OrderRepository {
         .get(raffleId) as { next_position: number }
 
       let currentPosition = seq.next_position
-      const updatedItems = items.map((item) => ({
-        ...item,
-        validationBatch: '84734',
-        batchPosition: currentPosition++,
-      }))
+      // Nova tentativa (pedido em análise) mantém a posição já atribuída a cada bilhete.
+      const updatedItems = items.map((item) =>
+        item.validationBatch === '84734' &&
+        typeof item.batchPosition === 'number' &&
+        item.batchPosition > 0
+          ? item
+          : { ...item, validationBatch: '84734', batchPosition: currentPosition++ },
+      )
 
       this.database
         .prepare('UPDATE batch_sequences SET next_position = ?, updated_at = ? WHERE raffle_id = ?')
@@ -250,6 +253,58 @@ export class OrderRepository {
     this.database
       .prepare("UPDATE orders SET status = 'manual_review', last_error = ? WHERE id = ?")
       .run(message.slice(0, 500), orderId)
+  }
+
+  recordManualPayment(orderId: string) {
+    this.database
+      .prepare(
+        `UPDATE orders SET capture_method = 'manual', paid_amount_in_cents = total_in_cents
+         WHERE id = ?`,
+      )
+      .run(orderId)
+  }
+
+  // Reocupa a reserva local de cada bilhete antes de reprocessar; outro pedido com o mesmo
+  // bilhete faz a tentativa falhar com TICKET_RESERVED.
+  claimManualReviewRetry(orderId: string) {
+    return this.withReservationTransaction(() => {
+      const row = this.database
+        .prepare(
+          "SELECT raffle_id, items_json FROM orders WHERE id = ? AND status = 'manual_review'",
+        )
+        .get(orderId) as { raffle_id: string; items_json: string } | undefined
+      if (!row) return false
+      const items = JSON.parse(row.items_json) as Array<{ id: string; raffleId?: string }>
+      const expiresAt = new Date(this.now().getTime() + 15 * 60_000).toISOString()
+      for (const item of items) {
+        this.database
+          .prepare(
+            `INSERT INTO reservations (ticket_key, order_id, expires_at) VALUES (?, ?, ?)
+             ON CONFLICT(ticket_key) DO UPDATE SET expires_at = excluded.expires_at
+             WHERE reservations.order_id = excluded.order_id`,
+          )
+          .run(`${item.raffleId ?? row.raffle_id}:${item.id}`, orderId, expiresAt)
+        const owner = this.database
+          .prepare('SELECT order_id FROM reservations WHERE ticket_key = ?')
+          .get(`${item.raffleId ?? row.raffle_id}:${item.id}`) as { order_id: string }
+        if (owner.order_id !== orderId) {
+          throw new DomainError('Uma ou mais bilhetes ja estao reservados.', 409, 'TICKET_RESERVED')
+        }
+      }
+      this.database.prepare("UPDATE orders SET status = 'processing' WHERE id = ?").run(orderId)
+      return true
+    })
+  }
+
+  cancelByAdmin(orderId: string, expectedStatus: 'pending' | 'manual_review') {
+    return this.withReservationTransaction(() => {
+      const result = this.database
+        .prepare("UPDATE orders SET status = 'cancelled' WHERE id = ? AND status = ?")
+        .run(orderId, expectedStatus)
+      if (result.changes !== 1) return false
+      this.database.prepare('DELETE FROM reservations WHERE order_id = ?').run(orderId)
+      return true
+    })
   }
 
   cancel(orderId: string) {
@@ -392,7 +447,7 @@ export class OrderRepository {
   }
 }
 
-function mapOrder(row: OrderRow): Order {
+export function mapOrder(row: OrderRow): Order {
   return orderSchema.parse({
     id: row.id,
     raffleId: row.raffle_id,

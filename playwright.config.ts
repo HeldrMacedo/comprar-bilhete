@@ -27,6 +27,8 @@ export default defineConfig({
         PAYMENT_PROVIDER: 'mock',
         PUBLIC_APP_URL: 'http://127.0.0.1:4173',
         PUBLIC_API_URL: 'http://127.0.0.1:3334',
+        ADMIN_BOOTSTRAP_LOGIN: 'admin',
+        ADMIN_BOOTSTRAP_PASSWORD: 'senha-e2e-segura',
       },
     },
     {

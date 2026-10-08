@@ -30,3 +30,7 @@ const drawDateFormatter = new Intl.DateTimeFormat('pt-BR', {
 export function formatDrawDate(date: string) {
   return drawDateFormatter.format(new Date(date))
 }
+
+export function formatDateTime(date: string) {
+  return drawDateFormatter.format(new Date(date))
+}
