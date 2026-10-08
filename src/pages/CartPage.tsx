@@ -6,9 +6,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../features/cart/runtime/cart-context'
 import { isReservationConflict, startCheckout } from '../features/checkout/service/checkout-service'
 import {
-  createCustomerSchema,
+  customerSchema,
   toCheckoutCustomer,
   type CustomerForm,
+  type CustomerFormOutput,
 } from '../features/checkout/service/customer-schema'
 import { useCustomerLookup } from '../features/checkout/runtime/use-customer-lookup'
 import { formatCurrency } from '../shared/lib/currency'
@@ -35,12 +36,21 @@ export function CartPage() {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<CustomerForm>({
-    resolver: zodResolver(createCustomerSchema(false)),
+  } = useForm<CustomerForm, unknown, CustomerFormOutput>({
+    resolver: zodResolver(customerSchema),
     defaultValues: {
       name: '',
       cpf: '',
       phone: '',
+      address: {
+        zipCode: '',
+        street: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+      },
       buyingForThirdParty: false,
       beneficiaryName: '',
     },
@@ -48,7 +58,7 @@ export function CartPage() {
   const cpf = watch('cpf')
   const buyingForThirdParty = watch('buyingForThirdParty')
   const lookup = useCustomerLookup({ cpf })
-  const addressRequired = lookup.data?.found === false
+  const isNewCustomer = lookup.data?.found === false
 
   useEffect(() => {
     if (!lookup.data?.found) return
@@ -94,15 +104,10 @@ export function CartPage() {
     )
   }
 
-  async function onSubmit(customer: CustomerForm) {
+  async function onSubmit(customer: CustomerFormOutput) {
     if (!cart) return
     if (!lookup.data && onlyDigits(cpf).length === 11) {
       setSubmitError('Aguarde a consulta do cadastro antes de continuar.')
-      return
-    }
-    const parsed = createCustomerSchema(addressRequired).safeParse(customer)
-    if (!parsed.success) {
-      setSubmitError(parsed.error.issues[0]?.message ?? 'Revise os dados informados.')
       return
     }
     const currentCart = cart
@@ -267,7 +272,7 @@ export function CartPage() {
                   ? 'Nao foi possivel consultar. Tente novamente.'
                   : lookup.data?.found
                     ? 'Cliente encontrado'
-                    : addressRequired
+                    : isNewCustomer
                       ? 'Complete seu endereco'
                       : null}
               {lookup.isError ? (
@@ -308,7 +313,7 @@ export function CartPage() {
                 ) : null}
               </div>
             ) : null}
-            {addressRequired ? <AddressFields register={register} errors={errors} /> : null}
+            <AddressFields register={register} errors={errors} />
             <p className="privacy-note">
               <LockKeyhole size={16} /> Seus dados sao usados apenas para identificar a compra e o
               ganhador.
@@ -370,7 +375,7 @@ function AddressFields({
 }) {
   return (
     <div className="address-fields">
-      <h3>Complete seu endereco</h3>
+      <h3>Endereco</h3>
       <div className="form-row">
         <Field
           label="CEP"

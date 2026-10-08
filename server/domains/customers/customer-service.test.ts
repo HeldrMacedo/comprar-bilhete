@@ -52,6 +52,20 @@ describe('CustomerService', () => {
     })
   })
 
+  it('uses the address revised at checkout for an existing customer', async () => {
+    const service = new CustomerService(createGateway([maria]).gateway)
+    const revised = { ...maria.address!, street: 'Rua Nova', number: '45' }
+
+    await expect(
+      service.resolveForOrder({
+        name: maria.name,
+        cpf: maria.cpf,
+        phone: maria.phone,
+        address: revised,
+      }),
+    ).resolves.toMatchObject({ address: revised, registrationStatus: 'existing' })
+  })
+
   it('keeps the submitted phone when the external customer omits it', async () => {
     const incomplete = { ...maria, phone: '' }
     const service = new CustomerService(createGateway([incomplete]).gateway)
@@ -90,6 +104,14 @@ describe('CustomerService', () => {
         beneficiaryName: 'João Terceiro',
       }),
     ).resolves.toMatchObject({ name: maria.name, beneficiaryName: 'João Terceiro' })
+  })
+
+  it('requires an address for an existing customer without one', async () => {
+    const service = new CustomerService(createGateway([{ ...maria, address: undefined }]).gateway)
+
+    await expect(
+      service.resolveForOrder({ name: maria.name, cpf: maria.cpf, phone: maria.phone }),
+    ).rejects.toMatchObject({ code: 'ADDRESS_REQUIRED' })
   })
 
   it('requires a complete address for a new person', async () => {

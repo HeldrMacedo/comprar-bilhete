@@ -21,18 +21,8 @@ export class CustomerService {
   async resolveForOrder(input: CustomerInput): Promise<ResolvedCustomer> {
     const customer = customerInputSchema.parse(input)
     const existing = await this.gateway.findByCpf(customer.cpf)
-    if (existing) {
-      return resolvedCustomerSchema.parse({
-        ...customer,
-        ...existing,
-        name: existing.name.trim() || customer.name,
-        cpf: existing.cpf || customer.cpf,
-        phone: existing.phone || customer.phone,
-        registrationStatus: 'existing',
-      })
-    }
-
-    if (!addressSchema.safeParse(customer.address).success) {
+    const address = customer.address ?? existing?.address
+    if (!addressSchema.safeParse(address).success) {
       throw new DomainError(
         'Informe o endereço completo para cadastrar o participante.',
         400,
@@ -40,9 +30,22 @@ export class CustomerService {
       )
     }
 
+    if (existing) {
+      return resolvedCustomerSchema.parse({
+        ...customer,
+        ...existing,
+        name: existing.name.trim() || customer.name,
+        cpf: existing.cpf || customer.cpf,
+        phone: existing.phone || customer.phone,
+        // A API externa não atualiza `pessoa`; o endereço revisado vale só para este pedido.
+        address,
+        registrationStatus: 'existing',
+      })
+    }
+
     return {
       ...customer,
-      address: addressSchema.parse(customer.address),
+      address: addressSchema.parse(address),
       registrationStatus: 'new',
     }
   }

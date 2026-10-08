@@ -10,6 +10,14 @@ const maria = externalCustomerSchema.parse({
   name: 'Maria da Silva',
   cpf: '52998224725',
   phone: '84999855367',
+  address: {
+    zipCode: '59062300',
+    street: 'AVENIDA LIMA E SILVA',
+    number: '129',
+    neighborhood: 'NAZARE',
+    city: 'NATAL',
+    state: 'RN',
+  },
 })
 
 export class MockCustomerGateway implements CustomerGateway {

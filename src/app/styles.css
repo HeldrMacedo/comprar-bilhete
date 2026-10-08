@@ -902,6 +902,10 @@ main {
   margin: 0;
 }
 
+.address-fields input {
+  text-transform: uppercase;
+}
+
 .lookup-status {
   min-height: 24px;
   color: var(--muted);

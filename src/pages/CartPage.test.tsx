@@ -39,6 +39,15 @@ vi.mock('../features/checkout/repository/checkout-repository', () => ({
   },
 }))
 
+const mariaAddress = {
+  zipCode: '59062300',
+  street: 'Avenida Lima e Silva',
+  number: '129',
+  neighborhood: 'Nazare',
+  city: 'Natal',
+  state: 'RN',
+}
+
 function renderCartPage(initialCart: Cart = cart) {
   localStorage.setItem('bilhete-da-sorte:cart:v3', JSON.stringify(initialCart))
   const queryClient = new QueryClient({
@@ -90,7 +99,37 @@ describe('CartPage', () => {
       { cpf: '52998224725' },
       expect.anything(),
     )
-    expect(screen.queryByLabelText('CEP')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('CEP')).toBeRequired()
+  })
+
+  it('mostra endereco do cliente existente para revisao e envia a alteracao', async () => {
+    const { customerRepository } =
+      await import('../features/checkout/repository/customer-repository')
+    const { checkoutRepository } =
+      await import('../features/checkout/repository/checkout-repository')
+    vi.mocked(customerRepository.lookup).mockResolvedValue({
+      found: true,
+      customer: {
+        externalId: '2015',
+        name: 'Maria da Silva',
+        cpf: '52998224725',
+        phone: '84999855367',
+        address: mariaAddress,
+      },
+    })
+    vi.mocked(checkoutRepository.createOrder).mockRejectedValue(new Error('parar aqui'))
+    renderCartPage()
+    await userEvent.type(screen.getByLabelText('CPF'), '52998224725')
+    expect(await screen.findByText('Cliente encontrado')).toBeVisible()
+    expect(screen.getByLabelText('Endereco')).toHaveValue('Avenida Lima e Silva')
+
+    await userEvent.clear(screen.getByLabelText('Numero'))
+    await userEvent.type(screen.getByLabelText('Numero'), '45')
+    await userEvent.click(screen.getByRole('button', { name: /continuar para o pix/i }))
+    await vi.waitFor(() => expect(checkoutRepository.createOrder).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(checkoutRepository.createOrder).mock.calls[0]?.[0].customer.address).toEqual(
+      expect.objectContaining({ street: 'AVENIDA LIMA E SILVA', number: '45' }),
+    )
   })
 
   it('mostra endereco obrigatorio para novo cliente', async () => {
@@ -121,6 +160,7 @@ describe('CartPage', () => {
         name: 'Maria da Silva',
         cpf: '52998224725',
         phone: '84999855367',
+        address: mariaAddress,
       },
     })
     vi.mocked(checkoutRepository.createOrder).mockRejectedValue(new Error('parar aqui'))
@@ -140,6 +180,12 @@ describe('CartPage', () => {
       name: 'Maria da Silva',
       cpf: '52998224725',
       phone: '+5584999855367',
+      address: {
+        ...mariaAddress,
+        street: 'AVENIDA LIMA E SILVA',
+        neighborhood: 'NAZARE',
+        city: 'NATAL',
+      },
       beneficiaryName: 'João Terceiro',
     })
   })
@@ -190,6 +236,7 @@ describe('CartPage', () => {
         name: 'Maria da Silva',
         cpf: '52998224725',
         phone: '84999855367',
+        address: mariaAddress,
       },
     })
     vi.mocked(checkoutRepository.createOrder).mockResolvedValue({
