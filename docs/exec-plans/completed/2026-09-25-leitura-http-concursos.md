@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Permitir que `npm run dev:full` inicie com `TICKET_PROVIDER=live` e a origem HTTP disponível, para mostrar concursos e cartelas. Impedir consultas de cliente e compras que enviariam dados pessoais ou validariam vendas sem TLS. Quando houver origem HTTPS, manter a jornada de compra habilitada.
+Permitir que `npm run dev:full` inicie com `TICKET_PROVIDER=live` e a origem HTTP disponível, para mostrar concursos e bilhetes. Impedir consultas de cliente e compras que enviariam dados pessoais ou validariam vendas sem TLS. Quando houver origem HTTPS, manter a jornada de compra habilitada.
 
 ## Contexto
 

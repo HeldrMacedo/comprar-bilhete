@@ -1,4 +1,4 @@
-import { ExternalLink, ReceiptText, Search } from 'lucide-react'
+import { Eraser, ExternalLink, ReceiptText, Search } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -13,7 +13,101 @@ import { formatCurrency } from '../shared/lib/currency'
 import { formatCpf, isValidCpf, onlyDigits } from '../shared/lib/forms'
 import { ErrorState } from '../shared/ui/ErrorState'
 import { Spinner } from '../shared/ui/Spinner'
-import { TicketNumbers } from '../shared/ui/TicketNumbers'
+
+function InteractiveTicketNumbers({
+  cardCode,
+  numbers,
+  secondChanceNumbers = [],
+}: {
+  cardCode: string
+  numbers: number[]
+  secondChanceNumbers?: number[]
+}) {
+  const [marked, setMarked] = useState<Set<number>>(new Set())
+
+  function toggle(num: number) {
+    setMarked((prev) => {
+      const next = new Set(prev)
+      if (next.has(num)) next.delete(num)
+      else next.add(num)
+      return next
+    })
+  }
+
+  function clear() {
+    setMarked(new Set())
+  }
+
+  const hasGroups = secondChanceNumbers.length > 0
+  const groups = hasGroups
+    ? [
+        { chance: '1ª chance', numbers },
+        { chance: '2ª chance', numbers: secondChanceNumbers },
+      ]
+    : [{ chance: undefined, numbers }]
+
+  return (
+    <div className="interactive-ticket">
+      <div className="interactive-ticket__actions">
+        <button
+          type="button"
+          onClick={clear}
+          className="interactive-ticket__clear"
+          disabled={marked.size === 0}
+        >
+          <Eraser size={14} /> Limpar marcações
+        </button>
+      </div>
+      <div
+        className={`interactive-ticket__groups ${hasGroups ? 'interactive-ticket__groups--dual' : ''}`}
+      >
+        {groups.map((group) => {
+          const missing = group.numbers.filter((n) => !marked.has(n)).length
+          const isAlmost = missing === 1
+
+          return (
+            <div
+              className={`interactive-ticket__group ${isAlmost ? 'is-almost' : ''}`}
+              key={group.chance ?? 'única'}
+            >
+              <div className="interactive-ticket__header">
+                {group.chance ? (
+                  <span className="interactive-ticket__chance">{group.chance}</span>
+                ) : (
+                  <span />
+                )}
+                {isAlmost && <span className="interactive-ticket__badge">Falta apenas 1!</span>}
+              </div>
+              <div
+                className="interactive-ticket__grid"
+                aria-label={
+                  group.chance
+                    ? `Dezenas do bilhete ${cardCode} (${group.chance})`
+                    : `Dezenas do bilhete ${cardCode}`
+                }
+              >
+                {group.numbers.map((number, index) => {
+                  const isMarked = marked.has(number)
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      aria-pressed={isMarked}
+                      onClick={() => toggle(number)}
+                      className={`interactive-ticket__number ${isMarked ? 'is-marked' : ''}`}
+                    >
+                      {String(number).padStart(2, '0')}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 // O CPF chega por `history.state` (cabeçalho ou retorno do pagamento), nunca pela URL.
 const locationStateSchema = z.object({ cpf: z.string().regex(/^\d{11}$/) })
@@ -54,7 +148,7 @@ export function PurchasesPage() {
         </span>
         <div>
           <h1>Minhas compras</h1>
-          <p>Consulte pagamento, status e dezenas das cartelas compradas com seu CPF.</p>
+          <p>Consulte pagamento, status e dezenas dos bilhetes compradas com seu CPF.</p>
         </div>
       </div>
 
@@ -87,7 +181,7 @@ export function PurchasesPage() {
           <h2>Nenhuma compra encontrada</h2>
           <p>Não há compras feitas neste site para o CPF informado.</p>
           <Link className="button button--primary" to="/">
-            Escolher cartelas
+            Escolher bilhetes
           </Link>
         </div>
       ) : (
@@ -133,7 +227,7 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
           <dd>{purchase.paidAt ? dateTimeFormatter.format(new Date(purchase.paidAt)) : '—'}</dd>
         </div>
         <div>
-          <dt>Cartelas</dt>
+          <dt>Bilhetes</dt>
           <dd>{items.length}</dd>
         </div>
       </dl>
@@ -144,10 +238,10 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
         {items.map((item) => (
           <li key={`${item.raffleId}-${item.id}`}>
             <div>
-              <strong>Cartela {item.code}</strong>
+              <strong>Bilhete {item.code}</strong>
               <span>{item.raffleTitle}</span>
             </div>
-            <TicketNumbers
+            <InteractiveTicketNumbers
               cardCode={item.code}
               numbers={item.numbers}
               secondChanceNumbers={item.secondChanceNumbers}
@@ -157,7 +251,7 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
                 purchase={purchase}
                 items={[item]}
                 label="Compartilhar"
-                ariaLabel={`Compartilhar cartela ${item.code} no WhatsApp`}
+                ariaLabel={`Compartilhar bilhete ${item.code} no WhatsApp`}
                 compact
               />
             ) : null}

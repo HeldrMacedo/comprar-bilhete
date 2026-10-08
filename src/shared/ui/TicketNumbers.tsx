@@ -1,4 +1,4 @@
-// Só usa <span> para poder ficar dentro do <button> da cartela.
+// Só usa <span> para poder ficar dentro do <button> do bilhete.
 export function TicketNumbers({
   cardCode,
   numbers,
@@ -30,8 +30,8 @@ export function TicketNumbers({
             className={`number-${variant}`}
             aria-label={
               group.chance
-                ? `Dezenas da cartela ${cardCode} (${group.chance})`
-                : `Dezenas da cartela ${cardCode}`
+                ? `Dezenas do bilhete ${cardCode} (${group.chance})`
+                : `Dezenas do bilhete ${cardCode}`
             }
           >
             {group.numbers.map((number, index) => (

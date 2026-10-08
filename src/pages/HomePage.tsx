@@ -123,7 +123,7 @@ export function HomePage() {
             <div className="prize-card">
               <span>Prêmio principal</span>
               <strong>{heroRaffle.prize}</strong>
-              <small>A partir de {formatCurrency(heroRaffle.priceInCents)} por cartela</small>
+              <small>A partir de {formatCurrency(heroRaffle.priceInCents)} por bilhete</small>
               <DrawCountdown drawDate={heroRaffle.drawDate} />
             </div>
           ) : null}
@@ -186,7 +186,7 @@ export function HomePage() {
             <span>01</span>
             <div>
               <h2>Escolha os sorteios</h2>
-              <p>Participe de quarta-feira, domingo ou dos dois. Escolha as cartelas de cada um.</p>
+              <p>Participe de quarta-feira, domingo ou dos dois. Escolha os bilhetes de cada um.</p>
             </div>
           </div>
 
@@ -289,7 +289,7 @@ export function HomePage() {
                     className={draft.mode === 'manual' ? 'active' : ''}
                     onClick={() => updateDraft({ ...draft, mode: 'manual' })}
                   >
-                    <Ticket size={20} /> Escolher cartelas
+                    <Ticket size={20} /> Escolher bilhetes
                   </button>
                   */}
                   </div>
@@ -414,7 +414,7 @@ export function HomePage() {
             <aside className="selection-bar">
               <div>
                 <span>
-                  {selectedCount} {selectedCount === 1 ? 'cartela' : 'cartelas'}
+                  {selectedCount} {selectedCount === 1 ? 'bilhete' : 'bilhetes'}
                 </span>
                 <strong>{formatCurrency(totalInCents)}</strong>
               </div>

@@ -4,8 +4,8 @@ Especificação: [../../superpowers/specs/2026-09-30-comprovante-whatsapp-design
 
 ## Objetivo e critérios de aceite
 
-- Pedido `paid` em "Minhas compras" mostra "Compartilhar no WhatsApp" (todas as cartelas) e um botão por cartela.
-- Cada cartela vira um PNG no formato do comprovante impresso: cabeçalho fixo, BILHETE, SORTEIO, prêmios com dezenas da 1ª e 2ª chance, giros, valores, `VENDA: ONLINE`, LOTE e POSIÇÃO, data da compra, dados do cliente e rodapé fixo.
+- Pedido `paid` em "Minhas compras" mostra "Compartilhar no WhatsApp" (todas os bilhetes) e um botão por bilhete.
+- Cada bilhete vira um PNG no formato do comprovante impresso: cabeçalho fixo, BILHETE, SORTEIO, prêmios com dezenas da 1ª e 2ª chance, giros, valores, `VENDA: ONLINE`, LOTE e POSIÇÃO, data da compra, dados do cliente e rodapé fixo.
 - No celular, abre o menu de compartilhar com os arquivos; sem suporte, baixa os PNGs e avisa.
 - Dados pessoais só aparecem na resposta de pedidos `paid`.
 - Pedidos antigos, sem prêmios ou identificação, ainda geram comprovante.
@@ -30,12 +30,12 @@ Especificação: [../../superpowers/specs/2026-09-30-comprovante-whatsapp-design
 - `order-types.ts`: `ticketSchema` ganha `identification`, `drawDate`, `prizes` e `luckySpins`, todos opcionais.
 - `live-ticket-gateway.ts`: lê `identificacao` opcional e mapeia para `identification` só quando não vazio.
 - Teste em `live-ticket-gateway.test.ts` com o formato observado (`60410080001-22`).
-- Mock gera identificação por cartela.
+- Mock gera identificação por bilhete.
 
 ### 3. Cópia dos dados do concurso no pedido
 
 - `order-service.ts`: no sorteio único, cada item recebe `drawDate`, `prizes` e `luckySpins` do concurso; em dois sorteios, `PreparedOrderGroup` leva esses campos e `createGrouped` os copia para os itens.
-- Teste em `order-service.test.ts`: pedido criado guarda os dados do concurso em cada cartela.
+- Teste em `order-service.test.ts`: pedido criado guarda os dados do concurso em cada bilhete.
 
 ### 4. Resposta de "Minhas compras"
 
@@ -53,8 +53,8 @@ Especificação: [../../superpowers/specs/2026-09-30-comprovante-whatsapp-design
 
 - `src/features/purchases/runtime/share-receipt.ts`: `renderReceiptPng(lines): Promise<Blob>` com `<canvas>` e `shareReceipts(files)` (`navigator.share` ou download).
 - `src/features/purchases/ui/ShareReceiptButton.tsx`: estado de carregamento, mensagem de fallback e erro.
-- `PurchasesPage.tsx`: botão do pedido e botão por cartela só em `paid`; mock de `purchase-repository.ts` com dados completos.
-- Testes em `PurchasesPage.test.tsx`: botão só em `paid` e `navigator.share` com um arquivo por cartela (renderizador simulado).
+- `PurchasesPage.tsx`: botão do pedido e botão por bilhete só em `paid`; mock de `purchase-repository.ts` com dados completos.
+- Testes em `PurchasesPage.test.tsx`: botão só em `paid` e `navigator.share` com um arquivo por bilhete (renderizador simulado).
 - E2E em `tests/e2e/purchases.spec.ts`: botão visível após a compra demonstrativa.
 
 ### 7. Verificação

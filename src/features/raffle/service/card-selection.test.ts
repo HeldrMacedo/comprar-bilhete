@@ -9,11 +9,11 @@ const cards: RaffleCard[] = [
 ]
 
 describe('selectRandomCards', () => {
-  it('nunca seleciona uma cartela indisponível', () => {
+  it('nunca seleciona um bilhete indisponível', () => {
     expect(selectRandomCards(cards, 2, () => 0).map((card) => card.id)).toEqual(['1', '3'])
   })
 
   it('rejeita quantidade maior que o estoque', () => {
-    expect(() => selectRandomCards(cards, 3)).toThrow('Não há cartelas suficientes')
+    expect(() => selectRandomCards(cards, 3)).toThrow('Não há bilhetes suficientes')
   })
 })

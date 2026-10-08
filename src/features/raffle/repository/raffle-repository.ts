@@ -25,7 +25,7 @@ const mockCards: RaffleCard[] = Array.from({ length: 48 }, (_, index) => ({
 const mockRaffle: Raffle = {
   id: 'sorteio-setembro',
   title: 'Sorteio Especial de Setembro',
-  description: 'Escolha sua cartela da sorte e concorra no próximo sorteio.',
+  description: 'Escolha seu bilhete da sorte e concorra no próximo sorteio.',
   prize: 'R$ 10.000 em prêmios',
   drawDate: '2026-09-30T21:00:00.000Z',
   priceInCents: 1000,
@@ -38,7 +38,7 @@ const mockRaffle: Raffle = {
 const mockSundayRaffle: Raffle = {
   id: 'sorteio-domingo',
   title: 'Sorteio de Domingo',
-  description: 'Escolha sua cartela para o sorteio de domingo.',
+  description: 'Escolha seu bilhete para o sorteio de domingo.',
   prize: 'R$ 5.000 em prêmios',
   drawDate: '2026-10-04T23:00:00.000Z',
   priceInCents: 600,

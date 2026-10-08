@@ -5,7 +5,7 @@ import type { Raffle, TicketGateway } from './ticket-gateway.js'
 const raffle: Raffle = {
   id: 'sorteio-setembro',
   title: 'Sorteio Especial de Setembro',
-  description: 'Escolha sua cartela da sorte e concorra no próximo sorteio.',
+  description: 'Escolha seu bilhete da sorte e concorra no próximo sorteio.',
   prize: 'R$ 10.000 em prêmios',
   drawDate: '2026-09-30T21:00:00.000Z',
   priceInCents: 1000,
@@ -18,7 +18,7 @@ const raffle: Raffle = {
 const sundayRaffle: Raffle = {
   id: 'sorteio-domingo',
   title: 'Sorteio de Domingo',
-  description: 'Escolha sua cartela para o sorteio de domingo.',
+  description: 'Escolha seu bilhete para o sorteio de domingo.',
   prize: 'R$ 5.000 em prêmios',
   drawDate: '2026-10-04T23:00:00.000Z',
   priceInCents: 600,
@@ -78,7 +78,7 @@ export class MockTicketGateway implements TicketGateway {
     for (const item of order.items) {
       const key = `${item.raffleId ?? order.raffleId}:${item.id}`
       if (this.soldTickets.has(key)) {
-        throw new DomainError(`A cartela ${item.code} não está mais disponível.`, 409)
+        throw new DomainError(`O bilhete ${item.code} não está mais disponível.`, 409)
       }
     }
     for (const item of order.items) {

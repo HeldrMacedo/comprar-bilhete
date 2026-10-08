@@ -52,7 +52,7 @@ export function PaymentPage() {
         <span className="eyebrow">
           <span /> Pagamento confirmado
         </span>
-        <h1>Pronto! Suas cartelas estão garantidas.</h1>
+        <h1>Pronto! Seus bilhetes estão garantidos.</h1>
         <p>
           O pedido <strong>{order.id}</strong> foi pago e registrado. Guarde o número para consulta.
         </p>
@@ -83,9 +83,9 @@ export function PaymentPage() {
           <XCircle size={42} />
         </div>
         <h1>Este pagamento não foi concluído</h1>
-        <p>O pedido expirou ou foi cancelado. Suas cartelas não foram cobradas.</p>
+        <p>O pedido expirou ou foi cancelado. Seus bilhetes não foram cobradas.</p>
         <Link className="button button--primary" to="/">
-          Escolher cartelas novamente
+          Escolher bilhetes novamente
         </Link>
         <Link className="button button--secondary" to="/minhas-compras">
           <ReceiptText size={18} /> Ver minhas compras
@@ -105,11 +105,11 @@ export function PaymentPage() {
         <span /> {isConfirmingTickets ? 'Pagamento recebido' : 'Aguardando confirmação'}
       </span>
       <h1>
-        {isConfirmingTickets ? 'Estamos confirmando suas cartelas' : 'Estamos conferindo seu Pix'}
+        {isConfirmingTickets ? 'Estamos confirmando seus bilhetes' : 'Estamos conferindo seu Pix'}
       </h1>
       <p>
         {isConfirmingTickets
-          ? 'O pagamento foi identificado. A compra só será concluída quando todas as cartelas forem validadas.'
+          ? 'O pagamento foi identificado. A compra só será concluída quando todas os bilhetes forem validadas.'
           : 'Assim que a InfinitePay confirmar o pagamento, esta página será atualizada automaticamente.'}
       </p>
       <div className="order-reference">

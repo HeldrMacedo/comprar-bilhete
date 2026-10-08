@@ -22,7 +22,7 @@ function setup() {
 }
 
 describe('TicketReservationCoordinator', () => {
-  it('reserva remotamente todas as cartelas em ordem estável', async () => {
+  it('reserva remotamente todas os bilhetes em ordem estável', async () => {
     const { database, store, coordinator, pending } = setup()
 
     expect(await coordinator.acquire(pending)).toBe('acquired')
@@ -34,7 +34,7 @@ describe('TicketReservationCoordinator', () => {
     database.close()
   })
 
-  it('desfaz a reserva parcial quando outro canal já reservou uma cartela', async () => {
+  it('desfaz a reserva parcial quando outro canal já reservou um bilhete', async () => {
     const { database, store, gateway, coordinator, pending } = setup()
     gateway.reserveFromAnotherChannel(key('card-002'))
 
@@ -61,7 +61,7 @@ describe('TicketReservationCoordinator', () => {
     database.close()
   })
 
-  it('só confirma posse com o mesmo token em todas as cartelas', async () => {
+  it('só confirma posse com o mesmo token em todas os bilhetes', async () => {
     const { database, gateway, coordinator, pending } = setup()
     await coordinator.acquire(pending)
     expect(await coordinator.confirmOwnership(pending)).toBe(true)

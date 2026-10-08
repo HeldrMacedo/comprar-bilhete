@@ -190,7 +190,7 @@ describe('CartPage', () => {
     })
   })
 
-  it('diminui a quantidade da surpresinha sem passar de uma cartela', async () => {
+  it('diminui a quantidade da surpresinha sem passar de um bilhete', async () => {
     renderCartPage()
     const decrease = screen.getByRole('button', {
       name: 'Diminuir quantidade de Sorteio de Domingo',
@@ -207,14 +207,14 @@ describe('CartPage', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'Diminuir quantidade de Sorteio de Domingo' }),
     )
-    expect(screen.getByText(/2 cartela\(s\) serão sorteadas/)).toBeVisible()
+    expect(screen.getByText(/2 bilhete\(s\) serão sorteadas/)).toBeVisible()
     expect(screen.getAllByText('R$ 22,00')[0]).toBeVisible()
   })
 
   it('remove a surpresinha e esvazia o carrinho', async () => {
     renderCartPage()
     await userEvent.click(
-      screen.getByRole('button', { name: 'Remover cartelas de Sorteio de Domingo' }),
+      screen.getByRole('button', { name: 'Remover bilhetes de Sorteio de Domingo' }),
     )
     expect(screen.queryByRole('heading', { name: 'Sorteio de Domingo' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Sorteio de Quarta' })).toBeVisible()

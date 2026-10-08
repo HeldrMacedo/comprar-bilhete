@@ -158,7 +158,7 @@ export class LiveTicketGateway implements TicketGateway {
         typeof item.batchPosition !== 'number' ||
         item.batchPosition < 0
       ) {
-        throw new DomainError('Cartela sem dados de validacao sequencial.', 502)
+        throw new DomainError('Bilhete sem dados de validacao sequencial.', 502)
       }
       await fetchJson(`${this.env.TICKET_API_BASE_URL}/bilhete/validar`, mutationResponseSchema, {
         method: 'PUT',

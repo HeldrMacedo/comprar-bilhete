@@ -6,7 +6,7 @@
 - **Critérios de aceite**:
   1. `:root` em `src/app/styles.css` atualizado com as novas variáveis e tokens do Vantage.
   2. Hero estilizado em azul noturno `#0f172a` com anéis em azul elétrico e ciano, e card de prêmio com realce azul elétrico.
-  3. Fundo geral, cartões, abas, botões primários e secundários, seletores de cartelas e badges alinhados ao visual do Vantage.
+  3. Fundo geral, cartões, abas, botões primários e secundários, seletores de bilhetes e badges alinhados ao visual do Vantage.
   4. Foco visível por teclado atualizado para azul elétrico para manter acessibilidade WCAG.
   5. Layout móvel e contraste visual totalmente preservados.
   6. Arquitetura e testes do projeto verificados.
@@ -21,7 +21,7 @@
 - [x] **Etapa 1**: Atualizar `:root` e tokens fundamentais em `src/app/styles.css`.
 - [x] **Etapa 2**: Atualizar estilos de cabeçalho (`.site-header`, `.brand`, `.cart-link`) e estados de foco.
 - [x] **Etapa 3**: Atualizar estilos da seção Hero (`.hero`, `.prize-card`, `.eyebrow`, anéis de gradiente) e remover estilos inline pontuais em `HomePage.tsx`.
-- [x] **Etapa 4**: Atualizar abas de modo (`.mode-tabs`), cartelas manuais (`.raffle-card`, números), pílulas de quantidade e botões (`.button--primary`, `.button--secondary`, `.selection-bar`).
+- [x] **Etapa 4**: Atualizar abas de modo (`.mode-tabs`), bilhetes manuais (`.raffle-card`, números), pílulas de quantidade e botões (`.button--primary`, `.button--secondary`, `.selection-bar`).
 - [x] **Etapa 5**: Atualizar superfícies de checkout (`.surface`), campos de formulário (`.field input`), resumo do pedido e ícones de status de pagamento (`.payment-icon`).
 - [x] **Etapa 6**: Validação visual, formatação (`prettier`) e verificação do projeto.
 

@@ -3,7 +3,7 @@
 ## Objetivo e critérios de aceite
 
 - Campo de CPF ao lado do carrinho no cabeçalho leva à página "Minhas compras".
-- A página lista os pedidos feitos no site para o CPF com valor, método de pagamento, cartelas e dezenas, status, data e comprovante.
+- A página lista os pedidos feitos no site para o CPF com valor, método de pagamento, bilhetes e dezenas, status, data e comprovante.
 - A tela de retorno do pagamento oferece link para "Minhas compras".
 - `manual_review` nunca aparece como sucesso; pedido pendente oferece o link de pagamento enquanto não expira.
 

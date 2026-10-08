@@ -46,7 +46,7 @@ export function AppLayout() {
           <Link
             className="cart-link"
             to="/carrinho"
-            aria-label={`Carrinho com ${itemCount} cartelas`}
+            aria-label={`Carrinho com ${itemCount} bilhetes`}
           >
             <ShoppingBag size={20} aria-hidden="true" />
             <span className="cart-link__label">Carrinho</span>

@@ -8,7 +8,7 @@ test('consulta a compra paga em Minhas compras após o retorno do pagamento', as
   await page.getByLabel('Celular com DDD').fill('84999855367')
   await expect(page.getByText('Cliente encontrado')).toBeVisible()
   await page.getByRole('button', { name: /continuar para o pix/i }).click()
-  await expect(page.getByRole('heading', { name: /suas cartelas estão garantidas/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /seus bilhetes estão garantidos/i })).toBeVisible({
     timeout: 12_000,
   })
 
@@ -19,7 +19,7 @@ test('consulta a compra paga em Minhas compras após o retorno do pagamento', as
   const purchase = page.getByRole('article').first()
   await expect(purchase.getByText('Pago', { exact: true })).toBeVisible()
   await expect(purchase.getByText('Pix')).toBeVisible()
-  await expect(purchase.getByLabel(/dezenas da cartela/i).first()).toBeVisible()
+  await expect(purchase.getByLabel(/dezenas do bilhete/i).first()).toBeVisible()
   await expect(purchase.getByRole('button', { name: /compartilhar no whatsapp/i })).toBeVisible()
   expect(page.url()).not.toContain('52998224725')
 })

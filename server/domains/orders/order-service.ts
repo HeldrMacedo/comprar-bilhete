@@ -70,7 +70,7 @@ export class OrderService {
 
     const requestedIds = new Set(input.selection.cardIds)
     if (requestedIds.size !== input.selection.cardIds.length) {
-      throw new DomainError('A selecao contem cartelas repetidas.')
+      throw new DomainError('A selecao contem bilhetes repetidas.')
     }
     const items = await Promise.all(
       input.selection.cardIds.map((ticketId) =>
@@ -79,7 +79,7 @@ export class OrderService {
     )
     if (!hasOnlyTickets(items)) {
       throw new DomainError(
-        'Uma ou mais cartelas nao estao disponiveis.',
+        'Uma ou mais bilhetes nao estao disponiveis.',
         409,
         'TICKET_UNAVAILABLE',
       )
@@ -112,7 +112,7 @@ export class OrderService {
           tickets = shuffle(await this.tickets.getAvailableTickets(raffle.id))
         } else {
           if (new Set(selection.cardIds).size !== selection.cardIds.length) {
-            throw new DomainError('A selecao contem cartelas repetidas.')
+            throw new DomainError('A selecao contem bilhetes repetidos.')
           }
           const resolved = await Promise.all(
             selection.cardIds.map((ticketId) =>
@@ -121,7 +121,7 @@ export class OrderService {
           )
           if (!hasOnlyTickets(resolved)) {
             throw new DomainError(
-              'Uma ou mais cartelas nao estao disponiveis.',
+              'Uma ou mais bilhetes nao estao disponiveis.',
               409,
               'TICKET_UNAVAILABLE',
             )
@@ -181,7 +181,7 @@ export class OrderService {
     })
     if (outcome === 'conflict') {
       this.repository.cancel(order.id)
-      throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
+      throw new DomainError('Uma ou mais bilhetes ja estao reservados.', 409, 'TICKET_RESERVED')
     }
     return order
   }
@@ -291,7 +291,7 @@ export class OrderService {
       if (!(await this.reservations.confirmOwnership(order))) {
         this.repository.markManualReview(
           order.id,
-          'Reserva externa da cartela foi perdida antes da validacao.',
+          'Reserva externa da bilhete foi perdida antes da validacao.',
         )
         return
       }
@@ -303,7 +303,7 @@ export class OrderService {
     } catch (error) {
       this.repository.markManualReview(
         order.id,
-        error instanceof Error ? error.message : 'Falha ao validar cartelas.',
+        error instanceof Error ? error.message : 'Falha ao validar bilhetes.',
       )
     }
   }
@@ -326,7 +326,7 @@ function shuffle<T>(values: T[]): T[] {
   return shuffled
 }
 
-// Cópia do concurso na cartela: o comprovante não depende do concurso continuar ativo.
+// Cópia do concurso no bilhete: o comprovante não depende do concurso continuar ativo.
 function withRaffleDetails(ticket: Ticket, raffle: Raffle): Ticket {
   return {
     ...ticket,

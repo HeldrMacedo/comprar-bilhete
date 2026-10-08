@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-Aplicação full-stack no mesmo repositório. O React possui três domínios: `raffle` apresenta o sorteio e seleciona cartelas; `cart` mantém a seleção local; `checkout` conversa somente com o backend próprio. O servidor Fastify persiste pedidos, integra InfinitePay e encapsula a API externa de bilhetes.
+Aplicação full-stack no mesmo repositório. O React possui três domínios: `raffle` apresenta o sorteio e seleciona bilhetes; `cart` mantém a seleção local; `checkout` conversa somente com o backend próprio. O servidor Fastify persiste pedidos, integra InfinitePay e encapsula a API externa de bilhetes.
 
 ```text
 React → Backend Fastify → SQLite

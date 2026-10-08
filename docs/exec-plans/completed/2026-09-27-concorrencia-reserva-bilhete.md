@@ -2,7 +2,7 @@
 
 > **Para agentes:** use `superpowers:subagent-driven-development` (recomendado) ou `superpowers:executing-plans` para executar tarefa por tarefa. Os passos usam checkbox (`- [ ]`).
 
-**Objetivo:** impedir que a mesma cartela seja vendida por dois canais ao mesmo tempo, usando `bilhete.reservado`/`bilhete.data_reservado` da API de bilhetes como trava com expiração, e marcar `validado` somente depois que o pagamento for confirmado — com tudo pronto e desligado até os endpoints de reserva existirem.
+**Objetivo:** impedir que o mesmo bilhete seja vendido por dois canais ao mesmo tempo, usando `bilhete.reservado`/`bilhete.data_reservado` da API de bilhetes como trava com expiração, e marcar `validado` somente depois que o pagamento for confirmado — com tudo pronto e desligado até os endpoints de reserva existirem.
 
 **Arquitetura:** duas camadas de trava. A reserva local no SQLite (já existente, `reservations.ticket_key` único) serializa pedidos deste backend. Uma nova porta `TicketReservationGateway` faz a trava remota com _compare-and-set_ (atualização condicional) na coluna `reservado`, usando `data_reservado` como token de posse e como início do prazo (lease). Um coordenador persiste cada trava remota em `remote_reservations`, desfaz travas parciais, libera travas de pedidos expirados/cancelados pelo worker e confere a posse antes de chamar `PUT /bilhete/validar`. O provider padrão é `none` (null object), então o comportamento atual não muda até a ativação.
 
@@ -29,7 +29,7 @@
 - `server/domains/tickets/live-ticket-gateway.ts`: leitura por `GET /bilhete/disponiveis` e `GET /bilhete/disponivel/numero`; entrega por `PUT /bilhete/validar` (é o que grava `validado`).
 - `server/domains/orders/order-repository.ts`: reserva local em transação `BEGIN IMMEDIATE`; `expirePendingWithinTransaction` expira pedidos e apaga reservas.
 - `server/domains/orders/order-service.ts`: `createOrder`/`createGroupedOrder` reservam localmente; `reconcile` faz `payment_check` → `tryStartProcessing` → `ensureRegistered` → `fulfillOrder` → `markPaid`, ou `manual_review` em falha.
-- `docs/API_CONTRACTS.md` e `docs/BACKEND.md`: registram que a API externa não oferece reserva; outro canal pode vender a cartela entre seleção e pagamento.
+- `docs/API_CONTRACTS.md` e `docs/BACKEND.md`: registram que a API externa não oferece reserva; outro canal pode vender o bilhete entre seleção e pagamento.
 - Endpoints de reserva (`PUT`/`GET` sobre `reservado`) **ainda não existem**. O contrato abaixo é provisório e fica concentrado em um único arquivo.
 
 ## Técnica de concorrência
@@ -74,28 +74,28 @@ Caminho provisório adotado: `PUT /bilhete/reservado` e `GET /bilhete/reservado?
 
 ### Fluxo no backend
 
-1. **Criar pedido:** reserva local (transação SQLite, como hoje) → `coordinator.acquire(order)` reserva cada cartela remotamente em ordem `(raffleId, numero)`. Cada sucesso vira linha `held` em `remote_reservations` com o token.
-   - Conflito (`409`) em qualquer cartela: libera as já obtidas, cancela o pedido local (apaga reservas locais) e responde `409 TICKET_RESERVED`.
+1. **Criar pedido:** reserva local (transação SQLite, como hoje) → `coordinator.acquire(order)` reserva cada bilhete remotamente em ordem `(raffleId, numero)`. Cada sucesso vira linha `held` em `remote_reservations` com o token.
+   - Conflito (`409`) em qualquer bilhete: libera as já obtidas, cancela o pedido local (apaga reservas locais) e responde `409 TICKET_RESERVED`.
    - Erro de rede/5xx: mesma compensação e responde `502`.
-2. **Pagamento confirmado:** após `tryStartProcessing`, `coordinator.confirmOwnership(order)` faz `GET` de cada cartela e exige `reservado=1`, `validado=0` e `data_reservado` igual ao token. Se perdeu a posse: `manual_review`, sem `PUT /bilhete/validar`. Se manteve: `ensureRegistered` → `fulfillOrder` (`PUT /bilhete/validar`, que grava `validado`) → `markPaid` → linhas viram `validated`.
+2. **Pagamento confirmado:** após `tryStartProcessing`, `coordinator.confirmOwnership(order)` faz `GET` de cada bilhete e exige `reservado=1`, `validado=0` e `data_reservado` igual ao token. Se perdeu a posse: `manual_review`, sem `PUT /bilhete/validar`. Se manteve: `ensureRegistered` → `fulfillOrder` (`PUT /bilhete/validar`, que grava `validado`) → `markPaid` → linhas viram `validated`.
 3. **Expiração/cancelamento:** o worker (a cada 5 s) expira pedidos e libera as travas `held` de pedidos `expired`/`cancelled`. Falha de liberação mantém `held` com `last_error` e tenta de novo; o TTL externo é a rede de segurança.
-4. **Listagem:** se `/bilhete/disponiveis` ou `/bilhete/disponivel/numero` passarem a devolver `reservado`/`data_reservado`/`validado`, cartelas validadas ou com reserva dentro do TTL são omitidas.
+4. **Listagem:** se `/bilhete/disponiveis` ou `/bilhete/disponivel/numero` passarem a devolver `reservado`/`data_reservado`/`validado`, bilhetes validados ou com reserva dentro do TTL são omitidas.
 
 Regra de prazo: `TICKET_RESERVATION_TTL_MINUTES` (padrão 30) precisa ser maior que `ORDER_EXPIRATION_MINUTES` (padrão 15) e igual ao `ttl_minutos` configurado na API de bilhetes, para a trava remota durar enquanto o pedido ainda aceita pagamento e processamento.
 
 ## Decisões
 
-- **Token de posse = `data_reservado`.** A tabela não tem coluna de dono; o valor gravado na reserva identifica quem reservou. Risco residual: precisão de segundos. Se a resposta de uma liberação se perder e, no mesmo segundo, outro canal reservar a cartela, um reenvio poderia liberar a trava alheia. Registrado como dívida; a solução definitiva é a API aceitar um token próprio (coluna nova ou reutilizar `numorder`).
+- **Token de posse = `data_reservado`.** A tabela não tem coluna de dono; o valor gravado na reserva identifica quem reservou. Risco residual: precisão de segundos. Se a resposta de uma liberação se perder e, no mesmo segundo, outro canal reservar o bilhete, um reenvio poderia liberar a trava alheia. Registrado como dívida; a solução definitiva é a API aceitar um token próprio (coluna nova ou reutilizar `numorder`).
 - **Reserva remota fora da transação SQLite.** `node:sqlite` é síncrono; manter `BEGIN IMMEDIATE` aberto durante HTTP bloquearia todas as escritas. Por isso: grava local, depois trava remota, e compensa com `cancel` em falha.
-- **Ordem determinística** `(raffleId, numero)` nas reservas remotas, para reduzir disputa entre pedidos com cartelas em comum.
+- **Ordem determinística** `(raffleId, numero)` nas reservas remotas, para reduzir disputa entre pedidos com bilhetes em comum.
 - **Provider `none` como null object** (`NoopTicketReservationGateway`): o serviço sempre passa pelo coordenador; nenhuma ramificação `if (habilitado)` espalhada.
 - **Pedidos legados** (criados antes da ativação, sem linhas em `remote_reservations`) seguem o fluxo atual na confirmação, para não cair em `manual_review` no deploy.
-- **Descartado:** retentar surpresinha com outra cartela em conflito externo (complexidade de reescrever itens do pedido; vira dívida). Descartado `SELECT ... FOR UPDATE` remoto (trava presa entre requisições). Descartado "ler e depois gravar" (corrida).
+- **Descartado:** retentar surpresinha com outro bilhete em conflito externo (complexidade de reescrever itens do pedido; vira dívida). Descartado `SELECT ... FOR UPDATE` remoto (trava presa entre requisições). Descartado "ler e depois gravar" (corrida).
 
 ## Critérios de aceite
 
 - Com `TICKET_RESERVATION_PROVIDER=none`, todos os testes atuais passam sem alteração de comportamento.
-- Com provider `mock`: cartela reservada por outro canal gera `409 TICKET_RESERVED`, sem reserva local nem remota remanescente.
+- Com provider `mock`: bilhete reservado por outro canal gera `409 TICKET_RESERVED`, sem reserva local nem remota remanescente.
 - Pagamento com trava remota perdida vai para `manual_review` e não chama `PUT /bilhete/validar`.
 - Pedido expirado tem sua trava remota liberada pelo worker.
 - Provider `live` monta as requisições do contrato provisório e trata `200`/`409`/`404`/`5xx`, validado por testes com `fetch` simulado.
@@ -117,7 +117,7 @@ Regra de prazo: `TICKET_RESERVATION_TTL_MINUTES` (padrão 30) precisa ser maior 
 | `server/domains/orders/ticket-reservation-coordinator.ts` (novo)   | adquirir, compensar, conferir posse, liberar                             |
 | `server/domains/orders/order-service.ts` (mod.)                    | integra coordenador na criação e na reconciliação                        |
 | `server/app.ts` (mod.)                                             | seleção do provider e worker de liberação                                |
-| `server/domains/tickets/live-ticket-gateway.ts` (mod.)             | omite cartelas reservadas/validadas na listagem                          |
+| `server/domains/tickets/live-ticket-gateway.ts` (mod.)             | omite bilhetes reservados/validadas na listagem                          |
 
 ---
 
@@ -1004,7 +1004,7 @@ function setup() {
 }
 
 describe('TicketReservationCoordinator', () => {
-  it('reserva remotamente todas as cartelas em ordem estável', async () => {
+  it('reserva remotamente todas os bilhetes em ordem estável', async () => {
     const { database, store, coordinator, pending } = setup()
 
     expect(await coordinator.acquire(pending)).toBe('acquired')
@@ -1016,7 +1016,7 @@ describe('TicketReservationCoordinator', () => {
     database.close()
   })
 
-  it('desfaz a reserva parcial quando outro canal já reservou uma cartela', async () => {
+  it('desfaz a reserva parcial quando outro canal já reservou um bilhete', async () => {
     const { database, store, gateway, coordinator, pending } = setup()
     gateway.reserveFromAnotherChannel(key('card-002'))
 
@@ -1043,7 +1043,7 @@ describe('TicketReservationCoordinator', () => {
     database.close()
   })
 
-  it('só confirma posse com o mesmo token em todas as cartelas', async () => {
+  it('só confirma posse com o mesmo token em todas os bilhetes', async () => {
     const { database, gateway, coordinator, pending } = setup()
     await coordinator.acquire(pending)
     expect(await coordinator.confirmOwnership(pending)).toBe(true)
@@ -1218,7 +1218,7 @@ describe('reserva externa do bilhete', () => {
   const ttlMs = 30 * 60_000
   const key = (ticketNumber: string) => ({ raffleId: 'sorteio-setembro', ticketNumber })
 
-  it('recusa cartela reservada por outro canal e desfaz as demais reservas', async () => {
+  it('recusa bilhete reservado por outro canal e desfaz as demais reservas', async () => {
     const reservations = new MockTicketReservationGateway(ttlMs)
     reservations.reserveFromAnotherChannel(key('card-041'))
     const app = await buildApp({ env, reservations, logger: false, startWorker: false })
@@ -1321,7 +1321,7 @@ return this.holdRemotely(this.repository.createManual(order))
     })
     if (outcome === 'conflict') {
       this.repository.cancel(order.id)
-      throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
+      throw new DomainError('Um ou mais bilhetes já estão reservados.', 409, 'TICKET_RESERVED')
     }
     return order
   }
@@ -1339,7 +1339,7 @@ return this.holdRemotely(this.repository.createManual(order))
       if (!(await this.reservations.confirmOwnership(order))) {
         this.repository.markManualReview(
           order.id,
-          'Reserva externa da cartela foi perdida antes da validacao.',
+          'Reserva externa do bilhete foi perdida antes da validacao.',
         )
         return
       }
@@ -1404,7 +1404,7 @@ git commit -m "feat: travar bilhete na API externa ao criar pedido e conferir po
 
 ---
 
-### Tarefa 7: Listagem ignora cartelas reservadas ou validadas
+### Tarefa 7: Listagem ignora bilhetes reservados ou validadas
 
 **Arquivos:**
 
@@ -1414,12 +1414,12 @@ git commit -m "feat: travar bilhete na API externa ao criar pedido e conferir po
 **Interfaces:**
 
 - Consome: `bitSchema`, `parseTicketApiDateTime` (Tarefa 3); `TICKET_RESERVATION_TTL_MINUTES` (Tarefa 1).
-- Produz: sem mudança de assinatura; `getAvailableTickets`/`getAvailableTicket` passam a omitir cartelas indisponíveis.
+- Produz: sem mudança de assinatura; `getAvailableTickets`/`getAvailableTicket` passam a omitir bilhetes indisponíveis.
 
 - [x] **Passo 1: teste que falha** — acrescentar ao `describe('LiveTicketGateway')`:
 
 ```ts
-it('omite cartelas validadas ou com reserva externa dentro do prazo', async () => {
+it('omite bilhetes validados ou com reserva externa dentro do prazo', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(
@@ -1463,7 +1463,7 @@ it('omite cartelas validadas ou com reserva externa dentro do prazo', async () =
 })
 ```
 
-- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/live-ticket-gateway.test.ts`. Esperado: FAIL (retorna as 4 cartelas).
+- [x] **Passo 2: confirmar falha** — `npx vitest run server/domains/tickets/live-ticket-gateway.test.ts`. Esperado: FAIL (retorna as 4 bilhetes).
 
 - [x] **Passo 3: implementar** — em `server/domains/tickets/live-ticket-gateway.ts`:
 - importar `{ bitSchema, parseTicketApiDateTime }` de `'./ticket-api-fields.js'`;
@@ -1489,7 +1489,7 @@ it('omite cartelas validadas ou com reserva externa dentro do prazo', async () =
   }
 ```
 
-Data inválida gera `NaN`, a comparação falha e a cartela fica oculta (lado seguro).
+Data inválida gera `NaN`, a comparação falha e o bilhete fica oculta (lado seguro).
 
 - [x] **Passo 4: confirmar sucesso** — mesmo comando do passo 2. Esperado: PASS, inclusive os testes antigos (campos ausentes não filtram nada).
 
@@ -1497,7 +1497,7 @@ Data inválida gera `NaN`, a comparação falha e a cartela fica oculta (lado se
 
 ```bash
 git add server/domains/tickets/live-ticket-gateway.ts server/domains/tickets/live-ticket-gateway.test.ts
-git commit -m "feat: ocultar cartelas reservadas ou validadas na listagem live"
+git commit -m "feat: ocultar bilhetes reservados ou validadas na listagem live"
 ```
 
 ---
@@ -1512,14 +1512,14 @@ git commit -m "feat: ocultar cartelas reservadas ou validadas na listagem live"
 - [x] **Passo 1: design doc** — status "aceito"; copiar as seções "Técnica de concorrência" e "Decisões" deste plano, em forma resumida (decisão, motivo, alternativas descartadas, contrato pedido à API de bilhetes com os SQL).
 
 - [x] **Passo 2: `docs/API_CONTRACTS.md`**
-  - em "Escrita", acrescentar: "`PUT /bilhete/reservado` e `GET /bilhete/reservado` — **provisório, ainda não publicado**. Reserva com `reservado: true`; libera com `reservado: false` e `data_reservado` (token). `409` indica cartela já reservada/validada ou token que não é o dono. Contrato detalhado em `docs/design-docs/2026-09-27-concorrencia-reserva-bilhete.md`.";
-  - em "Leitura", registrar que `reservado`, `data_reservado` e `validado` são opcionais na listagem e, quando presentes, ocultam a cartela;
+  - em "Escrita", acrescentar: "`PUT /bilhete/reservado` e `GET /bilhete/reservado` — **provisório, ainda não publicado**. Reserva com `reservado: true`; libera com `reservado: false` e `data_reservado` (token). `409` indica bilhete já reservada/validada ou token que não é o dono. Contrato detalhado em `docs/design-docs/2026-09-27-concorrencia-reserva-bilhete.md`.";
+  - em "Leitura", registrar que `reservado`, `data_reservado` e `validado` são opcionais na listagem e, quando presentes, ocultam o bilhete;
   - em "Limitações conhecidas", trocar "A API externa não oferece reserva com expiração..." por "Reserva externa implementada no backend e desligada (`TICKET_RESERVATION_PROVIDER=none`) até a API de bilhetes publicar os endpoints."
 
 - [x] **Passo 3: `docs/BACKEND.md`**
-  - no "Fluxo de pagamento", passo 2: "Persiste pedido e reservas com unicidade no SQLite e trava cada cartela na API de bilhetes (`reservado`), desfazendo tudo em conflito.";
-  - passo 6: "Confere que a trava externa ainda pertence ao pedido; depois cadastra/consulta pessoa e valida cada cartela (`validado`).";
-  - reescrever "Limitação da API externa": enquanto o provider for `none`, outro canal ainda pode vender a cartela entre seleção e pagamento (pedido pago vai para revisão manual); com `live`, a trava condicional em `reservado` elimina esse risco dentro do prazo `TICKET_RESERVATION_TTL_MINUTES`.
+  - no "Fluxo de pagamento", passo 2: "Persiste pedido e reservas com unicidade no SQLite e trava cada bilhete na API de bilhetes (`reservado`), desfazendo tudo em conflito.";
+  - passo 6: "Confere que a trava externa ainda pertence ao pedido; depois cadastra/consulta pessoa e valida cada bilhete (`validado`).";
+  - reescrever "Limitação da API externa": enquanto o provider for `none`, outro canal ainda pode vender o bilhete entre seleção e pagamento (pedido pago vai para revisão manual); com `live`, a trava condicional em `reservado` elimina esse risco dentro do prazo `TICKET_RESERVATION_TTL_MINUTES`.
 
 - [x] **Passo 4: dívida técnica** — em `docs/exec-plans/tech-debt-tracker.md`, substituir a linha "API externa não reserva nem vende lote atomicamente" e acrescentar:
 
@@ -1527,7 +1527,7 @@ git commit -m "feat: ocultar cartelas reservadas ou validadas na listagem live"
 | Endpoint de reserva em `bilhete.reservado` não publicado | reserva externa desligada (`none`) | API publicar `PUT`/`GET` com update condicional; ajustar `RESERVATION_PATH` e ativar `live` |
 | Token de reserva é `data_reservado` (precisão de segundos) | reenvio raro pode liberar trava alheia | API aceitar token próprio (coluna nova ou `numorder`) |
 | `PUT /bilhete/validar` não é condicional à reserva | janela entre `GET` de posse e validação | API validar só com `validado = 0` e token da reserva |
-| Surpresinha não troca cartela em conflito externo | cliente precisa tentar de novo | medir frequência de `TICKET_RESERVED` em surpresinha |
+| Surpresinha não troca bilhete em conflito externo | cliente precisa tentar de novo | medir frequência de `TICKET_RESERVED` em surpresinha |
 ```
 
 - [x] **Passo 5: verificação** — rodar `npm run check` e `npm run test:e2e`. Esperado: ambos passam. Registrar resultado em "Validação" abaixo.
@@ -1546,7 +1546,7 @@ git commit -m "docs: registrar concorrência na reserva de bilhetes"
 1. Confirmar com a equipe da API de bilhetes: caminho, nomes de campo, formato de `data_reservado`, códigos `409`/`404` e que a reserva é uma atualização condicional única (SQL da seção "Contrato pedido").
 2. Ajustar somente `RESERVATION_PATH`, schemas e corpo em `server/domains/tickets/live-ticket-reservation-gateway.ts`, e os testes do mesmo nome.
 3. Alinhar `TICKET_RESERVATION_TTL_MINUTES` com o prazo configurado na API.
-4. Em homologação: `TICKET_PROVIDER=live`, `TICKET_RESERVATION_PROVIDER=live`; criar dois pedidos simultâneos da mesma cartela (um deve receber `409`); deixar um pedido expirar e conferir `reservado = 0` no banco; pagar um pedido e conferir `validado = 1`.
+4. Em homologação: `TICKET_PROVIDER=live`, `TICKET_RESERVATION_PROVIDER=live`; criar dois pedidos simultâneos da mesmo bilhete (um deve receber `409`); deixar um pedido expirar e conferir `reservado = 0` no banco; pagar um pedido e conferir `validado = 1`.
 5. Mover as linhas correspondentes do rastreador de dívida e este plano para `completed/`.
 
 ## Progresso

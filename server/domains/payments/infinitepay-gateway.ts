@@ -52,7 +52,7 @@ export class InfinitePayGateway implements PaymentGateway {
           items: order.items.map((item) => ({
             quantity: 1,
             price: item.unitPriceInCents ?? order.unitPriceInCents,
-            description: `Cartela ${item.code} — ${item.raffleTitle ?? order.raffleTitle}`,
+            description: `Bilhete ${item.code} — ${item.raffleTitle ?? order.raffleTitle}`,
           })),
         }),
       },

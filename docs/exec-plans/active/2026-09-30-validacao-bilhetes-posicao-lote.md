@@ -83,7 +83,7 @@ Novos testes em `order-service.test.ts`:
 
 Testes existentes:
 
-- ✅ "reserva cartela manual com posição de lote zero, como a API de bilhetes informa" — passou (bilhete agora recebe posicao sequencial ao pagar)
+- ✅ "reserva bilhete manual com posição de lote zero, como a API de bilhetes informa" — passou (bilhete agora recebe posicao sequencial ao pagar)
 
 ## Recuperação de Registros Antigos
 
@@ -126,7 +126,7 @@ Se validação na API falha **após** pagamento ser confirmado:
 1. Pagamento permanece confirmado (`status: 'paid'`, `paid_at` definido)
 2. Bilhete permanece com `validationBatch` e `batchPosition` atribuídos
 3. Pedido vai para `manual_review` com mensagem de erro específica
-4. Mensagem em "Minhas compras": "Pagamento recebido. Estamos confirmando suas cartelas manualmente."
+4. Mensagem em "Minhas compras": "Pagamento recebido. Estamos confirmando seus bilhetes manualmente."
 5. Admin recupera via **tentativa manual de validação** ou **storno com reembolso**
 
 Não há retry automático de validação (não causa cascata de erros). Sistema fica aguardando intervenção manual.

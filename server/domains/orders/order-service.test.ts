@@ -43,7 +43,7 @@ afterEach(async () => {
 })
 
 describe('pedido e pagamento', () => {
-  it('cria um pedido com cartelas de dois sorteios e soma os preços de cada um', async () => {
+  it('cria um pedido com bilhetes de dois sorteios e soma os preços de cada um', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)
 
@@ -87,7 +87,7 @@ describe('pedido e pagamento', () => {
     }
   })
 
-  it('guarda em cada cartela a data do sorteio, os prêmios e os giros do concurso', async () => {
+  it('guarda em cada bilhete a data do sorteio, os prêmios e os giros do concurso', async () => {
     const tickets = new MockTicketGateway()
     const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
     const app = await buildApp({
@@ -192,7 +192,7 @@ describe('pedido e pagamento', () => {
     })
   })
 
-  it('reserva cartela manual com posição de lote zero, como a API de bilhetes informa', async () => {
+  it('reserva bilhete manual com posição de lote zero, como a API de bilhetes informa', async () => {
     const tickets = new MockTicketGateway()
     const original = tickets.getAvailableTicket.bind(tickets)
     tickets.getAvailableTicket = async (raffleId, ticketId) => {
@@ -241,7 +241,7 @@ describe('pedido e pagamento', () => {
     expect(response.statusCode).toBe(400)
   })
 
-  it('permite somente uma reserva manual concorrente da mesma cartela', async () => {
+  it('permite somente uma reserva manual concorrente da mesmo bilhete', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)
 
@@ -274,7 +274,7 @@ describe('pedido e pagamento', () => {
     expect(response.json()).toMatchObject({ code: 'ADDRESS_REQUIRED' })
   })
 
-  it('reserva, cria checkout, reconcilia e entrega a cartela', async () => {
+  it('reserva, cria checkout, reconcilia e entrega o bilhete', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
     apps.push(app)
 
@@ -348,7 +348,7 @@ describe('pedido e pagamento', () => {
     await vi.waitFor(() => expect(harness.fulfillOrder).toHaveBeenCalledTimes(1))
   })
 
-  it('mantem pagamento tardio em analise sem entregar cartelas', async () => {
+  it('mantem pagamento tardio em analise sem entregar bilhetes', async () => {
     let currentTime = new Date('2026-09-23T10:00:00.000Z')
     const harness = await createPaymentHarness(() => currentTime)
     currentTime = new Date('2026-09-23T10:16:00.000Z')
@@ -407,7 +407,7 @@ describe('pedido e pagamento', () => {
     })
   })
 
-  it('nao entrega cartelas quando o payment_check retorna valor divergente', async () => {
+  it('nao entrega bilhetes quando o payment_check retorna valor divergente', async () => {
     const payments: PaymentGateway = {
       createCheckout: async () => 'https://checkout.infinitepay.io/divergent',
       verifyPayment: async () => ({ paid: true, amountInCents: 999, captureMethod: 'pix' }),
@@ -499,7 +499,7 @@ describe('reserva externa do bilhete', () => {
   const ttlMs = 30 * 60_000
   const key = (ticketNumber: string) => ({ raffleId: 'sorteio-setembro', ticketNumber })
 
-  it('recusa cartela reservada por outro canal e desfaz as demais reservas', async () => {
+  it('recusa bilhete reservado por outro canal e desfaz as demais reservas', async () => {
     const reservations = new MockTicketReservationGateway(ttlMs)
     reservations.reserveFromAnotherChannel(key('card-041'))
     const app = await buildApp({ env, reservations, logger: false, startWorker: false })

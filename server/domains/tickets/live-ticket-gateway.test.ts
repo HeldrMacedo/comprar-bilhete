@@ -27,7 +27,7 @@ afterEach(() => {
 })
 
 describe('LiveTicketGateway', () => {
-  it('não valida cartelas pagas por uma API HTTP', async () => {
+  it('não valida bilhetes pagos por uma API HTTP', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     const gateway = new LiveTicketGateway(
@@ -40,7 +40,7 @@ describe('LiveTicketGateway', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('valida cada cartela usando seu próprio concurso', async () => {
+  it('valida cada bilhete usando seu próprio concurso', async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(
@@ -88,7 +88,7 @@ describe('LiveTicketGateway', () => {
     },
   )
 
-  it('não valida cartela sem pessoa cadastrada', async () => {
+  it('não valida bilhete sem pessoa cadastrada', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     const gateway = new LiveTicketGateway(liveEnv)
@@ -231,7 +231,7 @@ describe('LiveTicketGateway', () => {
     ])
   })
 
-  it('omite cartelas validadas ou com reserva externa dentro do prazo', async () => {
+  it('omite bilhetes validados ou com reserva externa dentro do prazo', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(

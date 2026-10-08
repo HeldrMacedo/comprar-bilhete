@@ -26,7 +26,7 @@ const customerWithAddress = resolvedCustomerSchema.parse({
 afterEach(() => vi.unstubAllGlobals())
 
 describe('InfinitePayGateway', () => {
-  it('envia os preços próprios de cartelas de dois sorteios no mesmo checkout', async () => {
+  it('envia os preços próprios de bilhetes de dois sorteios no mesmo checkout', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ url: 'https://checkout.infinitepay.io/example' }), {
         status: 200,
@@ -58,8 +58,8 @@ describe('InfinitePayGateway', () => {
     const body: unknown = JSON.parse(options.body)
     expect(body).toMatchObject({
       items: [
-        { price: 1000, description: 'Cartela card-001 — Sorteio de Quarta' },
-        { price: 600, description: 'Cartela card-001 — Sorteio de Domingo' },
+        { price: 1000, description: 'Bilhete card-001 — Sorteio de Quarta' },
+        { price: 600, description: 'Bilhete card-001 — Sorteio de Domingo' },
       ],
     })
   })

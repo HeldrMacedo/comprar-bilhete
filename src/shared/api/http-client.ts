@@ -77,7 +77,7 @@ async function readApiError(response: Response): Promise<{ message: string; code
     // Non-JSON responses receive a safe message below.
   }
   if (response.status === 409) {
-    return { message: 'Uma ou mais cartelas acabaram de ser reservadas.' }
+    return { message: 'Uma ou mais bilhetes acabaram de ser reservadas.' }
   }
   if (response.status >= 500) {
     return { message: 'O servidor esta temporariamente indisponivel.' }

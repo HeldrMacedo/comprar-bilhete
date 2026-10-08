@@ -16,7 +16,7 @@ Permitir participação no sorteio de domingo, no de quarta ou nos dois, sem mos
 
 1. Normalizar os dois concursos externos, validar campos e descartar IDs terminados em `000`; testar o parser com resposta real e sentinelas.
 2. Identificar domingo/quarta pela data do sorteio e excluir concursos cujo `data_fim` e horário já passaram.
-3. Estender contrato de leitura para listar sorteios, incluindo mock e estados sem cartelas.
+3. Estender contrato de leitura para listar sorteios, incluindo mock e estados sem bilhetes.
 4. Estender carrinho e pedido para seleções por sorteio, reservas atômicas, preços por item, checkout e entrega por concurso; migrar armazenamento com segurança.
 5. Atualizar Home, carrinho, pagamento, contratos e testes. Executar `npm run check` e `npm run test:e2e`.
 
@@ -24,7 +24,7 @@ Permitir participação no sorteio de domingo, no de quarta ou nos dois, sem mos
 
 - Manter o backend como autoridade sobre preço, sorteio ativo, disponibilidade e pagamento.
 - Não usar HTTP da API externa para dados pessoais: a configuração live continua exigindo HTTPS.
-- Compra conjunta usa um carrinho, um pedido e um pagamento; cada sorteio mantém sua própria escolha de cartelas ou quantidade.
+- Compra conjunta usa um carrinho, um pedido e um pagamento; cada sorteio mantém sua própria escolha de bilhetes ou quantidade.
 - O dia é derivado de `data_sorteiocap`/`data_sorteioesp`, sem associar CAP ou ESP a um dia fixo.
 - Concursos com ID `000` ou prazo de venda encerrado por data e horário são ocultados.
 
@@ -33,7 +33,7 @@ Permitir participação no sorteio de domingo, no de quarta ou nos dois, sem mos
 - 2026-09-25: contrato externo consultado e perguntas de comportamento enviadas.
 - 2026-09-25: parser dos dois blocos criado; IDs terminados em `000` são ignorados antes de validar campos de concurso. `LiveTicketGateway.getActiveRaffles()` consulta e normaliza a resposta. A rota antiga agora usa o primeiro concurso válido e retorna 404 se não houver nenhum. Testes de parser e gateway: 10/10 passaram.
 - 2026-09-25: usuário confirmou classificação pelo calendário, corte pelo prazo completo e checkout único com seleções por sorteio.
-- 2026-09-25: frontend, pedido, reservas e checkout foram estendidos para duas seleções. Cada cartela retém o concurso e o preço de origem. Carrinho anterior é migrado na leitura.
+- 2026-09-25: frontend, pedido, reservas e checkout foram estendidos para duas seleções. Cada bilhete retém o concurso e o preço de origem. Carrinho anterior é migrado na leitura.
 - 2026-09-25: parser passou a ignorar campos incompletos de um bloco expirado sem esconder o bloco válido. Contratos de API e produto foram atualizados.
 
 ## Validação

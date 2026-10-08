@@ -41,7 +41,7 @@ const doubleRule: ReceiptLine = { kind: 'rule', style: 'double' }
 const singleRule: ReceiptLine = { kind: 'rule', style: 'single' }
 const space: ReceiptLine = { kind: 'space' }
 
-// Comprovante de uma cartela no formato do bilhete impresso da Sol da Sorte.
+// Comprovante de um bilhete no formato do bilhete impresso da Sol da Sorte.
 export function buildReceipt(purchase: Purchase, item: PurchaseItem): ReceiptLine[] {
   const secondChance = item.secondChanceNumbers ?? []
   const lines: ReceiptLine[] = [doubleRule, ...header.map(center), singleRule]

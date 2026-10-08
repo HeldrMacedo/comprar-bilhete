@@ -4,12 +4,12 @@ Status: aceito. Implementado e desligado (`TICKET_RESERVATION_PROVIDER=none`) at
 
 ## Decisão
 
-A mesma cartela pode ser vendida por outros canais além deste backend. Cada cartela ganha uma trava com prazo (lease) na coluna `bilhete.reservado` da API de bilhetes, além da reserva local no SQLite:
+O mesmo bilhete pode ser vendido por outros canais além deste backend. Cada bilhete ganha uma trava com prazo (lease) na coluna `bilhete.reservado` da API de bilhetes, além da reserva local no SQLite:
 
-1. Ao criar o pedido, o backend reserva localmente (transação SQLite) e depois reserva cada cartela na API de bilhetes, em ordem `(concurso, numero)`. Em conflito ou falha, libera as travas já obtidas, cancela o pedido local e responde `409 TICKET_RESERVED` (ou `502`).
-2. Com o pagamento confirmado, o backend consulta a trava de cada cartela e só chama `PUT /bilhete/validar` (que grava `validado`) se ela ainda pertencer ao pedido. Se não pertencer, o pedido vai para `manual_review`.
+1. Ao criar o pedido, o backend reserva localmente (transação SQLite) e depois reserva cada bilhete na API de bilhetes, em ordem `(concurso, numero)`. Em conflito ou falha, libera as travas já obtidas, cancela o pedido local e responde `409 TICKET_RESERVED` (ou `502`).
+2. Com o pagamento confirmado, o backend consulta a trava de cada bilhete e só chama `PUT /bilhete/validar` (que grava `validado`) se ela ainda pertencer ao pedido. Se não pertencer, o pedido vai para `manual_review`.
 3. O worker libera as travas de pedidos expirados ou cancelados; falha de liberação fica registrada e é tentada de novo. O prazo externo é a rede de segurança.
-4. A listagem live omite cartelas validadas ou com reserva dentro do prazo, quando a API devolver esses campos.
+4. A listagem live omite bilhetes validados ou com reserva dentro do prazo, quando a API devolver esses campos.
 
 As travas remotas ficam em `remote_reservations` (`held`, `released`, `lost`, `validated`).
 
@@ -50,7 +50,7 @@ A consulta (`GET`) devolve `success`, `reservado`, `data_reservado` e `validado`
 
 - Ler e depois gravar `reservado`: corrida entre canais.
 - `SELECT ... FOR UPDATE` na API de bilhetes: a trava de linha ficaria presa durante o checkout.
-- Trocar automaticamente a cartela da surpresinha em conflito externo: exige reescrever itens do pedido; registrado como dívida.
+- Trocar automaticamente o bilhete da surpresinha em conflito externo: exige reescrever itens do pedido; registrado como dívida.
 
 ## Riscos conhecidos
 

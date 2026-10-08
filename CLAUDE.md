@@ -34,7 +34,7 @@ Full-stack no mesmo repositório: React (`src/`) conversa apenas com o backend F
 ## Modos e ambiente
 
 - `VITE_API_MODE=mock` roda o frontend sem backend; `live` usa só `/api`. Falha no live nunca pode cair silenciosamente para mock.
-- Compras em modo live exigem `TICKET_API_BASE_URL` HTTPS (envia dados pessoais). Com HTTP, apenas concursos e cartelas são consultados e a compra fica indisponível.
+- Compras em modo live exigem `TICKET_API_BASE_URL` HTTPS (envia dados pessoais). Com HTTP, apenas concursos e bilhetes são consultados e a compra fica indisponível.
 - Webhook InfinitePay: `PUBLIC_API_URL/api/v1/webhooks/infinitepay` (URL pública HTTPS, sem barra final).
 - Após alterar `.env`/`.env.local`, reinicie Vite e backend.
 

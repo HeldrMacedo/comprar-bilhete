@@ -1,6 +1,6 @@
 # Comprar Bilhete
 
-Aplicação full-stack para escolher cartelas de sorteio, criar pedidos e pagar no checkout Pix da InfinitePay. O React conversa somente com o backend Fastify deste repositório; o servidor persiste pedidos em SQLite e encapsula InfinitePay e a API externa de bilhetes.
+Aplicação full-stack para escolher bilhetes de sorteio, criar pedidos e pagar no checkout Pix da InfinitePay. O React conversa somente com o backend Fastify deste repositório; o servidor persiste pedidos em SQLite e encapsula InfinitePay e a API externa de bilhetes.
 
 ## Começar
 
@@ -19,7 +19,7 @@ TICKET_PROVIDER=mock
 PAYMENT_PROVIDER=mock
 ```
 
-Se `.env.local` estiver configurado com `TICKET_PROVIDER=live` e a origem de bilhetes ainda usar HTTP, o site mostra os concursos e cartelas para consulta. A compra fica indisponível até existir uma origem HTTPS. Para executar a jornada completa com dados de demonstração no PowerShell, use:
+Se `.env.local` estiver configurado com `TICKET_PROVIDER=live` e a origem de bilhetes ainda usar HTTP, o site mostra os concursos e bilhetes para consulta. A compra fica indisponível até existir uma origem HTTPS. Para executar a jornada completa com dados de demonstração no PowerShell, use:
 
 ```powershell
 $env:TICKET_PROVIDER='mock'
@@ -34,7 +34,7 @@ Para testar checkout real localmente, crie `.env.local` com `VITE_API_MODE=live`
 `TICKET_PROVIDER=live`, `PAYMENT_PROVIDER=infinitepay`, `INFINITEPAY_HANDLE` e
 `PUBLIC_API_URL` apontando para a origem HTTPS pública do backend, sem barra final.
 `TICKET_API_BASE_URL` também precisa ser HTTPS para habilitar compras em modo live.
-Com HTTP, somente os dados públicos de concursos e cartelas são consultados.
+Com HTTP, somente os dados públicos de concursos e bilhetes são consultados.
 Reinicie Vite e backend após alterar o arquivo. O webhook será enviado a
 `PUBLIC_API_URL/api/v1/webhooks/infinitepay`. Mantenha o túnel público ativo
 durante o teste; Dev Tunnels não substitui hospedagem de produção. Se

@@ -13,7 +13,7 @@ test('cliente existente finaliza compra demonstrativa', async ({ page }) => {
   expect(new URL(page.url()).searchParams.get('order_nsu')).toMatch(
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   )
-  await expect(page.getByRole('heading', { name: /suas cartelas estão garantidas/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /seus bilhetes estão garantidos/i })).toBeVisible({
     timeout: 12_000,
   })
 })
@@ -36,12 +36,12 @@ test('cliente novo informa endereço na surpresinha', async ({ page }, testInfo)
   await page.getByLabel('Cidade').fill('Natal')
   await page.getByLabel('UF').fill('RN')
   await page.getByRole('button', { name: /continuar para o pix/i }).click()
-  await expect(page.getByRole('heading', { name: /suas cartelas estão garantidas/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /seus bilhetes estão garantidos/i })).toBeVisible({
     timeout: 12_000,
   })
 })
 
-test('compra cartelas de quarta e domingo em um pagamento', async ({ page }, testInfo) => {
+test('compra bilhetes de quarta e domingo em um pagamento', async ({ page }, testInfo) => {
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Todos', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -64,7 +64,7 @@ test('compra cartelas de quarta e domingo em um pagamento', async ({ page }, tes
   await expect(page.getByText('Cliente encontrado')).toBeVisible()
   await page.getByRole('button', { name: /continuar para o pix/i }).click()
   await expect(page).toHaveURL(/order_nsu=/)
-  await expect(page.getByRole('heading', { name: /suas cartelas estão garantidas/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /seus bilhetes estão garantidos/i })).toBeVisible({
     timeout: 12_000,
   })
 })

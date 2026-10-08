@@ -14,4 +14,4 @@
 - CPF/telefone ficam no SQLite do servidor; proteja arquivo, backups e volume de produção com acesso mínimo e retenção definida.
 - URLs de redirect/webhook vêm da configuração do servidor, nunca de entrada arbitrária do navegador. A criação de pedido é sempre proxied pelo backend; credenciais InfinitePay não ficam em `VITE_*`.
 
-Incidentes de cartela duplicada ou confirmação incorreta têm severidade alta e exigem bloquear vendas até reconciliação.
+Incidentes de bilhete duplicado ou confirmação incorreta têm severidade alta e exigem bloquear vendas até reconciliação.

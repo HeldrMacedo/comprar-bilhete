@@ -12,7 +12,7 @@ O fluxo deve suportar escolha manual e surpresinha, impedir reservas locais dupl
 - Preencher dados de pessoa existente no checkout.
 - Exigir endereço completo para pessoa ainda não cadastrada.
 - Criar pedido com escolha manual ou quantidade aleatória.
-- Reservar cartelas de forma transacional no SQLite.
+- Reservar bilhetes de forma transacional no SQLite.
 - Criar ou reutilizar link de pagamento no backend.
 - Persistir webhooks da InfinitePay de forma idempotente.
 - Confirmar pagamento somente após `payment_check` no backend.
@@ -43,7 +43,7 @@ React -> API própria Fastify -> SQLite
                             -> InfinitePay
 ```
 
-Será adicionado o domínio backend `customers`, responsável por consultar e normalizar pessoas da API externa. O domínio `tickets` continuará responsável pelo concurso, disponibilidade e validação final das cartelas. `orders` continuará orquestrando cadastro, reserva, checkout e pagamento por portas tipadas.
+Será adicionado o domínio backend `customers`, responsável por consultar e normalizar pessoas da API externa. O domínio `tickets` continuará responsável pelo concurso, disponibilidade e validação final dos bilhetes. `orders` continuará orquestrando cadastro, reserva, checkout e pagamento por portas tipadas.
 
 No frontend, `CartPage` continuará apenas compondo serviços. Acesso HTTP permanecerá restrito aos repositories. Toda resposta de rede será validada com Zod na fronteira.
 
@@ -128,17 +128,17 @@ O backend não confiará no resultado de busca enviado pelo navegador. Antes de 
 - se nenhuma existir, o endereço completo será obrigatório;
 - se a API externa falhar, o pedido não será criado.
 
-A resposta do pedido incluirá as cartelas efetivamente reservadas. Isso permite ao frontend mostrar os números atribuídos à surpresinha sem prever a seleção no navegador.
+A resposta do pedido incluirá os bilhetes efetivamente reservadas. Isso permite ao frontend mostrar os números atribuídos à surpresinha sem prever a seleção no navegador.
 
 ## Reserva manual
 
-O serviço consultará o concurso atual, recusará `raffleId` divergente e recalculará o preço em centavos. Cada cartela solicitada será conferida na API externa para o concurso atual e o estabelecimento `4734`.
+O serviço consultará o concurso atual, recusará `raffleId` divergente e recalculará o preço em centavos. Cada bilhete solicitado será conferida na API externa para o concurso atual e o estabelecimento `4734`.
 
 O repository abrirá `BEGIN IMMEDIATE`, expirará reservas pendentes vencidas, verificará conflitos locais e inserirá o pedido e todas as reservas na mesma transação. A chave única continuará sendo `raffleId:ticketId`. Qualquer conflito causará rollback completo e resposta `409 TICKET_RESERVED`.
 
 ## Reserva aleatória
 
-O frontend enviará somente a quantidade. O backend buscará cartelas externas disponíveis para o concurso atual e estabelecimento `4734`, removerá cartelas com reserva local ativa e selecionará candidatos sem repetição.
+O frontend enviará somente a quantidade. O backend buscará bilhetes externos disponíveis para o concurso atual e estabelecimento `4734`, removerá bilhetes com reserva local ativa e selecionará candidatos sem repetição.
 
 Seleção e inserção ocorrerão sob a mesma transação `BEGIN IMMEDIATE`. O repository continuará tentando candidatos disponíveis até completar a quantidade. Se não houver quantidade suficiente, fará rollback e retornará `409 INSUFFICIENT_TICKETS`.
 
@@ -149,10 +149,10 @@ O SQLite protege concorrência entre processos que usam o mesmo arquivo de banco
 - `pending`: reserva ativa até `expiresAt`.
 - `processing`: reserva preservada enquanto ocorre validação externa.
 - `manual_review`: reserva preservada para intervenção.
-- `paid`: reserva local removida após confirmação externa das cartelas.
+- `paid`: reserva local removida após confirmação externa dos bilhetes.
 - `expired` ou `cancelled`: reserva removida.
 
-Um pagamento confirmado depois da expiração será registrado, mas o pedido irá para `manual_review`, pois as cartelas podem ter sido liberadas.
+Um pagamento confirmado depois da expiração será registrado, mas o pedido irá para `manual_review`, pois os bilhetes podem ter sido liberadas.
 
 ## Checkout InfinitePay
 
@@ -161,7 +161,7 @@ Um pagamento confirmado depois da expiração será registrado, mas o pedido ir�
 O backend enviará:
 
 - `handle` obtido do ambiente do servidor;
-- um item por cartela, com preço inteiro em centavos;
+- um item por bilhete, com preço inteiro em centavos;
 - `order_nsu` igual ao UUID do pedido;
 - URLs de redirect e webhook obtidas somente da configuração do servidor;
 - nome e telefone do cliente;
@@ -190,7 +190,7 @@ O webhook não confirma pagamento. Um worker executará `payment_check` e exigir
 - `paid=true`;
 - `amount` exatamente igual a `totalInCents`.
 
-Somente então o pedido avançará para `processing` e o backend tentará cadastrar a pessoa, caso necessário, e validar as cartelas. Sucesso completo produzirá `paid`. Qualquer pagamento confirmado que não possa ser entregue produzirá `manual_review` com evidência preservada.
+Somente então o pedido avançará para `processing` e o backend tentará cadastrar a pessoa, caso necessário, e validar os bilhetes. Sucesso completo produzirá `paid`. Qualquer pagamento confirmado que não possa ser entregue produzirá `manual_review` com evidência preservada.
 
 O redirect do navegador poderá disparar a mesma reconciliação usando `transaction_nsu` e `slug`, mas nunca atualizará o status diretamente.
 
@@ -205,7 +205,7 @@ Migrações serão transacionais e incrementais. Bancos existentes serão preser
 - `400`: entrada inválida.
 - `404`: pedido ou concurso inexistente.
 - `409 CUSTOMER_CONFLICT`: CPF e telefone pertencem a pessoas diferentes.
-- `409 TICKET_RESERVED`: cartela manual reservada.
+- `409 TICKET_RESERVED`: bilhete manual reservada.
 - `409 INSUFFICIENT_TICKETS`: quantidade aleatória indisponível.
 - `409 ORDER_NOT_PAYABLE`: pedido expirado ou fora do estado permitido.
 - `502`: API de bilhetes ou InfinitePay indisponível, inválida ou inconsistente.
@@ -231,7 +231,7 @@ Testes unitários e de integração devem cobrir:
 - conflito entre CPF e telefone;
 - recálculo do preço no backend;
 - reserva manual concorrente;
-- duas surpresinhas concorrentes sem cartela repetida;
+- duas surpresinhas concorrentes sem bilhete repetido;
 - quantidade aleatória insuficiente;
 - expiração e liberação de reserva;
 - criação idempotente do checkout;

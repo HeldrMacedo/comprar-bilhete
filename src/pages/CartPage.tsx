@@ -81,7 +81,7 @@ export function CartPage() {
     return (
       <section className="container empty-cart page-section" aria-live="polite">
         <Spinner label="Abrindo o pagamento..." />
-        <p>Suas cartelas estão reservadas. Se o pagamento não abrir, use o botão abaixo.</p>
+        <p>Seus bilhetes estão reservadas. Se o pagamento não abrir, use o botão abaixo.</p>
         <a className="button button--primary" href={checkoutUrl}>
           Abrir pagamento
         </a>
@@ -96,9 +96,9 @@ export function CartPage() {
           01
         </div>
         <h1>Seu carrinho esta vazio</h1>
-        <p>Escolha uma ou mais cartelas para continuar.</p>
+        <p>Escolha uma ou mais bilhetes para continuar.</p>
         <Link className="button button--primary" to="/">
-          Escolher cartelas
+          Escolher bilhetes
         </Link>
       </section>
     )
@@ -121,7 +121,7 @@ export function CartPage() {
     } catch (error) {
       if (isReservationConflict(error)) {
         clearCart()
-        navigate('/', { state: { notice: 'As cartelas selecionadas não estão mais disponíveis.' } })
+        navigate('/', { state: { notice: 'Os bilhetes selecionadas não estão mais disponíveis.' } })
         return
       }
       setSubmitError(
@@ -133,13 +133,13 @@ export function CartPage() {
   return (
     <section className="container page-section checkout-page">
       <Link className="back-link" to="/">
-        <ArrowLeft size={17} /> Voltar para as cartelas
+        <ArrowLeft size={17} /> Voltar para os bilhetes
       </Link>
       <div className="page-title">
         <span>02</span>
         <div>
           <h1>Revise e finalize</h1>
-          <p>Confira suas cartelas e informe quem esta participando.</p>
+          <p>Confira seus bilhetes e informe quem esta participando.</p>
         </div>
       </div>
 
@@ -148,7 +148,7 @@ export function CartPage() {
           <section className="surface">
             <div className="surface__header">
               <div>
-                <span className="surface__label">Suas cartelas</span>
+                <span className="surface__label">Seus bilhetes</span>
                 <h2>Sorteios selecionados</h2>
               </div>
               <div className="surface__header-actions">
@@ -167,13 +167,13 @@ export function CartPage() {
                   <div className="cart-items">
                     <article className="cart-item">
                       <p className="random-summary">
-                        {entry.selection.quantity} cartela(s) serão sorteadas aleatoriamente a{' '}
+                        {entry.selection.quantity} bilhete(s) serão sorteadas aleatoriamente a{' '}
                         {formatCurrency(entry.priceInCents)} cada.
                       </p>
                       <div className="cart-item__actions">
                         <div
                           className="quantity-picker quantity-picker--compact"
-                          aria-label={`Quantidade de cartelas de ${entry.raffleTitle}`}
+                          aria-label={`Quantidade de bilhetes de ${entry.raffleTitle}`}
                         >
                           <button
                             type="button"
@@ -188,7 +188,7 @@ export function CartPage() {
                         <button
                           type="button"
                           onClick={() => removeEntry(entry.raffleId)}
-                          aria-label={`Remover cartelas de ${entry.raffleTitle}`}
+                          aria-label={`Remover bilhetes de ${entry.raffleTitle}`}
                         >
                           <Trash2 size={17} />
                         </button>
@@ -200,7 +200,7 @@ export function CartPage() {
                     {entry.selection.cards.map((card) => (
                       <article className="cart-item" key={card.id}>
                         <div>
-                          <strong>Cartela {card.code}</strong>
+                          <strong>Bilhete {card.code}</strong>
                           <TicketNumbers
                             cardCode={card.code}
                             numbers={card.numbers}
@@ -212,7 +212,7 @@ export function CartPage() {
                           <button
                             type="button"
                             onClick={() => removeCard(entry.raffleId, card.id)}
-                            aria-label={`Remover cartela ${card.code} de ${entry.raffleTitle}`}
+                            aria-label={`Remover bilhete ${card.code} de ${entry.raffleTitle}`}
                           >
                             <Trash2 size={17} />
                           </button>
@@ -329,7 +329,7 @@ export function CartPage() {
         <aside className="order-summary surface">
           <span className="surface__label">Resumo da compra</span>
           <div className="summary-line">
-            <span>{itemCount} cartela(s)</span>
+            <span>{itemCount} bilhete(s)</span>
             <span>{formatCurrency(totalInCents)}</span>
           </div>
           <div className="summary-line">

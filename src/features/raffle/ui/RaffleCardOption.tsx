@@ -20,7 +20,7 @@ export function RaffleCardOption({
       aria-pressed={selected}
     >
       <span className="raffle-card__topline">
-        <strong>Cartela {card.code}</strong>
+        <strong>Bilhete {card.code}</strong>
         {selected ? <Check size={18} aria-label="Selecionada" /> : null}
       </span>
       <TicketNumbers

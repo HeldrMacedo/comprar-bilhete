@@ -12,12 +12,12 @@ Atue como um desenvolvedor Full-Stack TypeScript sênior. Preciso implementar um
 1. **Busca de Cliente:** Ao digitar o CPF ou Telefone, o sistema deve fazer uma requisição à API para verificar se o cliente já possui cadastro.
    - Se o cliente existir: Preencha automaticamente os dados na tela.
    - Se o cliente não existir: Exiba formulários adicionais obrigatórios para endereço (CEP, Endereço, Número, Complemento, Bairro, Cidade, UF).
-2. **Ação de Finalizar (Continuar para PIX):** Ao clicar no botão, o frontend deve enviar o payload da compra (dados do cliente e IDs das cartelas selecionadas) para o nosso **backend**.
+2. **Ação de Finalizar (Continuar para PIX):** Ao clicar no botão, o frontend deve enviar o payload da compra (dados do cliente e IDs dos bilhetes selecionadas) para o nosso **backend**.
    - _Atenção:_ O frontend **nunca** deve chamar a API da InfinitePay diretamente para criar a cobrança. Apenas o backend fará isso por questões de segurança.
 
 **Objetivo 2: Integração de Pagamento no Backend (InfinitePay)**
 
-1. **Criação do Pedido:** O backend deve receber a requisição do frontend, salvar os dados da compra e os identificadores das cartelas (marcando-as como reservadas/pendentes).
+1. **Criação do Pedido:** O backend deve receber a requisição do frontend, salvar os dados da compra e os identificadores dos bilhetes (marcando-as como reservadas/pendentes).
 2. **Geração do Link de Pagamento:** O backend deve então fazer um POST para a API da InfinitePay (`https://api.checkout.infinitepay.io/links`) utilizando as credenciais seguras do servidor.
    - _Exemplo de Payload esperado pela InfinitePay:_
      ```json
@@ -70,10 +70,10 @@ Atue como um desenvolvedor Full-Stack TypeScript sênior. Preciso implementar um
    - _Atenção:_ O frontend nunca confirma o pagamento de forma autônoma. Ele deve apenas consultar o status no backend, que por sua vez se baseia no webhook.
 
 **Objetivo 4: Prevenção de Concorrência e Duplicidade (Lock de Bilhetes)**
-Implemente um mecanismo seguro no backend para evitar que dois clientes comprem a mesma cartela ao mesmo tempo:
+Implemente um mecanismo seguro no backend para evitar que dois clientes comprem o mesmo bilhete ao mesmo tempo:
 
-1. **Modo Escolha Manual:** Ao tentar finalizar a compra, valide no banco de dados com lock transacional se as cartelas específicas ainda estão disponíveis. Se alguma já foi vendida ou está reservada por outra sessão ativa, aborte a compra e avise o usuário.
-2. **Modo Surpresinha (Aleatório):** O sistema deve buscar no banco de dados apenas as cartelas ativamente disponíveis para o concurso atual, garantir a exclusividade no momento de atrelar ao cliente e impedir atribuições duplicadas.
+1. **Modo Escolha Manual:** Ao tentar finalizar a compra, valide no banco de dados com lock transacional se os bilhetes específicas ainda estão disponíveis. Se alguma já foi vendida ou está reservada por outra sessão ativa, aborte a compra e avise o usuário.
+2. **Modo Surpresinha (Aleatório):** O sistema deve buscar no banco de dados apenas os bilhetes ativamente disponíveis para o concurso atual, garantir a exclusividade no momento de atrelar ao cliente e impedir atribuições duplicadas.
 
 Por favor, faça um plano de execução antes de alterar os arquivos e siga estritamente os princípios de clean architecture e tipagem forte com TypeScript.
 

@@ -6,9 +6,9 @@ O React usa apenas `/api`, encaminhado pelo Vite ao Fastify local.
 
 - `GET /api/health` — saúde do servidor.
 - `GET /api/v1/customers/lookup?cpf=` — consulta cadastro somente por CPF (11 dígitos); telefone não é critério de busca.
-- `GET /api/v1/raffles/active` — lista de concursos ativos normalizados, sem cartelas; `[]` quando ambos os blocos são ausentes ou expirados. Cada concurso inclui `purchaseEnabled`; é `false` quando a origem live usa HTTP sem `TICKET_API_ALLOW_HTTP=true`. Os campos opcionais `prizes` (lista ordenada), `luckySpins` (`count` e `label`) e `doubleChance` (booleano) alimentam os cards da Home; dados ausentes não são inventados.
-- `GET /api/v1/raffles/{id}/cards` — cartelas disponíveis normalizadas.
-- `POST /api/v1/orders` — cria pedido e reserva localmente as cartelas.
+- `GET /api/v1/raffles/active` — lista de concursos ativos normalizados, sem bilhetes; `[]` quando ambos os blocos são ausentes ou expirados. Cada concurso inclui `purchaseEnabled`; é `false` quando a origem live usa HTTP sem `TICKET_API_ALLOW_HTTP=true`. Os campos opcionais `prizes` (lista ordenada), `luckySpins` (`count` e `label`) e `doubleChance` (booleano) alimentam os cards da Home; dados ausentes não são inventados.
+- `GET /api/v1/raffles/{id}/cards` — bilhetes disponíveis normalizadas.
+- `POST /api/v1/orders` — cria pedido e reserva localmente os bilhetes.
 - `POST /api/v1/orders/lookup` — "Minhas compras": recebe `{ "cpf": "52998224725" }` no corpo e devolve `{ "orders": [...] }` com até 20 pedidos do CPF, do mais recente ao mais antigo. Cada pedido traz os campos públicos do pedido mais `createdAt`, `paidAt`, `paymentMethod` (`capture_method` da InfinitePay, por exemplo `pix`) e `checkoutUrl` apenas quando `pending`. Só pedido `paid` traz, para o comprovante, `customer` (`name` do titular, que é `beneficiaryName` quando houver, `city`, `phone` e `cpf`) e, em cada item, `identification`, `drawDate`, `prizes`, `luckySpins`, `validationBatch` e `batchPosition`. Os demais status nunca devolvem dados pessoais. Limite de 10 consultas por minuto por IP (`429 RATE_LIMITED`).
 - `POST /api/v1/orders/{id}/checkout` — cria ou reutiliza o link InfinitePay.
 - `GET /api/v1/orders/{id}` — consulta status seguro do pedido.
@@ -52,11 +52,11 @@ O formato anterior para um concurso continua aceito:
 
 Para surpresinha, `selection` deve ser `{ "mode": "random", "quantity": 3 }`, com
 quantidade inteira entre 1 e 50. O backend ignora o preço do navegador, consulta o
-concurso ativo, resolve o cliente novamente, atribui as cartelas e recalcula o total. As
+concurso ativo, resolve o cliente novamente, atribui os bilhetes e recalcula o total. As
 reservas de ambos os concursos são criadas em uma transação e resultam em um pedido e
 um checkout. Cada item da resposta inclui `raffleId`, `raffleTitle` e `unitPriceInCents`.
 A resposta pública inclui `items`, `selectionMode`, `unitPriceInCents`, `totalInCents`
-e `expiresAt`; metadados internos de validação das cartelas não são expostos. Status
+e `expiresAt`; metadados internos de validação dos bilhetes não são expostos. Status
 públicos: `pending`, `processing`, `paid`, `expired`, `cancelled` e `manual_review`.
 
 ## InfinitePay
@@ -71,7 +71,7 @@ públicos: `pending`, `processing`, `paid`, `expired`, `cancelled` e `manual_rev
 
 ### Webhook
 
-Recebe `invoice_slug`, `amount`, `paid_amount`, `capture_method`, `transaction_nsu`, `order_nsu`, `receipt_url` e itens. O evento não libera cartelas sozinho; ele é persistido e reconciliado em `payment_check`.
+Recebe `invoice_slug`, `amount`, `paid_amount`, `capture_method`, `transaction_nsu`, `order_nsu`, `receipt_url` e itens. O evento não libera bilhetes sozinho; ele é persistido e reconciliado em `payment_check`.
 
 ## API externa de bilhetes
 
@@ -79,7 +79,7 @@ Auditada em 20/09/2026 contra `http://66.94.99.64:9090/swagger/doc/json`. Em uma
 
 Na amostra da nova resposta, CAP tinha ID `2026041` com sorteio em 27/09/2026 (domingo), enquanto ESP tinha ID `2026040` com sorteio em 23/09/2026 (quarta) e `data_fim_sorteioesp` já passada. O dia exibido é derivado de `data_sorteio*`, sem associar CAP/ESP a um dia fixo. Um concurso deixa de ser oferecido quando sua `data_fim_*`, incluindo o horário em `America/Fortaleza`, é atingida. A listagem de bilhetes disponíveis para ambos os IDs retornou `count: 0` no estabelecimento `4734`.
 
-A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026. O backend permite ler concursos e cartelas públicas nesse endereço, mas bloqueia consulta de CPF/telefone, criação de pedido e validação de bilhetes. Com `TICKET_API_ALLOW_HTTP=true`, o backend libera essas operações pela origem HTTP e registra um aviso no startup; CPF e telefone trafegam sem TLS entre o backend e a API de bilhetes. O padrão continua `false`.
+A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026. O backend permite ler concursos e bilhetes públicos nesse endereço, mas bloqueia consulta de CPF/telefone, criação de pedido e validação de bilhetes. Com `TICKET_API_ALLOW_HTTP=true`, o backend libera essas operações pela origem HTTP e registra um aviso no startup; CPF e telefone trafegam sem TLS entre o backend e a API de bilhetes. O padrão continua `false`.
 
 ### Leitura
 
@@ -87,19 +87,19 @@ A origem atualmente informada usa HTTP e não respondeu via HTTPS em 25/09/2026.
 - `GET /bilhete/disponiveis?concurso_id=&estabelecimento_id=&pagina=`.
 - `GET /pessoa/cpf/{cpf}` — única consulta de pessoa usada pelo backend.
 
-Os campos `reservado`, `data_reservado` e `validado` são opcionais na listagem e na consulta por número. Quando presentes, cartelas validadas ou com reserva dentro de `TICKET_RESERVATION_TTL_MINUTES` não são oferecidas.
+Os campos `reservado`, `data_reservado` e `validado` são opcionais na listagem e na consulta por número. Quando presentes, bilhetes validados ou com reserva dentro de `TICKET_RESERVATION_TTL_MINUTES` não são oferecidas.
 
-O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, com o concurso 2026041 ativo, `/bilhete/disponiveis` devolveu itens com `numero`, `lote_validacao: ""`, `posicao_lote: 0` e as dezenas em `dezenas` como texto separado por `|` (por exemplo, `"3|6|16"`), além de `dezenas2`, `numero2` e `identificacao`. O provider aceita `posicao_lote` zero e lê as dezenas de `numeros` (array) ou de `dezenas` (primeira chance) e as de `dezenas2` (segunda chance), expostas como `secondChanceNumbers` nas cartelas e nos itens de pedido. Pedidos gravados antes disso não têm a segunda chance e a devolvem vazia. O `identificacao` (por exemplo, `60410080001-22`) é guardado em cada cartela do pedido como número do bilhete no comprovante. Prêmios (`premio_01..05_sorteio*`, sem os vazios), giros (`qtd_giros_sorteio*` e `giros_sorteio*`) e data do sorteio também são copiados para as cartelas na criação do pedido. `/bilhete/disponivel/numero` devolve o item em `bilhete` (não em `data`), com `encontrado` e `disponivel`; `disponivel: false` é tratado como indisponível, e bilhete não distribuído responde `404`.
+O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, com o concurso 2026041 ativo, `/bilhete/disponiveis` devolveu itens com `numero`, `lote_validacao: ""`, `posicao_lote: 0` e as dezenas em `dezenas` como texto separado por `|` (por exemplo, `"3|6|16"`), além de `dezenas2`, `numero2` e `identificacao`. O provider aceita `posicao_lote` zero e lê as dezenas de `numeros` (array) ou de `dezenas` (primeira chance) e as de `dezenas2` (segunda chance), expostas como `secondChanceNumbers` nos bilhetes e nos itens de pedido. Pedidos gravados antes disso não têm a segunda chance e a devolvem vazia. O `identificacao` (por exemplo, `60410080001-22`) é guardado em cada bilhete do pedido como número do bilhete no comprovante. Prêmios (`premio_01..05_sorteio*`, sem os vazios), giros (`qtd_giros_sorteio*` e `giros_sorteio*`) e data do sorteio também são copiados para os bilhetes na criação do pedido. `/bilhete/disponivel/numero` devolve o item em `bilhete` (não em `data`), com `encontrado` e `disponivel`; `disponivel: false` é tratado como indisponível, e bilhete não distribuído responde `404`.
 
 ### Escrita
 
 - `POST /pessoa` com `nome`, `cpf` e `fone` — formato ainda precisa de validação live.
 - `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API. O backend envia também `pessoas_id` (ID do comprador em `pessoa`) e `nome` (`beneficiaryName` quando a compra é para terceiro; senão o nome do comprador), campos opcionais segundo o swagger. Para cliente novo, o backend cadastra a pessoa após o pagamento e relê `GET /pessoa/cpf/{cpf}` para obter `pessoas_id`, pois a resposta de `POST /pessoa` não documenta o ID.
-- `PUT /bilhete/reservado` e `GET /bilhete/reservado?concurso_id=&numero=&estabelecimento_id=` — **provisório, ainda não publicado**. Reserva com `reservado: true` e recebe `data_reservado` (token); libera com `reservado: false` e o `data_reservado` recebido. `409` indica cartela já reservada/validada ou token que não é o dono. Contrato detalhado em [design-docs/2026-09-27-concorrencia-reserva-bilhete.md](design-docs/2026-09-27-concorrencia-reserva-bilhete.md).
+- `PUT /bilhete/reservado` e `GET /bilhete/reservado?concurso_id=&numero=&estabelecimento_id=` — **provisório, ainda não publicado**. Reserva com `reservado: true` e recebe `data_reservado` (token); libera com `reservado: false` e o `data_reservado` recebido. `409` indica bilhete já reservada/validada ou token que não é o dono. Contrato detalhado em [design-docs/2026-09-27-concorrencia-reserva-bilhete.md](design-docs/2026-09-27-concorrencia-reserva-bilhete.md).
 
 ## Limitações conhecidas
 
 - O estabelecimento é fixo em `4734` para a regional `57`; a API de bilhetes recebe `estabelecimento_id`, não `id_regional`.
-- Não havia concurso/cartela ativa em 25/09/2026 para validar o formato dos itens.
-- A reserva externa em `bilhete.reservado` está implementada no backend e desligada (`TICKET_RESERVATION_PROVIDER=none`) até a API de bilhetes publicar os endpoints. Não há venda atômica de várias cartelas; o backend compensa reservas parciais.
+- Não havia concurso/bilhete ativo em 25/09/2026 para validar o formato dos itens.
+- A reserva externa em `bilhete.reservado` está implementada no backend e desligada (`TICKET_RESERVATION_PROVIDER=none`) até a API de bilhetes publicar os endpoints. Não há venda atômica de várias bilhetes; o backend compensa reservas parciais.
 - Uma falha após pagamento coloca o pedido em `manual_review`; operação precisa reconciliar entrega ou estorno.

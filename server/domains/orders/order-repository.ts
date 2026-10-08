@@ -54,7 +54,7 @@ export class OrderRepository {
 
       if (selected.length !== quantity) {
         throw new DomainError(
-          'Nao ha cartelas suficientes disponiveis.',
+          'Nao ha bilhetes suficientes disponiveis.',
           409,
           'INSUFFICIENT_TICKETS',
         )
@@ -80,7 +80,7 @@ export class OrderRepository {
           if (reserved.has(key) || this.isReserved(key)) {
             if (group.mode === 'manual') {
               throw new DomainError(
-                'Uma ou mais cartelas ja estao reservadas.',
+                'Uma ou mais bilhetes ja estao reservados.',
                 409,
                 'TICKET_RESERVED',
               )
@@ -93,7 +93,7 @@ export class OrderRepository {
 
         if (selected.length !== group.quantity) {
           throw new DomainError(
-            'Nao ha cartelas suficientes disponiveis.',
+            'Nao ha bilhetes suficientes disponiveis.',
             409,
             'INSUFFICIENT_TICKETS',
           )
@@ -360,7 +360,7 @@ export class OrderRepository {
     } catch (error) {
       this.database.exec('ROLLBACK')
       if (String(error).includes('UNIQUE constraint failed: reservations.ticket_key')) {
-        throw new DomainError('Uma ou mais cartelas ja estao reservadas.', 409, 'TICKET_RESERVED')
+        throw new DomainError('Uma ou mais bilhetes ja estao reservados.', 409, 'TICKET_RESERVED')
       }
       throw error
     }

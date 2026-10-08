@@ -45,14 +45,14 @@ Atualizar a identidade visual e o tema de cores do sistema `comprar-bilhete` par
 - Eyebrow: Ponto luminoso e texto em ciano `#00c2ff`.
 - Card de prêmio (`.prize-card`): Fundo com efeito de vidro sofisticado, borda clara e sombra com realce em azul elétrico (`16px 18px 0 -8px #0062ff`), valor em destaque e texto auxiliar em ciano suave `#7dd3fc`.
 
-### 3.3. Escolha de Sorteios e Seleção de Cartelas
+### 3.3. Escolha de Sorteios e Seleção de Bilhetes
 
 - Opções de sorteio (`.raffle-choice`): Cards brancos com borda `#e2e8f0`; quando selecionados, borda `#0062ff` e leve sombra azul.
 - Abas de modo (`.mode-tabs button`):
   - Inativo: Fundo `#ffffff`, borda `#e2e8f0`, texto `#64748b`.
   - Ativo (`.active`): Fundo azul elétrico `#0062ff`, texto branco `#ffffff` (espelhando a aba "Overview" do Vantage).
 - Pílulas de quantidade rápida (`.quick-quantities button`): Borda `#e2e8f0`, ativas em azul elétrico `#0062ff` com texto branco.
-- Cartelas manuais (`.raffle-card`):
+- Bilhetes manuais (`.raffle-card`):
   - Fundo `#ffffff`, borda `#e2e8f0`.
   - Pairar o mouse: Elevação suave (`translateY(-2px)`) e borda `#0062ff`.
   - Selecionada: Borda `2px solid #0062ff`, fundo `#eff6ff`.

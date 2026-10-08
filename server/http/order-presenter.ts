@@ -22,7 +22,7 @@ export function presentOrder(order: Order) {
     expiresAt: order.expiresAt,
     message:
       order.status === 'manual_review'
-        ? 'Pagamento recebido. Estamos confirmando suas cartelas manualmente.'
+        ? 'Pagamento recebido. Estamos confirmando seus bilhetes manualmente.'
         : undefined,
   }
 }

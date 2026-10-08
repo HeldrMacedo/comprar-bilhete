@@ -5,7 +5,7 @@ type StatusTone = 'success' | 'waiting' | 'warning' | 'muted'
 // `manual_review` é dinheiro recebido com entrega pendente: nunca exibir como sucesso.
 const statusLabels: Record<PurchaseStatus, { label: string; tone: StatusTone }> = {
   pending: { label: 'Aguardando pagamento', tone: 'waiting' },
-  processing: { label: 'Confirmando cartelas', tone: 'waiting' },
+  processing: { label: 'Confirmando bilhetes', tone: 'waiting' },
   paid: { label: 'Pago', tone: 'success' },
   manual_review: { label: 'Em análise', tone: 'warning' },
   expired: { label: 'Expirado', tone: 'muted' },

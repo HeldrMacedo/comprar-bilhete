@@ -10,14 +10,14 @@ describe('TicketNumbers', () => {
 
     expect(screen.getByText('1ª chance')).toBeVisible()
     expect(screen.getByText('2ª chance')).toBeVisible()
-    expect(screen.getByLabelText('Dezenas da cartela #001 (1ª chance)')).toHaveTextContent('0316')
-    expect(screen.getByLabelText('Dezenas da cartela #001 (2ª chance)')).toHaveTextContent('0659')
+    expect(screen.getByLabelText('Dezenas do bilhete #001 (1ª chance)')).toHaveTextContent('0316')
+    expect(screen.getByLabelText('Dezenas do bilhete #001 (2ª chance)')).toHaveTextContent('0659')
   })
 
   it('mostra só as dezenas quando não há segunda chance', () => {
     render(<TicketNumbers cardCode="#001" numbers={[3, 16]} />)
 
-    expect(screen.getByLabelText('Dezenas da cartela #001')).toHaveTextContent('0316')
+    expect(screen.getByLabelText('Dezenas do bilhete #001')).toHaveTextContent('0316')
     expect(screen.queryByText('1ª chance')).toBeNull()
   })
 })

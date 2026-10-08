@@ -9,7 +9,7 @@ describe('requestJson', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ message: 'Cartela reservada.', code: 'TICKET_RESERVED' }), {
+        new Response(JSON.stringify({ message: 'Bilhete reservado.', code: 'TICKET_RESERVED' }), {
           status: 409,
           headers: { 'Content-Type': 'application/json' },
         }),

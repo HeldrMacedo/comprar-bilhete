@@ -595,7 +595,7 @@ createRandom(draft: OrderDraft, candidates: Ticket[], quantity: number): Order {
     this.expirePendingWithinTransaction(this.now().toISOString())
     const items = candidates.filter((ticket) => !this.isReserved(draft.raffleId, ticket.id)).slice(0, quantity)
     if (items.length !== quantity) {
-      throw new DomainError('Não há cartelas suficientes disponíveis.', 409, 'INSUFFICIENT_TICKETS')
+      throw new DomainError('Não há bilhetes suficientes disponíveis.', 409, 'INSUFFICIENT_TICKETS')
     }
     const order = orderSchema.parse({ ...draft, items })
     this.insertOrderAndReservations(order)
@@ -1170,7 +1170,7 @@ function CartHarness() {
         type="button"
         onClick={() => setSelection(mockRaffle, { mode: 'random', quantity: 3 })}
       >
-        Selecionar 3 cartelas
+        Selecionar 3 bilhetes
       </button>
       <output data-testid="cart">{JSON.stringify(cart)}</output>
     </>
@@ -1227,7 +1227,7 @@ async function submitValidExistingCustomer() {
 it('stores random quantity without preselecting ticket ids', async () => {
   const user = userEvent.setup()
   renderCartProviderHarness()
-  await user.click(screen.getByRole('button', { name: 'Selecionar 3 cartelas' }))
+  await user.click(screen.getByRole('button', { name: 'Selecionar 3 bilhetes' }))
   expect(readCart()).toMatchObject({ selection: { mode: 'random', quantity: 3 } })
   expect(JSON.stringify(readCart())).not.toContain('card-')
 })
@@ -1256,12 +1256,12 @@ it('shows required address fields for a new customer', async () => {
 
 it('returns to refreshed selection after a reservation conflict', async () => {
   vi.mocked(checkoutRepository.createOrder).mockRejectedValue(
-    new ApiError('Cartela reservada.', 409, 'TICKET_RESERVED'),
+    new ApiError('Bilhete reservado.', 409, 'TICKET_RESERVED'),
   )
   renderCartPage()
   await submitValidExistingCustomer()
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    'Uma ou mais cartelas foram reservadas por outra pessoa.',
+    'Uma ou mais bilhetes foram reservados por outra pessoa.',
   )
 })
 ```
@@ -1348,13 +1348,13 @@ async function fillAddress(page: Page) {
 
 test('existing customer buys a manually selected ticket', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('tab', { name: 'Escolher cartelas' }).click()
-  await page.getByRole('button', { name: /cartela #001/i }).click()
+  await page.getByRole('tab', { name: 'Escolher bilhetes' }).click()
+  await page.getByRole('button', { name: /bilhete #001/i }).click()
   await page.getByRole('button', { name: /ir para o carrinho/i }).click()
   await page.getByLabel('CPF').fill('52998224725')
   await expect(page.getByText('Cliente encontrado')).toBeVisible()
   await page.getByRole('button', { name: /continuar para o pix/i }).click()
-  await expect(page.getByRole('heading', { name: /suas cartelas estão garantidas/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /seus bilhetes estão garantidos/i })).toBeVisible({
     timeout: 12_000,
   })
 })
@@ -1373,8 +1373,8 @@ test('reports a ticket reserved by another checkout', async ({ page, request }) 
   })
   expect(reserved.status()).toBe(201)
   await page.goto('/')
-  await page.getByRole('tab', { name: 'Escolher cartelas' }).click()
-  await page.getByRole('button', { name: /cartela #010/i }).click()
+  await page.getByRole('tab', { name: 'Escolher bilhetes' }).click()
+  await page.getByRole('button', { name: /bilhete #010/i }).click()
   await page.getByRole('button', { name: /ir para o carrinho/i }).click()
   await page.getByLabel('CPF').fill('52998224725')
   await expect(page.getByText('Cliente encontrado')).toBeVisible()
@@ -1392,7 +1392,7 @@ test('new customer buys random tickets with required address', async ({ page }) 
   await expect(page.getByText('Complete seu endereço')).toBeVisible()
   await fillAddress(page)
   await page.getByRole('button', { name: /continuar para o pix/i }).click()
-  await expect(page.getByRole('heading', { name: /suas cartelas estão garantidas/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /seus bilhetes estão garantidos/i })).toBeVisible({
     timeout: 12_000,
   })
 })

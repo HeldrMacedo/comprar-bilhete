@@ -3,7 +3,7 @@
 ## Estados críticos
 
 - Backend indisponível: mostrar erro recuperável, nunca trocar para mock automaticamente.
-- Cartela reservada por outra pessoa: backend retorna `409`; atualizar disponibilidade antes de nova tentativa.
+- Bilhete reservado por outra pessoa: backend retorna `409`; atualizar disponibilidade antes de nova tentativa.
 - Checkout criado e navegação interrompida: pedido pendente pode ser retomado por ID.
 - Retorno sem pagamento: manter `pending`; não assumir sucesso.
 - Webhook duplicado: backend processa com idempotência.
@@ -20,4 +20,4 @@
 
 ## Observabilidade necessária no backend
 
-Correlacionar `order_nsu`, pedido, cartelas, link e transação sem registrar CPF/telefone. Medir criação de pedido, criação de checkout, abandono, tempo até pagamento, eventos pendentes e pedidos em revisão manual. Pagamento tardio, sem reserva ativa, permanece em `manual_review` com evidência transacional preservada.
+Correlacionar `order_nsu`, pedido, bilhetes, link e transação sem registrar CPF/telefone. Medir criação de pedido, criação de checkout, abandono, tempo até pagamento, eventos pendentes e pedidos em revisão manual. Pagamento tardio, sem reserva ativa, permanece em `manual_review` com evidência transacional preservada.

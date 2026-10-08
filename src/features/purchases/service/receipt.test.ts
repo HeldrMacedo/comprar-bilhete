@@ -44,7 +44,7 @@ function texts(lines: ReceiptLine[]) {
 }
 
 describe('buildReceipt', () => {
-  it('monta o comprovante da cartela com prêmios, duas chances, valores e cliente', () => {
+  it('monta o comprovante do bilhete com prêmios, duas chances, valores e cliente', () => {
     const lines = texts(buildReceipt(purchase, item))
 
     expect(lines.slice(0, 4)).toEqual([
@@ -85,7 +85,7 @@ describe('buildReceipt', () => {
     )
   })
 
-  it('mostra só a primeira chance quando a cartela não tem segunda', () => {
+  it('mostra só a primeira chance quando o bilhete não tem segunda', () => {
     const lines = texts(
       buildReceipt(purchase, { ...item, secondChanceNumbers: [], numbers: [1, 2, 3] }),
     )
@@ -94,7 +94,7 @@ describe('buildReceipt', () => {
     expect(lines).toContain('01-02-03 | ')
   })
 
-  it('usa o número da cartela e um único bloco de dezenas em pedido antigo', () => {
+  it('usa o número do bilhete e um único bloco de dezenas em pedido antigo', () => {
     const legacy: PurchaseItem = {
       id: '80001',
       code: '80001',

@@ -44,7 +44,7 @@ const inReview: Purchase = {
   ...paid,
   id: '22222222-0000-4000-8000-000000000002',
   status: 'manual_review',
-  message: 'Pagamento recebido. Estamos confirmando suas cartelas manualmente.',
+  message: 'Pagamento recebido. Estamos confirmando seus bilhetes manualmente.',
   receiptUrl: undefined,
 }
 
@@ -96,11 +96,11 @@ describe('PurchasesPage', () => {
     expect(within(card).getByText('Pago')).toBeVisible()
     expect(within(card).getByText('R$ 16,00')).toBeVisible()
     expect(within(card).getByText('Pix')).toBeVisible()
-    expect(within(card).getByText('Cartela #001')).toBeVisible()
-    expect(within(card).getByLabelText('Dezenas da cartela #001 (1ª chance)')).toHaveTextContent(
+    expect(within(card).getByText('Bilhete #001')).toBeVisible()
+    expect(within(card).getByLabelText('Dezenas do bilhete #001 (1ª chance)')).toHaveTextContent(
       '011427',
     )
-    expect(within(card).getByLabelText('Dezenas da cartela #001 (2ª chance)')).toHaveTextContent(
+    expect(within(card).getByLabelText('Dezenas do bilhete #001 (2ª chance)')).toHaveTextContent(
       '053042',
     )
     expect(within(card).getByRole('link', { name: /ver comprovante/i })).toHaveAttribute(
@@ -137,7 +137,7 @@ describe('PurchasesPage', () => {
     )
   })
 
-  it('compartilha no WhatsApp o comprovante de cada cartela do pedido pago', async () => {
+  it('compartilha no WhatsApp o comprovante de cada bilhete do pedido pago', async () => {
     const second = { ...paid.items![0]!, id: 'card-002', code: '#002' }
     const order: Purchase = { ...paid, items: [...paid.items!, second] }
     const files = [new File(['png'], 'bilhete-001.png'), new File(['png'], 'bilhete-002.png')]
@@ -153,7 +153,7 @@ describe('PurchasesPage', () => {
     expect(shareReceipts).toHaveBeenCalledWith(files)
 
     await userEvent.click(
-      within(card).getByRole('button', { name: 'Compartilhar cartela #002 no WhatsApp' }),
+      within(card).getByRole('button', { name: 'Compartilhar bilhete #002 no WhatsApp' }),
     )
     expect(createReceiptFiles).toHaveBeenLastCalledWith(order, [second])
   })

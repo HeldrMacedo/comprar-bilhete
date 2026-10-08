@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { buildApp } from '../app.js'
 import { parseServerEnv } from '../config/env.js'
 
-it('consulta concurso e cartelas por HTTP, bloqueando CPF e criação de pedido', async () => {
+it('consulta concurso e bilhetes por HTTP, bloqueando CPF e criação de pedido', async () => {
   const fetchMock = vi.fn().mockImplementation(
     async (url: string) =>
       new Response(
