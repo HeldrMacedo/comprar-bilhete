@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, ChevronLeft, ChevronRight, Dices, ShieldCheck } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Dices, ShieldCheck, Ticket } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { CartSelection } from '../features/cart/domain/types'
@@ -27,8 +27,8 @@ function selectedQuantity(raffle: Raffle, draft: SelectionDraft) {
   return draft.mode === 'random'
     ? Math.min(draft.quantity, availableCount, 50)
     : draft.manualSelection.filter((selected) =>
-        raffle.cards.some((card) => card.id === selected.id && card.available),
-      ).length
+      raffle.cards.some((card) => card.id === selected.id && card.available),
+    ).length
 }
 
 function canAddRaffle(raffle: Raffle, draft: SelectionDraft) {
@@ -83,11 +83,11 @@ export function HomePage() {
           draft.mode === 'random'
             ? { mode: 'random', quantity: selectedQuantity(raffle, draft) }
             : {
-                mode: 'manual',
-                cards: draft.manualSelection.filter((selected) =>
-                  raffle.cards.some((card) => card.id === selected.id && card.available),
-                ),
-              }
+              mode: 'manual',
+              cards: draft.manualSelection.filter((selected) =>
+                raffle.cards.some((card) => card.id === selected.id && card.available),
+              ),
+            }
         return { raffle, selection }
       }),
     )
@@ -283,16 +283,16 @@ export function HomePage() {
                     >
                       <Dices size={20} /> Escolha aleatória
                     </button>
-                    {/*}
-                  <button
-                    role="tab"
-                    aria-selected={draft.mode === 'manual'}
-                    className={draft.mode === 'manual' ? 'active' : ''}
-                    onClick={() => updateDraft({ ...draft, mode: 'manual' })}
-                  >
-                    <Ticket size={20} /> Escolher bilhetes
-                  </button>
-                  */}
+
+                    <button
+                      role="tab"
+                      aria-selected={draft.mode === 'manual'}
+                      className={draft.mode === 'manual' ? 'active' : ''}
+                      onClick={() => updateDraft({ ...draft, mode: 'manual' })}
+                    >
+                      <Ticket size={20} /> Escolher bilhetes
+                    </button>
+
                   </div>
 
                   {draft.mode === 'random' ? (
