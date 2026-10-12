@@ -96,7 +96,7 @@ describe('HomePage sem concurso', () => {
     expect(screen.getByText('2026040')).toBeVisible()
     expect(screen.getByText('Sim')).toBeVisible()
     const carousel = screen.getByRole('region', { name: 'Concursos ativos' })
-    expect(within(carousel).getByText('R$ 10.000')).toBeVisible()
+    expect(within(carousel).getByText('Vale compras 40 mil')).toBeVisible()
     const nextContest = within(carousel).getByRole('button', { name: 'Próximo concurso' })
     nextContest.focus()
     await userEvent.keyboard('{Enter}')
@@ -106,7 +106,7 @@ describe('HomePage sem concurso', () => {
       within(carousel).getByRole('button', { name: 'Mostrar concurso 2026041' }),
     ).toHaveAttribute('aria-current', 'true')
     await userEvent.click(within(carousel).getByRole('button', { name: 'Concurso anterior' }))
-    expect(within(carousel).getByText('R$ 10.000')).toBeVisible()
+    expect(within(carousel).getByText('Vale compras 40 mil')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Domingo' }))
     expect(screen.getByRole('button', { name: 'Domingo' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getAllByRole('article')).toHaveLength(1)

@@ -78,25 +78,26 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
       const parsed = capSchema.safeParse(source)
       if (!parsed.success) throw invalidUpstream()
       const cap = parsed.data
+      const prizes = toPrizes([
+        cap.premio_01_sorteiocap,
+        cap.premio_02_sorteiocap,
+        cap.premio_03_sorteiocap,
+        cap.premio_04_sorteiocap,
+        cap.premio_05_sorteiocap,
+      ])
       raffles.push({
         id: cap.concurso_id_sorteiocap,
         source: 'cap',
         salesEndAt,
         title: `Sorteio CAP #${cap.concurso_id_sorteiocap}`,
         description: `${cap.qte_premios_sorteiocap} prêmios e ${cap.qtd_giros_sorteiocap} giros da sorte.`,
-        prize: cap.premio_01_sorteiocap || 'Prêmios a confirmar',
+        prize: prizes.at(-1) ?? 'Prêmios a confirmar',
         drawDate: toDrawDate(cap.data_sorteiocap, cap.hora_sorteiocap),
         priceInCents: toCents(cap.valor_bilhete_sorteiocap),
         ...(cap.dupla_chance_sorteiocap !== undefined && {
           doubleChance: cap.dupla_chance_sorteiocap === 1,
         }),
-        prizes: toPrizes([
-          cap.premio_01_sorteiocap,
-          cap.premio_02_sorteiocap,
-          cap.premio_03_sorteiocap,
-          cap.premio_04_sorteiocap,
-          cap.premio_05_sorteiocap,
-        ]),
+        prizes,
         ...toLuckySpins(cap.qtd_giros_sorteiocap, cap.giros_sorteiocap),
       })
     }
@@ -110,25 +111,26 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
       const parsed = espSchema.safeParse(source)
       if (!parsed.success) throw invalidUpstream()
       const esp = parsed.data
+      const prizes = toPrizes([
+        esp.premio_01_sorteioesp,
+        esp.premio_02_sorteioesp,
+        esp.premio_03_sorteioesp,
+        esp.premio_04_sorteioesp,
+        esp.premio_05_sorteioesp,
+      ])
       raffles.push({
         id: esp.concurso_id_sorteioesp,
         source: 'esp',
         salesEndAt,
         title: `Sorteio Especial #${esp.concurso_id_sorteioesp}`,
         description: `${esp.qte_premios_sorteioesp} prêmios e ${esp.qtd_giros_sorteioesp} giros da sorte.`,
-        prize: esp.premio_01_sorteioesp || 'Prêmios a confirmar',
+        prize: prizes.at(-1) ?? 'Prêmios a confirmar',
         drawDate: toDrawDate(esp.data_sorteioesp, esp.hora_sorteioesp),
         priceInCents: toCents(esp.valor_bilhete_sorteioesp),
         ...(esp.dupla_chance_sorteioesp !== undefined && {
           doubleChance: esp.dupla_chance_sorteioesp === 1,
         }),
-        prizes: toPrizes([
-          esp.premio_01_sorteioesp,
-          esp.premio_02_sorteioesp,
-          esp.premio_03_sorteioesp,
-          esp.premio_04_sorteioesp,
-          esp.premio_05_sorteioesp,
-        ]),
+        prizes,
         ...toLuckySpins(esp.qtd_giros_sorteioesp, esp.giros_sorteioesp),
       })
     }

@@ -97,11 +97,35 @@ describe('parseCurrentContests', () => {
     )
 
     expect(cap).toMatchObject({
+      prize: '1 HONDA START 160 + 20 MIL',
       prizes: ['1 AVELLOZ AZ1', '1 HONDA START 160 + 20 MIL'],
       luckySpins: { count: 20, label: 'R$: 500,00' },
     })
-    expect(esp).toMatchObject({ prizes: ['R$: 3 MIL REAIS', '1 HONDA BROS 160 0KM'] })
+    expect(esp).toMatchObject({
+      prize: '1 HONDA BROS 160 0KM',
+      prizes: ['R$: 3 MIL REAIS', '1 HONDA BROS 160 0KM'],
+    })
     expect(esp).not.toHaveProperty('luckySpins')
+  })
+
+  it('usa o quarto ou quinto prêmio preenchido como principal', () => {
+    const [cap, esp] = parseCurrentContests(
+      {
+        ...currentResponse,
+        premio_01_sorteiocap: 'Primeiro CAP',
+        premio_04_sorteiocap: 'Principal CAP',
+        premio_05_sorteiocap: null,
+        premio_04_sorteioesp: 'Quarto ESP',
+        premio_05_sorteioesp: ' Principal ESP ',
+      },
+      new Date('2026-09-22T00:00:00Z'),
+    )
+
+    expect(cap).toMatchObject({ prize: 'Principal CAP', prizes: ['Primeiro CAP', 'Principal CAP'] })
+    expect(esp).toMatchObject({
+      prize: 'Principal ESP',
+      prizes: ['R$: 3 MIL REAIS', 'Quarto ESP', 'Principal ESP'],
+    })
   })
 
   it('ignora campos incompletos de um concurso cujo prazo terminou', () => {

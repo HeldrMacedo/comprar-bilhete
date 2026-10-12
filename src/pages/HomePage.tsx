@@ -27,8 +27,8 @@ function selectedQuantity(raffle: Raffle, draft: SelectionDraft) {
   return draft.mode === 'random'
     ? Math.min(draft.quantity, availableCount, 50)
     : draft.manualSelection.filter((selected) =>
-      raffle.cards.some((card) => card.id === selected.id && card.available),
-    ).length
+        raffle.cards.some((card) => card.id === selected.id && card.available),
+      ).length
 }
 
 function canAddRaffle(raffle: Raffle, draft: SelectionDraft) {
@@ -83,11 +83,11 @@ export function HomePage() {
           draft.mode === 'random'
             ? { mode: 'random', quantity: selectedQuantity(raffle, draft) }
             : {
-              mode: 'manual',
-              cards: draft.manualSelection.filter((selected) =>
-                raffle.cards.some((card) => card.id === selected.id && card.available),
-              ),
-            }
+                mode: 'manual',
+                cards: draft.manualSelection.filter((selected) =>
+                  raffle.cards.some((card) => card.id === selected.id && card.available),
+                ),
+              }
         return { raffle, selection }
       }),
     )
@@ -123,7 +123,7 @@ export function HomePage() {
           {heroRaffle ? (
             <div className="prize-card">
               <span>Prêmio principal</span>
-              <strong>{heroRaffle.prize}</strong>
+              <strong>{heroRaffle.prizes?.at(-1) ?? heroRaffle.prize}</strong>
               <small>A partir de {formatCurrency(heroRaffle.priceInCents)} por bilhete</small>
               <DrawCountdown drawDate={heroRaffle.drawDate} />
             </div>
@@ -292,7 +292,6 @@ export function HomePage() {
                     >
                       <Ticket size={20} /> Escolher bilhetes
                     </button>
-
                   </div>
 
                   {draft.mode === 'random' ? (

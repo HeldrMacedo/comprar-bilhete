@@ -23,6 +23,7 @@ Permitir que uma pessoa compre uma ou mais bilhetes de um sorteio com poucos pas
 - CPF e celular são validados antes do envio, mas o backend valida novamente.
 - O total exibido é `quantidade × preço unitário`; o backend recalcula o total.
 - Concursos com ID terminado em `000` ou prazo de venda encerrado não aparecem. Se nenhum estiver disponível, a Home mostra o banner e a mensagem "Sem sorteios ativo no momento".
+- O prêmio principal no banner de cada concurso é o último prêmio preenchido, na ordem enviada pela API; sem prêmios, aparece "Prêmios a confirmar".
 - Se a API de bilhetes oferecer apenas HTTP, a Home pode mostrar concursos e bilhetes para consulta, mas a compra fica desabilitada até haver HTTPS.
 - Uma compra de dois sorteios gera um carrinho, um pedido, reservas atômicas e um pagamento; cada bilhete conserva seu concurso e preço.
 - Conflito de reserva (`409`) devolve o usuário à seleção com mensagem clara.
