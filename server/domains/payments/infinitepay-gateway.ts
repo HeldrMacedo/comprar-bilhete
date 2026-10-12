@@ -33,7 +33,7 @@ export class InfinitePayGateway implements PaymentGateway {
         method: 'POST',
         body: JSON.stringify({
           handle: this.env.INFINITEPAY_HANDLE,
-          redirect_url: `${this.env.PUBLIC_APP_URL}/pagamento`,
+          redirect_url: `${this.env.PUBLIC_APP_URL.replace(/\/$/, '')}/pagamento`,
           // Em desenvolvimento, aponte PUBLIC_API_URL para o túnel HTTPS em vez de fixar a URL aqui.
           webhook_url: `${this.env.PUBLIC_API_URL.replace(/\/$/, '')}/api/v1/webhooks/infinitepay`,
           order_nsu: order.id,

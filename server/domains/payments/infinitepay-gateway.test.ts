@@ -89,6 +89,45 @@ describe('InfinitePayGateway', () => {
     })
   })
 
+  it('retorna o comprador para a rota /pagamento da origem publica configurada', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ url: 'https://checkout.infinitepay.io/example' }), {
+        status: 200,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new InfinitePayGateway(
+      parseServerEnv({
+        PAYMENT_PROVIDER: 'infinitepay',
+        INFINITEPAY_HANDLE: 'helder-macedo',
+        PUBLIC_APP_URL: 'https://loja.example',
+      }),
+    )
+
+    await gateway.createCheckout(order())
+
+    const request = fetchMock.mock.calls[0]
+    expect(request).toBeDefined()
+    const body = JSON.parse(String((request?.[1] as RequestInit | undefined)?.body)) as unknown
+    expect(body).toMatchObject({ redirect_url: 'https://loja.example/pagamento' })
+  })
+
+  it('consulta o payment_check na API da InfinitePay', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ success: true, paid: false }), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new InfinitePayGateway(env)
+
+    await gateway
+      .verifyPayment({ orderId: 'pedido-1', transactionNsu: 'nsu-1', invoiceSlug: 'slug-1' })
+      .catch(() => undefined)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.checkout.infinitepay.io/payment_check')
+  })
+
   it('envia centavos inteiros e endereco normalizado', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ url: 'https://checkout.infinitepay.io/example' }), {
