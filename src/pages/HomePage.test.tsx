@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -137,5 +137,33 @@ describe('HomePage sem concurso', () => {
     expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument()
     expect(screen.getByText(/apenas para consulta/i)).toBeVisible()
     expect(screen.getByRole('button', { name: /Adicionar ao carrinho/i })).toBeDisabled()
+  })
+
+  it('mostra o banner do concurso no carrossel e volta aos textos se a imagem falhar', async () => {
+    vi.mocked(raffleRepository.getActive).mockResolvedValue([
+      {
+        id: '2026046',
+        title: 'Sorteio CAP #2026046',
+        description: '4 prêmios e 20 giros da sorte.',
+        prize: 'VALE COMPRAS 40 MIL REAIS',
+        drawDate: '2026-10-28T23:00:00.000Z',
+        priceInCents: 100,
+        bannerUrl: 'http://imagens.example:8080/app/images/banner.png',
+        cards: [{ id: 'card-001', code: '#001', numbers: [1, 2, 3], available: true }],
+      },
+    ])
+
+    renderHomePage()
+
+    const carousel = screen.getByRole('region', { name: 'Concursos ativos' })
+    const banner = await within(carousel).findByRole('img', { name: /Sorteio CAP #2026046/ })
+    expect(banner).toHaveAttribute('src', 'http://imagens.example:8080/app/images/banner.png')
+    expect(within(carousel).queryByText('Prêmio principal')).not.toBeInTheDocument()
+
+    fireEvent.error(banner)
+
+    expect(within(carousel).queryByRole('img')).not.toBeInTheDocument()
+    expect(within(carousel).getByText('Prêmio principal')).toBeVisible()
+    expect(within(carousel).getByText('VALE COMPRAS 40 MIL REAIS')).toBeVisible()
   })
 })

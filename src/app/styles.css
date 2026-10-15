@@ -223,6 +223,25 @@ main {
   grid-template-columns: 1fr;
 }
 
+.hero__content--banner {
+  min-height: auto;
+  padding-block: 32px 56px;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.hero__banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.hero__content--banner .hero__navigation {
+  margin-top: 0;
+}
+
 .hero__copy h1 {
   max-width: 680px;
   margin: 18px 0;
@@ -326,12 +345,11 @@ main {
 }
 
 .purchase-section {
-  padding-block: 68px 110px;
+  padding-block: 68px 55px;
 }
 
 /* Vídeo do sorteio (configurado no painel). */
 .draw-video {
-  padding-top: 56px;
   margin-bottom: 10px;
 }
 
@@ -1299,6 +1317,15 @@ main {
   .hero__content {
     min-height: auto;
     padding-block: 44px;
+  }
+
+  .hero__content--banner {
+    padding-block: 20px 32px;
+    gap: 16px;
+  }
+
+  .hero__banner {
+    border-radius: 12px;
   }
 
   .hero__copy h1 {

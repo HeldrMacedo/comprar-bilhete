@@ -4,6 +4,7 @@ export const apiRoutes = {
     return `/v1/customers/lookup?${query.toString()}`
   },
   activeRaffle: '/v1/raffles/active',
+  raffleBanner: (raffleId: string) => `/v1/raffles/${encodeURIComponent(raffleId)}/banner`,
   availableCards: (raffleId: string) =>
     `/v1/raffles/${encodeURIComponent(raffleId)}/cards?status=available`,
   createOrder: '/v1/orders',

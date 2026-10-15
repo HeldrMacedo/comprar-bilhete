@@ -27,8 +27,8 @@ function selectedQuantity(raffle: Raffle, draft: SelectionDraft) {
   return draft.mode === 'random'
     ? Math.min(draft.quantity, availableCount, 50)
     : draft.manualSelection.filter((selected) =>
-        raffle.cards.some((card) => card.id === selected.id && card.available),
-      ).length
+      raffle.cards.some((card) => card.id === selected.id && card.available),
+    ).length
 }
 
 function canAddRaffle(raffle: Raffle, draft: SelectionDraft) {
@@ -48,6 +48,7 @@ export function HomePage() {
   const [chosenId, setChosenId] = useState<string | null>(null)
   const [heroIndex, setHeroIndex] = useState(0)
   const [drafts, setDrafts] = useState<Record<string, SelectionDraft>>({})
+  const [failedBanners, setFailedBanners] = useState<string[]>([])
   const raffleQuery = useQuery({ queryKey: ['active-raffle'], queryFn: raffleRepository.getActive })
 
   const raffles = raffleQuery.data ?? []
@@ -57,6 +58,10 @@ export function HomePage() {
   )
   const activeHeroIndex = raffles.length ? heroIndex % raffles.length : 0
   const heroRaffle = raffles[activeHeroIndex]
+  const heroBannerUrl =
+    heroRaffle?.bannerUrl && !failedBanners.includes(heroRaffle.bannerUrl)
+      ? heroRaffle.bannerUrl
+      : undefined
   const selectedCount = selectedRaffles.reduce(
     (count, raffle) => count + selectedQuantity(raffle, drafts[raffle.id] ?? initialDraft),
     0,
@@ -83,11 +88,11 @@ export function HomePage() {
           draft.mode === 'random'
             ? { mode: 'random', quantity: selectedQuantity(raffle, draft) }
             : {
-                mode: 'manual',
-                cards: draft.manualSelection.filter((selected) =>
-                  raffle.cards.some((card) => card.id === selected.id && card.available),
-                ),
-              }
+              mode: 'manual',
+              cards: draft.manualSelection.filter((selected) =>
+                raffle.cards.some((card) => card.id === selected.id && card.available),
+              ),
+            }
         return { raffle, selection }
       }),
     )
@@ -102,32 +107,49 @@ export function HomePage() {
         </div>
       ) : null}
       <section className="hero" aria-label="Concursos ativos" aria-roledescription="carrossel">
-        <div className={`container hero__content${heroRaffle ? '' : ' hero__content--empty'}`}>
-          <div className="hero__copy">
-            <span className="eyebrow">
-              <span /> {heroRaffle ? `Sorteio aberto · Concurso ${heroRaffle.id}` : 'Sol da Sorte'}
-            </span>
-            <h1>Seu próximo número pode mudar tudo.</h1>
-            <p>{heroRaffle?.description ?? 'Acompanhe os próximos sorteios por aqui.'}</p>
-            <div className="hero__facts">
-              {heroRaffle ? (
-                <span>
-                  <CalendarDays size={18} /> Sorteio em {formatDate(heroRaffle.drawDate)}
+        <div
+          className={`container hero__content${heroBannerUrl ? ' hero__content--banner' : heroRaffle ? '' : ' hero__content--empty'
+            }`}
+        >
+          {heroBannerUrl && heroRaffle ? (
+            <img
+              className="hero__banner"
+              src={heroBannerUrl}
+              alt={`${heroRaffle.title} · Sorteio em ${formatDate(heroRaffle.drawDate)}`}
+              width={2560}
+              height={1087}
+              onError={() => setFailedBanners((current) => [...current, heroBannerUrl])}
+            />
+          ) : (
+            <>
+              <div className="hero__copy">
+                <span className="eyebrow">
+                  <span />{' '}
+                  {heroRaffle ? `Sorteio aberto · Concurso ${heroRaffle.id}` : 'Sol da Sorte'}
                 </span>
+                <h1>Seu próximo número pode mudar tudo.</h1>
+                <p>{heroRaffle?.description ?? 'Acompanhe os próximos sorteios por aqui.'}</p>
+                <div className="hero__facts">
+                  {heroRaffle ? (
+                    <span>
+                      <CalendarDays size={18} /> Sorteio em {formatDate(heroRaffle.drawDate)}
+                    </span>
+                  ) : null}
+                  <span>
+                    <ShieldCheck size={18} /> Compra segura via Pix
+                  </span>
+                </div>
+              </div>
+              {heroRaffle ? (
+                <div className="prize-card">
+                  <span>Prêmio principal</span>
+                  <strong>{heroRaffle.prizes?.at(-1) ?? heroRaffle.prize}</strong>
+                  <small>A partir de {formatCurrency(heroRaffle.priceInCents)} por bilhete</small>
+                  <DrawCountdown drawDate={heroRaffle.drawDate} />
+                </div>
               ) : null}
-              <span>
-                <ShieldCheck size={18} /> Compra segura via Pix
-              </span>
-            </div>
-          </div>
-          {heroRaffle ? (
-            <div className="prize-card">
-              <span>Prêmio principal</span>
-              <strong>{heroRaffle.prizes?.at(-1) ?? heroRaffle.prize}</strong>
-              <small>A partir de {formatCurrency(heroRaffle.priceInCents)} por bilhete</small>
-              <DrawCountdown drawDate={heroRaffle.drawDate} />
-            </div>
-          ) : null}
+            </>
+          )}
           {raffles.length > 1 ? (
             <nav className="hero__navigation" aria-label="Navegar pelos concursos">
               <button
@@ -431,7 +453,6 @@ export function HomePage() {
           ) : null}
         </section>
       )}
-
       <DrawVideo />
     </>
   )

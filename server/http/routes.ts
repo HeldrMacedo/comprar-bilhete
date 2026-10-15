@@ -45,7 +45,21 @@ export async function registerRoutes(
     return customers.lookup(query)
   })
 
-  app.get('/api/v1/raffles/active', async () => service.getActiveRaffles())
+  app.get('/api/v1/raffles/active', async () =>
+    (await service.getActiveRaffles()).map(({ bannerUrl, ...raffle }) => ({
+      ...raffle,
+      hasBanner: Boolean(bannerUrl),
+    })),
+  )
+
+  app.get('/api/v1/raffles/:id/banner', async (request, reply) => {
+    const { id } = raffleParamsSchema.parse(request.params)
+    const banner = await service.getRaffleBanner(id)
+    return reply
+      .header('Content-Type', banner.contentType)
+      .header('Cache-Control', 'public, max-age=300')
+      .send(banner.body)
+  })
 
   app.get('/api/v1/raffles/:id/cards', async (request) => {
     const { id } = raffleParamsSchema.parse(request.params)

@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto'
 import type { ServerEnv } from '../../config/env.js'
 import { DomainError } from '../../shared/errors.js'
+import { fetchImage } from '../../shared/fetch-image.js'
 import { requireTicketApiTls } from '../../shared/ticket-api-tls.js'
 import type { CustomerService } from '../customers/customer-service.js'
 import type { ResolvedCustomer } from '../customers/customer-types.js'
@@ -27,6 +28,14 @@ export class OrderService {
 
   async getActiveRaffles() {
     return this.tickets.getActiveRaffles()
+  }
+
+  // O banner vem de uma origem HTTP; repassá-lo evita bloqueio de conteúdo misto em HTTPS.
+  async getRaffleBanner(raffleId: string) {
+    const raffles = await this.tickets.getActiveRaffles()
+    const bannerUrl = raffles.find((raffle) => raffle.id === raffleId)?.bannerUrl
+    if (!bannerUrl) throw new DomainError('Banner não encontrado.', 404, 'BANNER_NOT_FOUND')
+    return fetchImage(bannerUrl)
   }
 
   async getAvailableTickets(raffleId: string) {

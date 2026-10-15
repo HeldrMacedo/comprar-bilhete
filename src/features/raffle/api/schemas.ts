@@ -22,6 +22,8 @@ export const raffleSchema = z.object({
   cards: z.array(raffleCardSchema),
 })
 
-export const raffleSummarySchema = raffleSchema.omit({ cards: true })
+export const raffleSummarySchema = raffleSchema
+  .omit({ cards: true })
+  .extend({ hasBanner: z.boolean().optional() })
 export const activeRafflesSchema = z.array(raffleSummarySchema)
 export const cardsSchema = z.array(raffleCardSchema)

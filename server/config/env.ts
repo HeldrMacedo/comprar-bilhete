@@ -13,6 +13,7 @@ const serverEnvSchema = z
     TICKET_PROVIDER: z.enum(['mock', 'live']).default('mock'),
     PAYMENT_PROVIDER: z.enum(['mock', 'infinitepay']).default('mock'),
     TICKET_API_BASE_URL: z.url().default('http://66.94.99.64:9090'),
+    TICKET_BANNER_BASE_URL: z.url().default('http://solidariedadesorte.ddns.net:8080'),
     TICKET_API_ALLOW_HTTP: z
       .enum(['true', 'false'])
       .default('false')

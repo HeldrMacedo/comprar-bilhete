@@ -135,3 +135,62 @@ it('habilita compra por HTTP quando TICKET_API_ALLOW_HTTP=true', async () => {
     vi.unstubAllGlobals()
   }
 })
+
+it('repassa o banner do concurso pela própria API sem expor a origem HTTP', async () => {
+  const fetchMock = vi.fn().mockImplementation(async (url: string) =>
+    url.endsWith('/concurso/atual')
+      ? new Response(
+          JSON.stringify([
+            {
+              concurso_id_sorteiocap: 2026041,
+              data_sorteiocap: '2026-09-27',
+              data_fim_sorteiocap: '2026-09-27 19:00:00',
+              hora_sorteiocap: '20:00:00',
+              qte_premios_sorteiocap: 4,
+              qtd_giros_sorteiocap: 20,
+              valor_bilhete_sorteiocap: 6,
+              banner_sorteiocap: 'app/images/banners/cap.png',
+              concurso_id_sorteioesp: 2026000,
+            },
+          ]),
+          { status: 200 },
+        )
+      : new Response(new Uint8Array([137, 80, 78, 71]), {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' },
+        }),
+  )
+  vi.stubGlobal('fetch', fetchMock)
+  const app = await buildApp({
+    env: parseServerEnv({
+      DATABASE_PATH: ':memory:',
+      TICKET_PROVIDER: 'live',
+      PAYMENT_PROVIDER: 'mock',
+      TICKET_BANNER_BASE_URL: 'http://imagens.example:8080',
+    }),
+    logger: false,
+    startWorker: false,
+    now: () => new Date('2026-09-25T12:00:00Z'),
+  })
+
+  try {
+    const raffles = await app.inject({ method: 'GET', url: '/api/v1/raffles/active' })
+    expect(raffles.json()).toEqual([expect.objectContaining({ id: '2026041', hasBanner: true })])
+    expect(raffles.body).not.toContain('imagens.example')
+
+    const banner = await app.inject({ method: 'GET', url: '/api/v1/raffles/2026041/banner' })
+    expect(banner.statusCode).toBe(200)
+    expect(banner.headers['content-type']).toBe('image/png')
+    expect(banner.rawPayload).toEqual(Buffer.from([137, 80, 78, 71]))
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://imagens.example:8080/app/images/banners/cap.png',
+      expect.anything(),
+    )
+
+    const missing = await app.inject({ method: 'GET', url: '/api/v1/raffles/2026999/banner' })
+    expect(missing.statusCode).toBe(404)
+  } finally {
+    await app.close()
+    vi.unstubAllGlobals()
+  }
+})

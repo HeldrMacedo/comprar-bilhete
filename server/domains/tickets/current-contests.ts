@@ -40,6 +40,7 @@ const capSchema = z.object({
   premio_04_sorteiocap: z.string().nullish(),
   premio_05_sorteiocap: z.string().nullish(),
   valor_bilhete_sorteiocap: z.number().positive(),
+  banner_sorteiocap: z.string().nullish(),
 })
 
 const espSchema = z.object({
@@ -60,9 +61,14 @@ const espSchema = z.object({
   premio_04_sorteioesp: z.string().nullish(),
   premio_05_sorteioesp: z.string().nullish(),
   valor_bilhete_sorteioesp: z.number().positive(),
+  banner_sorteioesp: z.string().nullish(),
 })
 
-export function parseCurrentContests(input: unknown, now = new Date()): CurrentRaffle[] {
+export function parseCurrentContests(
+  input: unknown,
+  now = new Date(),
+  bannerBaseUrl?: string,
+): CurrentRaffle[] {
   const envelope = currentContestsEnvelopeSchema.safeParse(input)
   if (!envelope.success) throw invalidUpstream()
 
@@ -99,6 +105,7 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
         }),
         prizes,
         ...toLuckySpins(cap.qtd_giros_sorteiocap, cap.giros_sorteiocap),
+        ...toBanner(cap.banner_sorteiocap, bannerBaseUrl),
       })
     }
   }
@@ -132,6 +139,7 @@ export function parseCurrentContests(input: unknown, now = new Date()): CurrentR
         }),
         prizes,
         ...toLuckySpins(esp.qtd_giros_sorteioesp, esp.giros_sorteioesp),
+        ...toBanner(esp.banner_sorteioesp, bannerBaseUrl),
       })
     }
   }
@@ -145,6 +153,12 @@ function toPrizes(values: Array<string | null | undefined>): string[] {
 
 function toLuckySpins(count: number, label: string | null | undefined) {
   return count > 0 ? { luckySpins: { count, label: normalizeText(label) } } : {}
+}
+
+function toBanner(path: string | null | undefined, baseUrl: string | undefined) {
+  const relativePath = normalizeText(path).replace(/^\/+/, '')
+  if (!relativePath || !baseUrl) return {}
+  return { bannerUrl: new URL(relativePath, `${baseUrl.replace(/\/+$/, '')}/`).toString() }
 }
 
 function normalizeText(value: string | null | undefined) {

@@ -128,6 +128,23 @@ describe('parseCurrentContests', () => {
     })
   })
 
+  it('monta a URL do banner com a origem das imagens e omite banner vazio', () => {
+    const [cap, esp] = parseCurrentContests(
+      {
+        ...currentResponse,
+        banner_sorteiocap: 'app/images/banners/solidariedade/1/Slide CAP.png',
+        banner_sorteioesp: '',
+      },
+      new Date('2026-09-22T00:00:00Z'),
+      'http://imagens.example:8080/',
+    )
+
+    expect(cap?.bannerUrl).toBe(
+      'http://imagens.example:8080/app/images/banners/solidariedade/1/Slide%20CAP.png',
+    )
+    expect(esp).not.toHaveProperty('bannerUrl')
+  })
+
   it('ignora campos incompletos de um concurso cujo prazo terminou', () => {
     expect(
       parseCurrentContests(

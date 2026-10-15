@@ -58,8 +58,11 @@ const liveRepository: RaffleRepository = {
   async getActive() {
     const raffles = await requestJson(apiRoutes.activeRaffle, activeRafflesSchema)
     return Promise.all(
-      raffles.map(async (raffle) => ({
+      raffles.map(async ({ hasBanner, ...raffle }) => ({
         ...raffle,
+        ...(hasBanner && {
+          bannerUrl: `${env.VITE_API_BASE_URL}${apiRoutes.raffleBanner(raffle.id)}`,
+        }),
         cards: await requestJson(apiRoutes.availableCards(raffle.id), cardsSchema),
       })),
     )

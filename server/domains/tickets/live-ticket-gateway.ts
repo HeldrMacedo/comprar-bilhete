@@ -68,13 +68,15 @@ export class LiveTicketGateway implements TicketGateway {
       `${this.env.TICKET_API_BASE_URL}/concurso/atual`,
       currentContestsEnvelopeSchema,
     )
-    return parseCurrentContests(contests, this.now()).map((raffle) => ({
-      ...raffle,
-      purchaseEnabled: hasTicketApiTls(
-        this.env.TICKET_API_BASE_URL,
-        this.env.TICKET_API_ALLOW_HTTP,
-      ),
-    }))
+    return parseCurrentContests(contests, this.now(), this.env.TICKET_BANNER_BASE_URL).map(
+      (raffle) => ({
+        ...raffle,
+        purchaseEnabled: hasTicketApiTls(
+          this.env.TICKET_API_BASE_URL,
+          this.env.TICKET_API_ALLOW_HTTP,
+        ),
+      }),
+    )
   }
 
   async getActiveRaffle(): Promise<Raffle> {

@@ -12,6 +12,7 @@ export type Raffle = {
   prizes?: string[]
   luckySpins?: { count: number; label: string }
   doubleChance?: boolean
+  bannerUrl?: string
 }
 
 export interface TicketGateway {
