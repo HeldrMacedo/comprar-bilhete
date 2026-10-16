@@ -32,6 +32,8 @@ const env: ServerEnv = {
   INFINITEPAY_API_BASE_URL: 'https://api.checkout.infinitepay.io',
   MAIL_PROVIDER: 'mock',
   SMTP_SECURE: false,
+  ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: 10,
+  ACCOUNT_CODE_LIMIT_PER_MINUTE: 5,
 }
 
 const apps: Awaited<ReturnType<typeof buildApp>>[] = []

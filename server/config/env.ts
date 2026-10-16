@@ -36,6 +36,8 @@ const serverEnvSchema = z
     SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     SMTP_PASS: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     MAIL_FROM: z.preprocess(emptyToUndefined, z.string().min(3).optional()),
+    ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+    ACCOUNT_CODE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
   })
   .superRefine((env, context) => {
     if (env.PAYMENT_PROVIDER === 'infinitepay' && !env.INFINITEPAY_HANDLE) {

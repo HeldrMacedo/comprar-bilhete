@@ -62,3 +62,12 @@ it('aceita SMTP completo', () => {
   expect(env.SMTP_PORT).toBe(587)
   expect(env.SMTP_SECURE).toBe(false)
 })
+
+it('limita identificação e pedido de código por IP com padrões conservadores', () => {
+  const env = parseServerEnv({})
+  expect(env.ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE).toBe(10)
+  expect(env.ACCOUNT_CODE_LIMIT_PER_MINUTE).toBe(5)
+  expect(
+    parseServerEnv({ ACCOUNT_CODE_LIMIT_PER_MINUTE: '50' }).ACCOUNT_CODE_LIMIT_PER_MINUTE,
+  ).toBe(50)
+})

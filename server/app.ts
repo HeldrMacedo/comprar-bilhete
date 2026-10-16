@@ -1,7 +1,14 @@
+import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import Fastify from 'fastify'
 import { ZodError } from 'zod'
 import { parseServerEnv, type ServerEnv } from './config/env.js'
+import { AccountRepository } from './domains/accounts/account-repository.js'
+import { AccountService } from './domains/accounts/account-service.js'
+import type { MailGateway } from './domains/accounts/mail-gateway.js'
+import { MockMailGateway } from './domains/accounts/mock-mail-gateway.js'
+import { SmtpMailGateway } from './domains/accounts/smtp-mail-gateway.js'
+import { VerificationService } from './domains/accounts/verification-service.js'
 import { AdminAuthService } from './domains/admin/admin-auth-service.js'
 import { AdminDashboardRepository } from './domains/admin/admin-dashboard-repository.js'
 import { AdminDashboardService } from './domains/admin/admin-dashboard-service.js'
@@ -31,6 +38,7 @@ import type { ContestAdminGateway } from './domains/tickets/contest-admin-gatewa
 import { LiveContestAdminGateway } from './domains/tickets/live-contest-admin-gateway.js'
 import type { TicketGateway } from './domains/tickets/ticket-gateway.js'
 import type { TicketReservationGateway } from './domains/tickets/ticket-reservation-gateway.js'
+import { registerAccountRoutes } from './http/account-routes.js'
 import { registerAdminRoutes } from './http/admin-routes.js'
 import { registerRoutes } from './http/routes.js'
 import { createDatabase } from './shared/database.js'
@@ -43,6 +51,7 @@ type AppOptions = {
   customers?: CustomerGateway
   reservations?: TicketReservationGateway
   contestAdmin?: ContestAdminGateway
+  mail?: MailGateway
   logger?: boolean
   startWorker?: boolean
   now?: () => Date
@@ -67,6 +76,21 @@ export async function buildApp(options: AppOptions = {}) {
       ? new LiveCustomerGateway(env.TICKET_API_BASE_URL, env.TICKET_API_ALLOW_HTTP)
       : new MockCustomerGateway())
   const customers = new CustomerService(customerGateway)
+  const accountRepository = new AccountRepository(database)
+  const mail =
+    options.mail ??
+    (env.MAIL_PROVIDER === 'smtp' ? new SmtpMailGateway(env) : new MockMailGateway())
+  // Em mock o código é fixo para permitir testes e E2E sem caixa de e-mail.
+  const verification = new VerificationService(
+    accountRepository,
+    mail,
+    now,
+    env.MAIL_PROVIDER === 'mock' ? () => '000000' : undefined,
+  )
+  const accounts = new AccountService(accountRepository, customerGateway, verification, now)
+  if (env.MAIL_PROVIDER === 'mock' && env.PAYMENT_PROVIDER === 'infinitepay') {
+    app.log.warn('MAIL_PROVIDER=mock com pagamento real: o código de verificação é sempre 000000.')
+  }
   if (
     env.TICKET_PROVIDER === 'live' &&
     env.TICKET_API_ALLOW_HTTP &&
@@ -121,6 +145,7 @@ export async function buildApp(options: AppOptions = {}) {
   })
 
   await app.register(cors, { origin: env.PUBLIC_APP_URL })
+  await app.register(cookie)
   const siteSettings = new SiteSettingsService(database, adminRepository, now)
   // Modo mock edita o próprio gateway de bilhetes, para a Home refletir a mudança.
   const contestAdmin =
@@ -131,6 +156,7 @@ export async function buildApp(options: AppOptions = {}) {
         ? tickets
         : new MockTicketGateway())
   await registerRoutes(app, service, customers, siteSettings)
+  await registerAccountRoutes(app, env, accounts)
   await registerAdminRoutes(app, env, {
     auth: adminAuth,
     users: new AdminUserService(adminRepository, now),

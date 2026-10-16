@@ -1,4 +1,3 @@
-import cookie from '@fastify/cookie'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { ServerEnv } from '../config/env.js'
@@ -90,8 +89,6 @@ export async function registerAdminRoutes(
   const loginFailures = createFailureLimiter(10, 60_000)
 
   await app.register(async (scope) => {
-    await scope.register(cookie)
-
     // SameSite=Strict já barra CSRF em navegadores atuais; Origin cobre os demais.
     scope.addHook('onRequest', async (request) => {
       const origin = request.headers.origin
