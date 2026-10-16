@@ -152,6 +152,26 @@ describe('AccountService', () => {
     expect(result.account.email).toBe('sememail@example.com')
   })
 
+  it('recusa código do admin para CPF que já tem e-mail no cadastro', async () => {
+    const { service } = setup()
+    await expect(service.issueAdminCode(maria, 'admin-1')).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'CUSTOMER_HAS_EMAIL',
+    })
+  })
+
+  it('primeiro acesso ignora e-mail informado e mantém o do código', async () => {
+    const { service } = setup()
+    await service.requestCode({ purpose: 'first_access', cpf: maria })
+    const result = await service.setPassword({
+      cpf: maria,
+      code: '000000',
+      password: 'senha-maria-1',
+      email: 'invasor@example.com',
+    })
+    expect(result.account.email).toBe('maria@example.com')
+  })
+
   it('troca de senha encerra as outras sessões', async () => {
     const repository = new AccountRepository(createDatabase(':memory:'))
     let current = new Date('2026-10-16T12:00:00.000Z')

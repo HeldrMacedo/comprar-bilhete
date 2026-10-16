@@ -143,9 +143,10 @@ export class AccountService {
     const base = local ?? person
     if (!base) throw new DomainError('Cadastro não encontrado.', 404, 'CUSTOMER_NOT_FOUND')
 
-    // Código do admin é para quem não tem e-mail no cadastro: o e-mail informado passa a valer.
+    // Código do admin é para quem não tem e-mail no cadastro: o e-mail informado só vale nesse
+    // caso, para que o código nunca troque o e-mail de quem já tem um.
     const email =
-      code.purpose === 'admin' ? (input.email ?? person?.email ?? local?.email) : code.email
+      code.purpose === 'admin' ? (person?.email ?? local?.email ?? input.email) : code.email
     if (!email) {
       throw new DomainError(
         'Informe um e-mail para recuperar o acesso no futuro.',
@@ -187,8 +188,18 @@ export class AccountService {
   }
 
   async issueAdminCode(cpf: string, adminUserId: string) {
-    if (!this.repository.findAccount(cpf) && !(await this.customers.findByCpf(cpf))) {
+    const local = this.repository.findAccount(cpf)
+    const person = await this.customers.findByCpf(cpf)
+    if (!local && !person) {
       throw new DomainError('CPF não encontrado no cadastro.', 404, 'CUSTOMER_NOT_FOUND')
+    }
+    // Quem tem e-mail recupera o acesso pelo próprio e-mail, nunca por código do admin.
+    if (person?.email || local?.email) {
+      throw new DomainError(
+        'Este CPF já tem e-mail no cadastro. Use "Esqueci minha senha".',
+        409,
+        'CUSTOMER_HAS_EMAIL',
+      )
     }
     return this.verification.issueForAdmin(cpf, adminUserId)
   }
