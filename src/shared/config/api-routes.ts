@@ -3,6 +3,15 @@ export const apiRoutes = {
     const query = new URLSearchParams({ cpf: criteria.cpf })
     return `/v1/customers/lookup?${query.toString()}`
   },
+  accountIdentify: '/v1/account/identify',
+  accountCodes: '/v1/account/codes',
+  accountLogin: '/v1/account/login',
+  accountRegister: '/v1/account/register',
+  accountPassword: '/v1/account/password',
+  accountMe: '/v1/account/me',
+  accountProfile: '/v1/account/profile',
+  accountLogout: '/v1/account/logout',
+  myOrders: '/v1/orders/mine',
   activeRaffle: '/v1/raffles/active',
   raffleBanner: (raffleId: string) => `/v1/raffles/${encodeURIComponent(raffleId)}/banner`,
   availableCards: (raffleId: string) =>

@@ -1,27 +1,7 @@
 import { z } from 'zod'
 import { isValidCpf, onlyDigits } from '../../../shared/lib/forms'
+import { addressSchema } from '../../account/service/account-forms'
 import type { Customer } from '../domain/types'
-
-const upperText = (message: string) => z.string().trim().toUpperCase().min(1, message)
-
-export const addressSchema = z.object({
-  zipCode: z.string().transform(onlyDigits).pipe(z.string().length(8, 'Informe um CEP valido.')),
-  street: upperText('Informe o endereco.'),
-  number: upperText('Informe o numero.'),
-  complement: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .optional()
-    .transform((value) => value || undefined),
-  neighborhood: upperText('Informe o bairro.'),
-  city: upperText('Informe a cidade.'),
-  state: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z]{2}$/, 'Informe a UF.'),
-})
 
 const customerBaseSchema = z.object({
   name: z.string().trim().min(3, 'Informe seu nome completo.'),

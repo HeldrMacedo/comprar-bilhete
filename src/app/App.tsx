@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { handleAccountUnauthenticated } from '../features/account/runtime/account-queries'
 import { handleAdminUnauthenticated } from '../features/admin/runtime/admin-queries'
 import { CartProvider } from '../features/cart/runtime/CartProvider'
 import { Spinner } from '../shared/ui/Spinner'
@@ -15,11 +16,16 @@ const AdminRoutes = lazy(() => import('./AdminRoutes'))
 
 const queryClient: QueryClient = new QueryClient({
   queryCache: new QueryCache({
-    onError: (error, query) => handleAdminUnauthenticated(queryClient, error, query.queryKey),
+    onError: (error, query) => {
+      handleAdminUnauthenticated(queryClient, error, query.queryKey)
+      handleAccountUnauthenticated(queryClient, error, query.queryKey)
+    },
   }),
   mutationCache: new MutationCache({
-    onError: (error, _variables, _context, mutation) =>
-      handleAdminUnauthenticated(queryClient, error, mutation.options.mutationKey),
+    onError: (error, _variables, _context, mutation) => {
+      handleAdminUnauthenticated(queryClient, error, mutation.options.mutationKey)
+      handleAccountUnauthenticated(queryClient, error, mutation.options.mutationKey)
+    },
   }),
   defaultOptions: {
     queries: { retry: 1, staleTime: 30_000 },

@@ -46,7 +46,9 @@ export async function requestJson<T>(
     throw new ApiError(apiError.message, response.status, apiError.code)
   }
 
-  const data: unknown = response.status === 204 ? undefined : await response.json()
+  // Corpo vazio (202/204) vira undefined; qualquer outro é JSON.
+  const text = await response.text()
+  const data: unknown = text === '' ? undefined : JSON.parse(text)
   const parsed = schema.safeParse(data)
   if (!parsed.success) {
     console.error('Resposta fora do contrato', parsed.error.flatten())

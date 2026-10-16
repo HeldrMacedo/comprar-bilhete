@@ -33,4 +33,12 @@ describe('requestJson', () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
     expect(init?.headers).not.toHaveProperty('Content-Type')
   })
+
+  it('accepts a 202 response with an empty body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 202 })))
+
+    await expect(requestJson('/codes', z.undefined(), { method: 'POST', body: {} })).resolves.toBe(
+      undefined,
+    )
+  })
 })
