@@ -3,14 +3,16 @@ import { buildApp } from '../app.js'
 import { parseServerEnv } from '../config/env.js'
 import { MockTicketGateway } from '../domains/tickets/mock-ticket-gateway.js'
 import { ADMIN_SESSION_COOKIE } from './admin-routes.js'
+import { CUSTOMER_SESSION_COOKIE } from './customer-session.js'
+import { loginAsMaria } from './test-session.js'
 
 const PASSWORD = 'senha-segura-123'
 const ORIGIN = 'http://localhost:5173'
-const maria = { name: 'Maria da Silva', cpf: '52998224725', phone: '84999855367' }
 const joao = {
   name: 'João Souza',
   cpf: '39053344705',
   phone: '84988887777',
+  email: 'joao@example.com',
   address: {
     zipCode: '59000000',
     street: 'RUA A',
@@ -26,6 +28,26 @@ const apps: Awaited<ReturnType<typeof buildApp>>[] = []
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()))
 })
+
+type Buyer = 'maria' | 'joao'
+type App = Awaited<ReturnType<typeof buildApp>>
+
+// CPF fora do mock: cadastro novo com o código fixo do modo totalmente mock.
+async function registerJoao(app: App) {
+  await app.inject({
+    method: 'POST',
+    url: '/api/v1/account/codes',
+    payload: { purpose: 'signup', cpf: joao.cpf, email: joao.email },
+  })
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/v1/account/register',
+    payload: { customer: joao, password: 'senha-joao-1', code: '000000' },
+  })
+  const cookie = response.cookies.find((item) => item.name === CUSTOMER_SESSION_COOKIE)
+  if (!cookie) throw new Error(`cadastro do João falhou: ${response.body}`)
+  return { [CUSTOMER_SESSION_COOKIE]: cookie.value }
+}
 
 async function setup(now: () => Date = () => new Date()) {
   const tickets = new MockTicketGateway()
@@ -50,14 +72,24 @@ async function setup(now: () => Date = () => new Date()) {
   const cookie = login.cookies.find(({ name }) => name === ADMIN_SESSION_COOKIE)
   const headers = { cookie: `${ADMIN_SESSION_COOKIE}=${cookie?.value}`, origin: ORIGIN }
 
-  async function createOrder(customer: object, cardIds: string[]) {
+  // Cada comprador entra uma vez por app: Maria pelo primeiro acesso, João por cadastro novo.
+  const sessions = new Map<Buyer, Promise<Record<string, string>>>()
+  function sessionOf(buyer: Buyer) {
+    const existing = sessions.get(buyer)
+    if (existing) return existing
+    const created = buyer === 'maria' ? loginAsMaria(app) : registerJoao(app)
+    sessions.set(buyer, created)
+    return created
+  }
+
+  async function createOrder(buyer: Buyer, cardIds: string[]) {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(buyer),
       payload: {
         raffleId: 'sorteio-setembro',
         selection: { mode: 'manual', cardIds },
-        customer,
       },
     })
     expect(response.statusCode).toBe(201)
@@ -72,8 +104,8 @@ type AdminOrder = { id: string; status: string; captureMethod?: string; lastErro
 describe('admin sales', () => {
   it('lists orders with search, status filter and pagination', async () => {
     const { app, headers, createOrder } = await setup()
-    await createOrder(maria, ['card-001'])
-    const second = await createOrder(joao, ['card-002', 'card-003'])
+    await createOrder('maria', ['card-001'])
+    const second = await createOrder('joao', ['card-002', 'card-003'])
 
     const all = await app.inject({ method: 'GET', url: '/api/v1/admin/orders', headers })
     expect(all.json()).toMatchObject({ total: 2, page: 1, pageSize: 20 })
@@ -116,7 +148,7 @@ describe('admin sales', () => {
 
   it('approves a pending order through the regular fulfillment and audits the reason', async () => {
     const { app, headers, tickets, createOrder } = await setup()
-    const orderId = await createOrder(maria, ['card-001'])
+    const orderId = await createOrder('maria', ['card-001'])
 
     const tooShort = await app.inject({
       method: 'POST',
@@ -151,7 +183,7 @@ describe('admin sales', () => {
   it('refuses to approve an expired order', async () => {
     let current = new Date('2026-10-08T12:00:00.000Z')
     const { app, headers, createOrder } = await setup(() => current)
-    const orderId = await createOrder(maria, ['card-001'])
+    const orderId = await createOrder('maria', ['card-001'])
     current = new Date('2026-10-08T13:00:00.000Z')
 
     const response = await app.inject({
@@ -165,7 +197,7 @@ describe('admin sales', () => {
 
   it('retries a manual review order only while its tickets are still available', async () => {
     const { app, headers, tickets, createOrder } = await setup()
-    const orderId = await createOrder(maria, ['card-001'])
+    const orderId = await createOrder('maria', ['card-001'])
     const failing = tickets.fulfillOrder.bind(tickets)
     let fail = true
     tickets.fulfillOrder = async (order) => {
@@ -196,7 +228,7 @@ describe('admin sales', () => {
 
   it('blocks retry when a ticket was sold elsewhere', async () => {
     const { app, headers, tickets, createOrder } = await setup()
-    const orderId = await createOrder(maria, ['card-001'])
+    const orderId = await createOrder('maria', ['card-001'])
     tickets.fulfillOrder = async () => {
       throw new Error('Falha externa')
     }
@@ -220,7 +252,7 @@ describe('admin sales', () => {
 
   it('cancels a pending order and frees its tickets', async () => {
     const { app, headers, createOrder } = await setup()
-    const orderId = await createOrder(maria, ['card-001'])
+    const orderId = await createOrder('maria', ['card-001'])
 
     const cancelled = await app.inject({
       method: 'POST',
@@ -230,12 +262,12 @@ describe('admin sales', () => {
     })
     expect(cancelled.json<{ order: AdminOrder }>().order.status).toBe('cancelled')
 
-    await createOrder(joao, ['card-001'])
+    await createOrder('joao', ['card-001'])
   })
 
   it('exports filtered sales as Excel-friendly CSV', async () => {
     const { app, headers, createOrder } = await setup()
-    await createOrder(maria, ['card-001'])
+    await createOrder('maria', ['card-001'])
 
     const response = await app.inject({
       method: 'GET',
@@ -256,15 +288,15 @@ describe('admin sales', () => {
 describe('admin customers', () => {
   it('groups orders by CPF using the latest data and exports them', async () => {
     const { app, headers, createOrder } = await setup()
-    const first = await createOrder(joao, ['card-001'])
+    const first = await createOrder('joao', ['card-001'])
     await app.inject({
       method: 'POST',
       url: `/api/v1/admin/orders/${first}/approve`,
       headers,
       payload: { reason: 'Pix recebido direto na conta' },
     })
-    await createOrder(joao, ['card-002', 'card-003'])
-    await createOrder(maria, ['card-004'])
+    await createOrder('joao', ['card-002', 'card-003'])
+    await createOrder('maria', ['card-004'])
 
     const list = await app.inject({ method: 'GET', url: '/api/v1/admin/customers', headers })
     expect(list.json()).toMatchObject({ total: 2 })

@@ -54,5 +54,3 @@ export type CustomerInput = z.input<typeof customerInputSchema>
 export type NormalizedCustomerInput = z.output<typeof customerInputSchema>
 export type ExternalCustomer = z.infer<typeof externalCustomerSchema>
 export type ResolvedCustomer = z.infer<typeof resolvedCustomerSchema>
-export type CustomerLookupCriteria = { cpf: string }
-export type CustomerLookupResult = { found: false } | { found: true; customer: ExternalCustomer }

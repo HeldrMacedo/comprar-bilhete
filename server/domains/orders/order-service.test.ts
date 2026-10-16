@@ -11,6 +11,8 @@ import { MockTicketReservationGateway } from '../tickets/mock-ticket-reservation
 import type { TicketReservationGateway } from '../tickets/ticket-reservation-gateway.js'
 import { OrderRepository } from './order-repository.js'
 import { OrderService } from './order-service.js'
+import { loginAsMaria } from '../../http/test-session.js'
+import { paymentEventSchema } from './order-types.js'
 import { RemoteReservationRepository } from './remote-reservation-repository.js'
 import { TicketReservationCoordinator } from './ticket-reservation-coordinator.js'
 
@@ -47,6 +49,16 @@ afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()))
 })
 
+// Pedido pela rota exige a sessão do comprador: Maria entra uma vez por app.
+const sessions = new WeakMap<object, Promise<Record<string, string>>>()
+function sessionOf(app: Awaited<ReturnType<typeof buildApp>>) {
+  const existing = sessions.get(app)
+  if (existing) return existing
+  const created = loginAsMaria(app)
+  sessions.set(app, created)
+  return created
+}
+
 describe('pedido e pagamento', () => {
   it('cria um pedido com bilhetes de dois sorteios e soma os preços de cada um', async () => {
     const app = await buildApp({ env, logger: false, startWorker: false })
@@ -55,6 +67,7 @@ describe('pedido e pagamento', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(app),
       payload: {
         raffles: [
           {
@@ -66,7 +79,6 @@ describe('pedido e pagamento', () => {
             selection: { mode: 'manual', cardIds: ['card-001'] },
           },
         ],
-        customer: existingCustomer,
       },
     })
 
@@ -108,12 +120,12 @@ describe('pedido e pagamento', () => {
     const grouped = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(app),
       payload: {
         raffles: [
           { raffleId: 'sorteio-setembro', selection: { mode: 'random', quantity: 1 } },
           { raffleId: 'sorteio-domingo', selection: { mode: 'manual', cardIds: ['card-004'] } },
         ],
-        customer: existingCustomer,
       },
     })
     for (const created of [single, grouped]) {
@@ -149,11 +161,11 @@ describe('pedido e pagamento', () => {
     apps.push(app)
     const oneSelection = (raffleId: string, cardId: string) => ({
       raffles: [{ raffleId, selection: { mode: 'manual', cardIds: [cardId] } }],
-      customer: existingCustomer,
     })
     const reserved = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(app),
       payload: oneSelection('sorteio-domingo', 'card-001'),
     })
     expect(reserved.statusCode).toBe(201)
@@ -161,12 +173,12 @@ describe('pedido e pagamento', () => {
     const conflict = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(app),
       payload: {
         raffles: [
           { raffleId: 'sorteio-setembro', selection: { mode: 'manual', cardIds: ['card-002'] } },
           { raffleId: 'sorteio-domingo', selection: { mode: 'manual', cardIds: ['card-001'] } },
         ],
-        customer: existingCustomer,
       },
     })
     expect(conflict.statusCode).toBe(409)
@@ -174,6 +186,7 @@ describe('pedido e pagamento', () => {
     const afterRollback = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(app),
       payload: oneSelection('sorteio-setembro', 'card-002'),
     })
     expect(afterRollback.statusCode).toBe(201)
@@ -210,11 +223,11 @@ describe('pedido e pagamento', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: await sessionOf(app),
       payload: {
         raffles: [
           { raffleId: 'sorteio-setembro', selection: { mode: 'manual', cardIds: ['card-001'] } },
         ],
-        customer: existingCustomer,
       },
     })
 
@@ -262,21 +275,16 @@ describe('pedido e pagamento', () => {
   })
 
   it('resolve o cliente novamente e exige endereco para novo cadastro', async () => {
-    const app = await buildApp({ env, logger: false, startWorker: false })
-    apps.push(app)
+    const { service, close } = createService()
 
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/orders',
-      payload: {
+    await expect(
+      service.createOrder({
         raffleId: 'sorteio-setembro',
         selection: { mode: 'manual', cardIds: ['card-001'] },
         customer: { name: 'Cliente Novo', cpf: '11144477735', phone: '84999998888' },
-      },
-    })
-
-    expect(response.statusCode).toBe(400)
-    expect(response.json()).toMatchObject({ code: 'ADDRESS_REQUIRED' })
+      }),
+    ).rejects.toMatchObject({ statusCode: 400, code: 'ADDRESS_REQUIRED' })
+    close()
   })
 
   it('reserva, cria checkout, reconcilia e entrega o bilhete', async () => {
@@ -440,44 +448,30 @@ describe('pedido e pagamento', () => {
     const createCustomer = vi.spyOn(customers, 'create')
     const tickets = new MockTicketGateway()
     const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
-    const app = await buildApp({
-      env,
-      customers,
-      tickets,
-      logger: false,
-      startWorker: false,
-      now: () => new Date('2026-09-23T10:00:00.000Z'),
-    })
-    apps.push(app)
-    const created = await app.inject({
-      method: 'POST',
-      url: '/api/v1/orders',
-      payload: {
-        raffleId: 'sorteio-setembro',
-        selection: { mode: 'manual', cardIds: ['card-030'] },
-        customer: {
-          name: 'Cliente Novo',
-          cpf: '11144477735',
-          phone: '84999998888',
-          beneficiaryName: 'Joao Terceiro',
-          address: {
-            zipCode: '59062300',
-            street: 'Avenida Lima e Silva',
-            number: '129',
-            neighborhood: 'Nazare',
-            city: 'Natal',
-            state: 'RN',
-          },
+    const { service, close } = createService(customers, tickets)
+
+    const { id } = await service.createOrder({
+      raffleId: 'sorteio-setembro',
+      selection: { mode: 'manual', cardIds: ['card-030'] },
+      customer: {
+        name: 'Cliente Novo',
+        cpf: '11144477735',
+        phone: '84999998888',
+        beneficiaryName: 'Joao Terceiro',
+        address: {
+          zipCode: '59062300',
+          street: 'Avenida Lima e Silva',
+          number: '129',
+          neighborhood: 'Nazare',
+          city: 'Natal',
+          state: 'RN',
         },
       },
     })
-    const { id } = created.json<{ id: string }>()
     expect(createCustomer).not.toHaveBeenCalled()
-    await app.inject({ method: 'POST', url: `/api/v1/orders/${id}/checkout` })
-    await app.inject({
-      method: 'POST',
-      url: '/api/v1/webhooks/infinitepay',
-      payload: {
+    await service.createCheckout(id)
+    service.acceptWebhook(
+      paymentEventSchema.parse({
         invoice_slug: `mock-${id}`,
         amount: 1000,
         paid_amount: 1000,
@@ -487,16 +481,18 @@ describe('pedido e pagamento', () => {
         order_nsu: id,
         receipt_url: 'https://example.com/comprovante',
         items: [],
-      },
-    })
+      }),
+    )
+    await service.processNextPaymentEvent()
 
-    await vi.waitFor(() => expect(createCustomer).toHaveBeenCalledTimes(1))
-    await vi.waitFor(() => expect(fulfillOrder).toHaveBeenCalledTimes(1))
+    expect(createCustomer).toHaveBeenCalledTimes(1)
+    expect(fulfillOrder).toHaveBeenCalledTimes(1)
     expect(fulfillOrder.mock.calls[0]?.[0].customer).toMatchObject({
       name: 'Cliente Novo',
       externalId: 'mock-2',
       beneficiaryName: 'Joao Terceiro',
     })
+    close()
   })
 })
 
@@ -658,15 +654,35 @@ describe('reserva externa do bilhete', () => {
   })
 })
 
-function createOrder(
+async function createOrder(
   app: Awaited<ReturnType<typeof buildApp>>,
   selection: { mode: 'manual'; cardIds: string[] } | { mode: 'random'; quantity: number },
 ) {
   return app.inject({
     method: 'POST',
     url: '/api/v1/orders',
-    payload: { raffleId: 'sorteio-setembro', selection, customer: existingCustomer },
+    cookies: await sessionOf(app),
+    payload: { raffleId: 'sorteio-setembro', selection },
   })
+}
+
+// Cliente novo não tem sessão sem cadastro prévio; o serviço ainda cobre esse caminho.
+function createService(customers = new MockCustomerGateway(), tickets = new MockTicketGateway()) {
+  const now = () => new Date('2026-09-23T10:00:00.000Z')
+  const database = createDatabase(':memory:')
+  const service = new OrderService(
+    new OrderRepository(database, now),
+    tickets,
+    new MockPaymentGateway(env),
+    new CustomerService(customers),
+    new TicketReservationCoordinator(
+      new MockTicketReservationGateway(30 * 60_000, now),
+      new RemoteReservationRepository(database, now),
+    ),
+    env,
+    now,
+  )
+  return { service, close: () => database.close() }
 }
 
 async function createPaymentHarness(

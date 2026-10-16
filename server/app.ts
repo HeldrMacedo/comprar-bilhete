@@ -165,7 +165,7 @@ export async function buildApp(options: AppOptions = {}) {
       : tickets instanceof MockTicketGateway
         ? tickets
         : new MockTicketGateway())
-  await registerRoutes(app, service, customers, siteSettings)
+  await registerRoutes(app, env, service, accounts, siteSettings)
   await registerAccountRoutes(app, env, accounts)
   await registerAdminRoutes(app, env, {
     auth: adminAuth,

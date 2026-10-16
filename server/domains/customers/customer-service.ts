@@ -5,18 +5,11 @@ import {
   customerInputSchema,
   resolvedCustomerSchema,
   type CustomerInput,
-  type CustomerLookupCriteria,
-  type CustomerLookupResult,
   type ResolvedCustomer,
 } from './customer-types.js'
 
 export class CustomerService {
   constructor(private readonly gateway: CustomerGateway) {}
-
-  async lookup(criteria: CustomerLookupCriteria): Promise<CustomerLookupResult> {
-    const customer = await this.gateway.findByCpf(criteria.cpf)
-    return customer ? { found: true, customer } : { found: false }
-  }
 
   async resolveForOrder(input: CustomerInput): Promise<ResolvedCustomer> {
     const customer = customerInputSchema.parse(input)

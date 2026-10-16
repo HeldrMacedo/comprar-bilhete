@@ -3,6 +3,7 @@ import { buildApp } from '../app.js'
 import { parseServerEnv } from '../config/env.js'
 import { MockTicketGateway } from '../domains/tickets/mock-ticket-gateway.js'
 import { ADMIN_SESSION_COOKIE } from './admin-routes.js'
+import { loginAsMaria } from './test-session.js'
 
 const PASSWORD = 'senha-segura-123'
 const ORIGIN = 'http://localhost:5173'
@@ -35,17 +36,18 @@ async function setup(tickets = new MockTicketGateway()) {
   })
   const cookie = login.cookies.find(({ name }) => name === ADMIN_SESSION_COOKIE)
   const headers = { cookie: `${ADMIN_SESSION_COOKIE}=${cookie?.value}`, origin: ORIGIN }
+  const customerCookies = await loginAsMaria(app)
 
-  async function createOrder(cpf: string, raffles: Array<{ raffleId: string; cardIds: string[] }>) {
+  async function createOrder(raffles: Array<{ raffleId: string; cardIds: string[] }>) {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/orders',
+      cookies: customerCookies,
       payload: {
         raffles: raffles.map(({ raffleId, cardIds }) => ({
           raffleId,
           selection: { mode: 'manual', cardIds },
         })),
-        customer: { name: 'Maria da Silva', cpf, phone: '84999855367' },
       },
     })
     expect(response.statusCode, response.body).toBe(201)
@@ -67,7 +69,7 @@ type Summary = {
 describe('admin dashboard', () => {
   it('summarizes paid, pending and per-raffle sales', async () => {
     const { app, headers, createOrder } = await setup()
-    const paid = await createOrder('52998224725', [
+    const paid = await createOrder([
       { raffleId: 'sorteio-setembro', cardIds: ['card-001'] },
       { raffleId: 'sorteio-domingo', cardIds: ['card-001'] },
     ])
@@ -77,9 +79,7 @@ describe('admin dashboard', () => {
       headers,
       payload: { reason: 'Pix recebido na conta' },
     })
-    await createOrder('52998224725', [
-      { raffleId: 'sorteio-setembro', cardIds: ['card-002', 'card-003'] },
-    ])
+    await createOrder([{ raffleId: 'sorteio-setembro', cardIds: ['card-002', 'card-003'] }])
 
     const response = await app.inject({ method: 'GET', url: '/api/v1/admin/dashboard', headers })
     expect(response.statusCode).toBe(200)

@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { buildApp } from '../../app.js'
 import { LiveCustomerGateway } from './live-customer-gateway.js'
 
 afterEach(() => {
@@ -151,36 +150,5 @@ describe('LiveCustomerGateway', () => {
       code: 'UPSTREAM_ERROR',
       message: 'Serviço externo indisponível.',
     })
-  })
-})
-
-describe('customer lookup route', () => {
-  it('returns a deterministic mock customer by CPF', async () => {
-    const app = await buildApp({ logger: false, startWorker: false })
-
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/v1/customers/lookup?cpf=52998224725',
-    })
-
-    expect(response.statusCode).toBe(200)
-    expect(response.json()).toMatchObject({
-      found: true,
-      customer: { externalId: '2015', cpf: '52998224725', phone: '84999855367' },
-    })
-    await app.close()
-  })
-
-  it.each([
-    '/api/v1/customers/lookup',
-    '/api/v1/customers/lookup?cpf=52998224725&phone=84999855367',
-    '/api/v1/customers/lookup?cpf=123',
-  ])('rejects invalid lookup query %s', async (url) => {
-    const app = await buildApp({ logger: false, startWorker: false })
-
-    const response = await app.inject({ method: 'GET', url })
-
-    expect(response.statusCode).toBe(400)
-    await app.close()
   })
 })

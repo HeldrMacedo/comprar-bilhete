@@ -29,15 +29,6 @@ function createGateway(records: ExternalCustomer[]) {
 }
 
 describe('CustomerService', () => {
-  it('returns an existing customer found by CPF', async () => {
-    const service = new CustomerService(createGateway([maria]).gateway)
-
-    await expect(service.lookup({ cpf: maria.cpf })).resolves.toEqual({
-      found: true,
-      customer: maria,
-    })
-  })
-
   it('resolves an existing CPF to canonical external data', async () => {
     const service = new CustomerService(createGateway([maria]).gateway)
 

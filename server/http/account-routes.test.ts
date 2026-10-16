@@ -4,6 +4,7 @@ import { parseServerEnv } from '../config/env.js'
 import { MockMailGateway } from '../domains/accounts/mock-mail-gateway.js'
 import { MockCustomerGateway } from '../domains/customers/mock-customer-gateway.js'
 import { MockTicketGateway } from '../domains/tickets/mock-ticket-gateway.js'
+import { loginAsMaria } from './test-session.js'
 
 const env = parseServerEnv({
   DATABASE_PATH: ':memory:',
@@ -19,24 +20,6 @@ async function createApp(now?: () => Date) {
   const app = await buildApp({ env, logger: false, startWorker: false, ...(now ? { now } : {}) })
   apps.push(app)
   return app
-}
-
-type App = Awaited<ReturnType<typeof createApp>>
-
-export async function loginAsMaria(app: App) {
-  await app.inject({
-    method: 'POST',
-    url: '/api/v1/account/codes',
-    payload: { purpose: 'first_access', cpf: '52998224725' },
-  })
-  const response = await app.inject({
-    method: 'POST',
-    url: '/api/v1/account/password',
-    payload: { cpf: '52998224725', code: '000000', password: 'senha-maria-1' },
-  })
-  const cookie = response.cookies.find((item) => item.name === 'customer_session')
-  if (!cookie) throw new Error('sem cookie de sessão')
-  return { customer_session: cookie.value }
 }
 
 describe('rotas de conta', () => {

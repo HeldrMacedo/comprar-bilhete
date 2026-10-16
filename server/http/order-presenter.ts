@@ -27,8 +27,8 @@ export function presentOrder(order: Order) {
   }
 }
 
-// Resumo para "Minhas compras". Só pedido pago traz dados pessoais e do comprovante, porque a
-// consulta é feita apenas pelo CPF (risco aceito, ver tech-debt-tracker).
+// Resumo para "Minhas compras". Só pedido pago traz dados pessoais e do comprovante; a rota exige
+// a sessão do dono.
 export function presentPurchase(order: Order) {
   const summary = {
     ...presentOrder(order),
