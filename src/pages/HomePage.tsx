@@ -27,8 +27,8 @@ function selectedQuantity(raffle: Raffle, draft: SelectionDraft) {
   return draft.mode === 'random'
     ? Math.min(draft.quantity, availableCount, 50)
     : draft.manualSelection.filter((selected) =>
-      raffle.cards.some((card) => card.id === selected.id && card.available),
-    ).length
+        raffle.cards.some((card) => card.id === selected.id && card.available),
+      ).length
 }
 
 function canAddRaffle(raffle: Raffle, draft: SelectionDraft) {
@@ -88,11 +88,11 @@ export function HomePage() {
           draft.mode === 'random'
             ? { mode: 'random', quantity: selectedQuantity(raffle, draft) }
             : {
-              mode: 'manual',
-              cards: draft.manualSelection.filter((selected) =>
-                raffle.cards.some((card) => card.id === selected.id && card.available),
-              ),
-            }
+                mode: 'manual',
+                cards: draft.manualSelection.filter((selected) =>
+                  raffle.cards.some((card) => card.id === selected.id && card.available),
+                ),
+              }
         return { raffle, selection }
       }),
     )
@@ -108,8 +108,9 @@ export function HomePage() {
       ) : null}
       <section className="hero" aria-label="Concursos ativos" aria-roledescription="carrossel">
         <div
-          className={`container hero__content${heroBannerUrl ? ' hero__content--banner' : heroRaffle ? '' : ' hero__content--empty'
-            }`}
+          className={`container hero__content${
+            heroBannerUrl ? ' hero__content--banner' : heroRaffle ? '' : ' hero__content--empty'
+          }`}
         >
           {heroBannerUrl && heroRaffle ? (
             <img
