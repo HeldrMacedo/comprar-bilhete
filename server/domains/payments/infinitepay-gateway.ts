@@ -39,6 +39,7 @@ export class InfinitePayGateway implements PaymentGateway {
           order_nsu: order.id,
           customer: {
             name: order.customer.name,
+            email: order.customer.email,
             phone_number: `+55${order.customer.phone}`,
           },
           address: address

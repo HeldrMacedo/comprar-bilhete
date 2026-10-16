@@ -55,13 +55,15 @@ Entrada de pedido com um ou dois concursos:
     "name": "Maria da Silva",
     "cpf": "52998224725",
     "phone": "84999855367",
+    "email": "maria@example.com",
     "beneficiaryName": "João Terceiro"
   }
 }
 ```
 
-`customer` é sempre o comprador: nome, CPF, telefone (obrigatório) e endereço formam o cadastro
-em `pessoa`. `beneficiaryName` é opcional e só é enviado quando a compra é para outra pessoa;
+`customer` é sempre o comprador: nome, CPF, telefone (obrigatório), email (opcional) e endereço
+formam o cadastro em `pessoa`. O email informado vale para o pedido e para o checkout da
+InfinitePay; se omitido, usa o email do cadastro existente, quando houver. `beneficiaryName` é opcional e só é enviado quando a compra é para outra pessoa;
 ele não cria cadastro, apenas define o `nome` gravado no bilhete.
 
 O formato anterior para um concurso continua aceito:

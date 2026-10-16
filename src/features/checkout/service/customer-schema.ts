@@ -29,6 +29,13 @@ const customerBaseSchema = z.object({
   phone: z
     .string()
     .refine((value) => [10, 11].includes(onlyDigits(value).length), 'Informe um celular com DDD.'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((value) => !value || z.email().safeParse(value).success, 'Informe um email valido.')
+    .optional()
+    .transform((value) => value || undefined),
   address: addressSchema,
   buyingForThirdParty: z.boolean().optional(),
   beneficiaryName: z.string().optional(),

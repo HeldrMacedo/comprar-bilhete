@@ -21,6 +21,7 @@ export const customerInputSchema = z.object({
     .string()
     .regex(/^(?:\+55)?\d{10,11}$/)
     .transform((phone) => phone.replace(/^\+55/, '')),
+  email: z.string().trim().toLowerCase().max(160).pipe(z.email()).optional(),
   address: addressSchema.optional(),
   // Nome gravado no bilhete quando a compra é para outra pessoa; o cadastro continua do comprador.
   beneficiaryName: z.string().trim().min(3).max(120).optional(),
@@ -31,6 +32,7 @@ export const externalCustomerSchema = z.object({
   name: z.string(),
   cpf: z.string(),
   phone: z.string(),
+  email: z.email().optional(),
   address: addressSchema.optional(),
 })
 

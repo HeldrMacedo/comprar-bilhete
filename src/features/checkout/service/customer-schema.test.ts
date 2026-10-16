@@ -44,6 +44,14 @@ describe('customerSchema', () => {
     expect(customerSchema.parse(base).address.complement).toBeUndefined()
   })
 
+  it('aceita email vazio e normaliza email informado', () => {
+    expect(customerSchema.parse({ ...base, email: ' ' }).email).toBeUndefined()
+    expect(customerSchema.parse({ ...base, email: ' Maria@Example.com ' }).email).toBe(
+      'maria@example.com',
+    )
+    expect(customerSchema.safeParse({ ...base, email: 'maria@' }).success).toBe(false)
+  })
+
   it('exige o nome do terceiro somente quando marcado', () => {
     expect(customerSchema.safeParse({ ...base, buyingForThirdParty: true }).success).toBe(false)
     expect(

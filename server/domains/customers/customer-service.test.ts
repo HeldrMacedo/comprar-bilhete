@@ -106,6 +106,20 @@ describe('CustomerService', () => {
     ).resolves.toMatchObject({ name: maria.name, beneficiaryName: 'João Terceiro' })
   })
 
+  it('prefers the submitted email and falls back to the registered one', async () => {
+    const service = new CustomerService(
+      createGateway([{ ...maria, email: 'cadastro@example.com' }]).gateway,
+    )
+    const input = { name: maria.name, cpf: maria.cpf, phone: maria.phone }
+
+    await expect(
+      service.resolveForOrder({ ...input, email: 'Novo@Example.com' }),
+    ).resolves.toMatchObject({ email: 'novo@example.com' })
+    await expect(service.resolveForOrder(input)).resolves.toMatchObject({
+      email: 'cadastro@example.com',
+    })
+  })
+
   it('requires an address for an existing customer without one', async () => {
     const service = new CustomerService(createGateway([{ ...maria, address: undefined }]).gateway)
 

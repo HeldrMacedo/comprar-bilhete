@@ -31,6 +31,7 @@ describe('LiveCustomerGateway', () => {
               nome: 'MARIA DA SILVA',
               cpf: '529.982.247-25',
               fone: '(84) 99985-5367',
+              email: ' Maria@Example.com ',
               cep: '59062300',
               endereco: 'Avenida Lima e Silva',
               numero: '129',
@@ -53,6 +54,7 @@ describe('LiveCustomerGateway', () => {
       name: 'MARIA DA SILVA',
       cpf: '52998224725',
       phone: '84999855367',
+      email: 'maria@example.com',
       address: {
         zipCode: '59062300',
         street: 'Avenida Lima e Silva',

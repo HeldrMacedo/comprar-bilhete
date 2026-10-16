@@ -37,7 +37,8 @@ export class CustomerService {
         name: existing.name.trim() || customer.name,
         cpf: existing.cpf || customer.cpf,
         phone: existing.phone || customer.phone,
-        // A API externa não atualiza `pessoa`; o endereço revisado vale só para este pedido.
+        // A API externa não atualiza `pessoa`; endereço e email revisados valem só para este pedido.
+        email: customer.email ?? existing.email,
         address,
         registrationStatus: 'existing',
       })
@@ -63,6 +64,7 @@ export class CustomerService {
         name: customer.name,
         cpf: customer.cpf,
         phone: customer.phone,
+        email: customer.email,
         address: customer.address,
       }),
     )

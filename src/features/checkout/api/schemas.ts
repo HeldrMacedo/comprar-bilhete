@@ -15,6 +15,7 @@ export const externalCustomerSchema = z.object({
   name: z.string(),
   cpf: z.string(),
   phone: z.string(),
+  email: z.email().optional(),
   address: addressSchema.optional(),
 })
 

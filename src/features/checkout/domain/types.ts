@@ -12,6 +12,7 @@ export type Customer = {
   name: string
   cpf: string
   phone: string
+  email?: string
   address?: Address
   beneficiaryName?: string
 }

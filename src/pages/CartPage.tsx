@@ -42,6 +42,7 @@ export function CartPage() {
       name: '',
       cpf: '',
       phone: '',
+      email: '',
       address: {
         zipCode: '',
         street: '',
@@ -66,6 +67,7 @@ export function CartPage() {
     if (customer.name) setValue('name', customer.name, { shouldValidate: true })
     if (customer.cpf) setValue('cpf', formatCpf(customer.cpf), { shouldValidate: true })
     if (customer.phone) setValue('phone', formatPhone(customer.phone), { shouldValidate: true })
+    if (customer.email) setValue('email', customer.email, { shouldValidate: true })
     if (customer.address) {
       setValue('address.zipCode', customer.address.zipCode)
       setValue('address.street', customer.address.street)
@@ -281,15 +283,29 @@ export function CartPage() {
                 </button>
               ) : null}
             </div>
-            <div className="field">
-              <label htmlFor="name">Nome completo</label>
-              <input
-                id="name"
-                autoComplete="name"
-                {...register('name')}
-                aria-invalid={!!errors.name}
-              />
-              {errors.name ? <small role="alert">{errors.name.message}</small> : null}
+            <div className="form-row">
+              <div className="field">
+                <label htmlFor="name">Nome completo</label>
+                <input
+                  id="name"
+                  autoComplete="name"
+                  {...register('name')}
+                  aria-invalid={!!errors.name}
+                />
+                {errors.name ? <small role="alert">{errors.name.message}</small> : null}
+              </div>
+              <div className="field">
+                <label htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  {...register('email')}
+                  aria-invalid={!!errors.email}
+                />
+                {errors.email ? <small role="alert">{errors.email.message}</small> : null}
+              </div>
             </div>
             <label className="checkbox-field" htmlFor="buyingForThirdParty">
               <input

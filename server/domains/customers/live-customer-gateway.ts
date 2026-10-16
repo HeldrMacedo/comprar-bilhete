@@ -17,6 +17,7 @@ const personResponseSchema = z.object({
     nome: z.string(),
     cpf: z.string(),
     fone: z.string(),
+    email: z.string().nullish(),
     cep: z.string().nullish(),
     endereco: z.string().nullish(),
     numero: z.string().nullish(),
@@ -47,6 +48,7 @@ export class LiveCustomerGateway implements CustomerGateway {
         nome: customer.name,
         cpf: customer.cpf,
         fone: customer.phone,
+        email: customer.email,
         cep: customer.address?.zipCode,
         endereco: customer.address?.street,
         numero: customer.address?.number,
@@ -95,12 +97,15 @@ export class LiveCustomerGateway implements CustomerGateway {
       city: person.cidade ?? '',
       state: person.uf ?? '',
     })
+    // A API devolve `email: ""` quando a pessoa não informou; email inválido é ignorado.
+    const email = z.email().safeParse(person.email?.trim().toLowerCase())
 
     return externalCustomerSchema.parse({
       externalId: person.pessoas_id,
       name: person.nome.trim(),
       cpf: onlyDigits(person.cpf),
       phone: onlyDigits(person.fone),
+      email: email.success ? email.data : undefined,
       address: address.success ? address.data : undefined,
     })
   }
