@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { buildApp } from '../app.js'
 import { parseServerEnv } from '../config/env.js'
+import { MockCustomerGateway } from '../domains/customers/mock-customer-gateway.js'
 import { ADMIN_SESSION_COOKIE } from './admin-routes.js'
 
 const PASSWORD = 'senha-segura-123'
@@ -176,5 +177,82 @@ describe('admin users', () => {
       headers,
     })
     expect(removed.statusCode).toBe(204)
+  })
+})
+
+describe('código de acesso de cliente', () => {
+  it('exige sessão de admin', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/customers/39053344705/access-code',
+      headers: { origin: ORIGIN },
+    })
+    expect(response.statusCode).toBe(401)
+  })
+
+  it('recusa cliente que já tem e-mail', async () => {
+    const { cookie } = await login()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/customers/52998224725/access-code',
+      headers: { origin: ORIGIN, cookie },
+    })
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toMatchObject({ code: 'CUSTOMER_HAS_EMAIL' })
+  })
+
+  it('gera código para cliente sem e-mail e permite definir a senha', async () => {
+    const customers = new MockCustomerGateway()
+    await customers.register({
+      name: 'Sem Email',
+      cpf: '39053344705',
+      phone: '84999990000',
+      email: null,
+      password: 'qualquer1',
+    })
+    const local = await buildApp({
+      env: parseServerEnv({
+        DATABASE_PATH: ':memory:',
+        TICKET_PROVIDER: 'mock',
+        PAYMENT_PROVIDER: 'mock',
+        PUBLIC_APP_URL: ORIGIN,
+        ADMIN_BOOTSTRAP_LOGIN: 'admin',
+        ADMIN_BOOTSTRAP_PASSWORD: PASSWORD,
+      }),
+      customers,
+      logger: false,
+      startWorker: false,
+    })
+    const session = await local.inject({
+      method: 'POST',
+      url: '/api/v1/admin/session',
+      headers: { origin: ORIGIN },
+      payload: { login: 'admin', password: PASSWORD },
+    })
+    const token = session.cookies.find(({ name }) => name === ADMIN_SESSION_COOKIE)?.value ?? ''
+
+    const issued = await local.inject({
+      method: 'POST',
+      url: '/api/v1/admin/customers/39053344705/access-code',
+      headers: { origin: ORIGIN, cookie: `${ADMIN_SESSION_COOKIE}=${token}` },
+    })
+    expect(issued.statusCode).toBe(200)
+    const { code, expiresAt } = issued.json<{ code: string; expiresAt: string }>()
+    expect(code).toMatch(/^\d{6}$/)
+    expect(Date.parse(expiresAt)).toBeGreaterThan(Date.now())
+
+    const password = await local.inject({
+      method: 'POST',
+      url: '/api/v1/account/password',
+      headers: { origin: ORIGIN },
+      payload: {
+        cpf: '39053344705',
+        code,
+        password: 'senha-nova-1',
+        email: 'sememail@example.com',
+      },
+    })
+    expect(password.statusCode).toBe(200)
+    await local.close()
   })
 })

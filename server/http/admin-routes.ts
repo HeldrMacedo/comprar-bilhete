@@ -7,6 +7,7 @@ import {
   loginInputSchema,
   updateAdminUserInputSchema,
 } from '../domains/admin/admin-types.js'
+import type { AdminCustomerAccessService } from '../domains/admin/admin-customer-access-service.js'
 import type { AdminDashboardService } from '../domains/admin/admin-dashboard-service.js'
 import type { AdminRaffleService } from '../domains/admin/admin-raffle-service.js'
 import {
@@ -63,6 +64,7 @@ export type AdminServices = {
   dashboard: AdminDashboardService
   raffles: AdminRaffleService
   settings: SiteSettingsService
+  customerAccess: AdminCustomerAccessService
 }
 
 const sessions = new WeakMap<FastifyRequest, AdminSession>()
@@ -210,6 +212,11 @@ export async function registerAdminRoutes(
             `attachment; filename="${csvFileName('clientes', new Date())}"`,
           )
           .send(csv)
+      })
+
+      protectedScope.post(`${ADMIN_PREFIX}/customers/:cpf/access-code`, async (request) => {
+        const { cpf } = z.object({ cpf: z.string().regex(/^\d{11}$/) }).parse(request.params)
+        return services.customerAccess.issue(requireAdminSession(request), cpf)
       })
 
       protectedScope.get(`${ADMIN_PREFIX}/users`, async () => ({

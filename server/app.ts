@@ -10,6 +10,7 @@ import { MockMailGateway } from './domains/accounts/mock-mail-gateway.js'
 import { SmtpMailGateway } from './domains/accounts/smtp-mail-gateway.js'
 import { VerificationService } from './domains/accounts/verification-service.js'
 import { AdminAuthService } from './domains/admin/admin-auth-service.js'
+import { AdminCustomerAccessService } from './domains/admin/admin-customer-access-service.js'
 import { AdminDashboardRepository } from './domains/admin/admin-dashboard-repository.js'
 import { AdminDashboardService } from './domains/admin/admin-dashboard-service.js'
 import { AdminRaffleService } from './domains/admin/admin-raffle-service.js'
@@ -179,6 +180,7 @@ export async function buildApp(options: AppOptions = {}) {
     ),
     raffles: new AdminRaffleService(contestAdmin, adminRepository, now),
     settings: siteSettings,
+    customerAccess: new AdminCustomerAccessService(adminRepository, accounts, now),
     dashboard: new AdminDashboardService(
       new AdminDashboardRepository(database),
       orderRepository,
