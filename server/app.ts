@@ -80,16 +80,26 @@ export async function buildApp(options: AppOptions = {}) {
   const mail =
     options.mail ??
     (env.MAIL_PROVIDER === 'smtp' ? new SmtpMailGateway(env) : new MockMailGateway())
-  // Em mock o código é fixo para permitir testes e E2E sem caixa de e-mail.
+  // Código fixo só em modo totalmente mock, para testes e E2E sem caixa de e-mail. Com cadastro
+  // ou pagamento reais, um código previsível permitiria tomar a conta de qualquer CPF.
+  const fullyMock =
+    env.MAIL_PROVIDER === 'mock' &&
+    env.TICKET_PROVIDER === 'mock' &&
+    env.PAYMENT_PROVIDER === 'mock'
   const verification = new VerificationService(
     accountRepository,
     mail,
     now,
-    env.MAIL_PROVIDER === 'mock' ? () => '000000' : undefined,
+    fullyMock ? () => '000000' : undefined,
   )
   const accounts = new AccountService(accountRepository, customerGateway, verification, now)
-  if (env.MAIL_PROVIDER === 'mock' && env.PAYMENT_PROVIDER === 'infinitepay') {
-    app.log.warn('MAIL_PROVIDER=mock com pagamento real: o código de verificação é sempre 000000.')
+  if (
+    env.MAIL_PROVIDER === 'mock' &&
+    (env.TICKET_PROVIDER === 'live' || env.PAYMENT_PROVIDER === 'infinitepay')
+  ) {
+    app.log.warn(
+      'MAIL_PROVIDER=mock com provider real: códigos de verificação não são enviados; configure SMTP para habilitar login de cliente.',
+    )
   }
   if (
     env.TICKET_PROVIDER === 'live' &&

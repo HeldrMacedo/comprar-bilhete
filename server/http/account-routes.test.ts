@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app.js'
 import { parseServerEnv } from '../config/env.js'
+import { MockMailGateway } from '../domains/accounts/mock-mail-gateway.js'
+import { MockCustomerGateway } from '../domains/customers/mock-customer-gateway.js'
+import { MockTicketGateway } from '../domains/tickets/mock-ticket-gateway.js'
 
 const env = parseServerEnv({
   DATABASE_PATH: ':memory:',
@@ -138,6 +141,59 @@ describe('rotas de conta', () => {
     })
     expect(response.statusCode).toBe(409)
     expect(response.json()).toMatchObject({ code: 'ACCOUNT_EXISTS' })
+  })
+
+  it('com provider real e e-mail mock, o código não é o fixo de testes', async () => {
+    const mail = new MockMailGateway()
+    const tickets = new MockTicketGateway()
+    let clock = new Date('2026-10-16T12:00:00.000Z')
+    const app = await buildApp({
+      env: parseServerEnv({
+        DATABASE_PATH: ':memory:',
+        TICKET_PROVIDER: 'live',
+        PAYMENT_PROVIDER: 'mock',
+        MAIL_PROVIDER: 'mock',
+      }),
+      logger: false,
+      startWorker: false,
+      tickets,
+      contestAdmin: tickets,
+      customers: new MockCustomerGateway(),
+      mail,
+      now: () => clock,
+    })
+    apps.push(app)
+    // Dois pedidos: o código fixo repetiria 000000 nos dois; aleatórios quase nunca.
+    for (let request = 0; request < 2; request += 1) {
+      const codeResponse = await app.inject({
+        method: 'POST',
+        url: '/api/v1/account/codes',
+        payload: { purpose: 'first_access', cpf: '52998224725' },
+      })
+      expect(codeResponse.statusCode).toBe(202)
+      clock = new Date(clock.getTime() + 61_000)
+    }
+    const codes = mail.sent.map((item) => item.code)
+    expect(codes).toHaveLength(2)
+    expect(codes.every((code) => code === '000000')).toBe(false)
+    const sent = codes[1]
+    if (!sent) throw new Error('nenhum código enviado')
+
+    // Chance de 1 em 1 milhão de o código aleatório coincidir com o fixo.
+    if (sent !== '000000') {
+      const fixed = await app.inject({
+        method: 'POST',
+        url: '/api/v1/account/password',
+        payload: { cpf: '52998224725', code: '000000', password: 'senha-maria-1' },
+      })
+      expect(fixed.statusCode).toBe(400)
+    }
+    const valid = await app.inject({
+      method: 'POST',
+      url: '/api/v1/account/password',
+      payload: { cpf: '52998224725', code: sent, password: 'senha-maria-1' },
+    })
+    expect(valid.statusCode).toBe(200)
   })
 
   it('recusa escrita de outra origem', async () => {
