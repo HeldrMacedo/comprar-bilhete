@@ -23,6 +23,7 @@ function createGateway(records: ExternalCustomer[]) {
   const gateway: CustomerGateway = {
     findByCpf: async (cpf) => records.find((item) => item.cpf === cpf) ?? null,
     create,
+    register: async () => undefined,
   }
   return { gateway, create }
 }

@@ -41,6 +41,14 @@ export const resolvedCustomerSchema = customerInputSchema.extend({
   registrationStatus: z.enum(['existing', 'new']).default('existing'),
 })
 
+export type CustomerRegistration = {
+  name: string
+  cpf: string
+  phone: string
+  email: string | null
+  address?: Address
+  password: string
+}
 export type Address = z.infer<typeof addressSchema>
 export type CustomerInput = z.input<typeof customerInputSchema>
 export type NormalizedCustomerInput = z.output<typeof customerInputSchema>

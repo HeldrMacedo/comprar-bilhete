@@ -6,6 +6,7 @@ import type { CustomerGateway } from './customer-gateway.js'
 import {
   addressSchema,
   externalCustomerSchema,
+  type CustomerRegistration,
   type ExternalCustomer,
   type NormalizedCustomerInput,
 } from './customer-types.js'
@@ -56,6 +57,29 @@ export class LiveCustomerGateway implements CustomerGateway {
         bairro: customer.address?.neighborhood,
         cidade: customer.address?.city,
         uf: customer.address?.state,
+      }),
+    })
+  }
+
+  // Grava ou edita a pessoa; a API exige senha nos dois casos e substitui o cadastro inteiro.
+  async register(input: CustomerRegistration): Promise<void> {
+    requireTicketApiTls(this.baseUrl, this.allowHttp)
+    await fetchJson(`${this.baseUrl}/pessoa/cadastro`, mutationResponseSchema, {
+      method: 'POST',
+      body: JSON.stringify({
+        nome: input.name,
+        cpf: input.cpf,
+        senha: input.password,
+        confirma_senha: input.password,
+        email: input.email ?? '',
+        fone: input.phone,
+        cep: input.address?.zipCode,
+        endereco: input.address?.street,
+        numero: input.address?.number,
+        complemento: input.address?.complement,
+        bairro: input.address?.neighborhood,
+        cidade: input.address?.city,
+        uf: input.address?.state,
       }),
     })
   }

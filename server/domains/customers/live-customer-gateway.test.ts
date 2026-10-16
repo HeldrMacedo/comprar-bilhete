@@ -18,6 +18,41 @@ describe('LiveCustomerGateway', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('cadastra ou edita pessoa por POST /pessoa/cadastro com senha', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ success: true }, { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new LiveCustomerGateway('https://api.example.com')
+
+    await gateway.register({
+      name: 'Maria da Silva',
+      cpf: '52998224725',
+      phone: '84999855367',
+      email: 'maria@example.com',
+      address: {
+        zipCode: '59062300',
+        street: 'AVENIDA LIMA E SILVA',
+        number: '129',
+        neighborhood: 'NAZARE',
+        city: 'NATAL',
+        state: 'RN',
+      },
+      password: 'senha-segura',
+    })
+
+    const [url, init] = fetchMock.mock.calls[0] ?? []
+    expect(url).toBe('https://api.example.com/pessoa/cadastro')
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      nome: 'Maria da Silva',
+      cpf: '52998224725',
+      senha: 'senha-segura',
+      confirma_senha: 'senha-segura',
+      email: 'maria@example.com',
+      fone: '84999855367',
+      cep: '59062300',
+      cidade: 'NATAL',
+    })
+  })
+
   it('normalizes a person returned by CPF', async () => {
     vi.stubGlobal(
       'fetch',
