@@ -3,7 +3,7 @@ import { createDatabase } from '../../shared/database.js'
 import { AdminAuthService, SESSION_IDLE_MS, SESSION_MAX_MS } from './admin-auth-service.js'
 import { AdminRepository } from './admin-repository.js'
 import { AdminUserService } from './admin-user-service.js'
-import { hashPassword, verifyPassword } from './password.js'
+import { hashPassword, verifyPassword } from '../../shared/password.js'
 
 const PASSWORD = 'senha-segura-123'
 

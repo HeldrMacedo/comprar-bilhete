@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { DomainError } from '../../shared/errors.js'
 import type { AdminRepository } from './admin-repository.js'
 import { toAdminUser, type AdminUser } from './admin-types.js'
-import { hashPassword, verifyPassword } from './password.js'
+import { hashPassword, verifyPassword } from '../../shared/password.js'
 
 export const SESSION_IDLE_MS = 8 * 60 * 60_000
 export const SESSION_MAX_MS = 24 * 60 * 60_000

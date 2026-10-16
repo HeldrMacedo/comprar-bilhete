@@ -2,7 +2,7 @@ import { DomainError } from '../../shared/errors.js'
 import type { AdminRepository } from './admin-repository.js'
 import type { AdminSession } from './admin-auth-service.js'
 import { toAdminUser, type CreateAdminUserInput, type UpdateAdminUserInput } from './admin-types.js'
-import { hashPassword } from './password.js'
+import { hashPassword } from '../../shared/password.js'
 
 export class AdminUserService {
   constructor(
