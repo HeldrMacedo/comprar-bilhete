@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 7
+const CURRENT_SCHEMA_VERSION = 8
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -27,6 +27,7 @@ export function migrateDatabase(database: DatabaseSync) {
       if (version < 5) migrateToVersion5(database)
       if (version < 6) migrateToVersion6(database)
       if (version < 7) migrateToVersion7(database)
+      if (version < 8) migrateToVersion8(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -89,6 +90,7 @@ function createLatestSchema(database: DatabaseSync) {
   database.exec(ORDERS_CUSTOMER_CPF_INDEX)
   database.exec(BATCH_SEQUENCES_SCHEMA)
   database.exec(ADMIN_SCHEMA)
+  database.exec(ACCOUNT_SCHEMA)
 }
 
 function migrateToVersion2(database: DatabaseSync) {
@@ -243,4 +245,48 @@ function tableColumns(database: DatabaseSync, table: string) {
       ({ name }) => name,
     ),
   )
+}
+
+const ACCOUNT_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS customer_accounts (
+    cpf TEXT PRIMARY KEY,
+    external_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT NOT NULL,
+    address_json TEXT,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    password_changed_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS customer_sessions (
+    token_hash TEXT PRIMARY KEY,
+    cpf TEXT NOT NULL REFERENCES customer_accounts(cpf) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_customer_sessions_cpf ON customer_sessions(cpf);
+
+  CREATE TABLE IF NOT EXISTS verification_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cpf TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    email TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    created_by_admin_id TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_verification_codes_cpf ON verification_codes(cpf, purpose);
+`
+
+function migrateToVersion8(database: DatabaseSync) {
+  database.exec(ACCOUNT_SCHEMA)
 }
