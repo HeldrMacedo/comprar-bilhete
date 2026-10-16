@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { newPasswordFormSchema, signupFormSchema } from './account-forms'
+import { newPasswordFormSchema, noEmailFormSchema, signupFormSchema } from './account-forms'
 
 const signup = {
   name: 'Cliente Novo',
@@ -37,5 +37,20 @@ describe('formulários de conta', () => {
         confirmPassword: '1234567',
       }).success,
     ).toBe(false)
+  })
+
+  it('cadastro sem e-mail exige código, e-mail válido e senhas iguais', () => {
+    const noEmail = {
+      code: '482913',
+      email: ' Cliente@Example.com ',
+      password: 'senha-cliente-1',
+      confirmPassword: 'senha-cliente-1',
+    }
+    expect(noEmailFormSchema.parse(noEmail).email).toBe('cliente@example.com')
+    expect(noEmailFormSchema.safeParse({ ...noEmail, code: '12345' }).success).toBe(false)
+    expect(noEmailFormSchema.safeParse({ ...noEmail, email: 'cliente' }).success).toBe(false)
+    expect(noEmailFormSchema.safeParse({ ...noEmail, confirmPassword: 'outra-123' }).success).toBe(
+      false,
+    )
   })
 })

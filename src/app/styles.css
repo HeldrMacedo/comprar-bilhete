@@ -1066,6 +1066,57 @@ main {
   font-size: 13px;
 }
 
+.auth-flow,
+.auth-flow__form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-flow p {
+  margin: 0;
+}
+
+.auth-flow__title {
+  margin: 0;
+  color: var(--ink);
+  font:
+    800 21px Manrope,
+    sans-serif;
+  letter-spacing: -0.03em;
+}
+
+/* Foco programático ao trocar de etapa; o título não entra na ordem do Tab. */
+.auth-flow__title:focus {
+  outline: none;
+}
+
+.auth-flow__cpf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.auth-flow .text-button {
+  justify-self: start;
+  padding: 0;
+}
+
+.auth-flow .text-button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.code-step__resend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+}
+
 .order-summary {
   position: sticky;
   top: 94px;

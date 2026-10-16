@@ -68,6 +68,16 @@ export const newPasswordFormSchema = z
   .object({ code: codeField, password: passwordField, confirmPassword: z.string() })
   .superRefine(confirmMatches)
 
+// Cadastro na API sem e-mail: código do atendimento e o e-mail que passa a valer na conta.
+export const noEmailFormSchema = z
+  .object({
+    code: codeField,
+    email: emailField,
+    password: passwordField,
+    confirmPassword: z.string(),
+  })
+  .superRefine(confirmMatches)
+
 export const profileFormSchema = z.object({
   ...profileFields,
   currentPassword: z.string().min(1, 'Informe sua senha atual para salvar.'),
@@ -76,6 +86,9 @@ export const profileFormSchema = z.object({
 export type SignupForm = z.input<typeof signupFormSchema>
 export type SignupFormOutput = z.output<typeof signupFormSchema>
 export type NewPasswordForm = z.input<typeof newPasswordFormSchema>
+export type NoEmailForm = z.input<typeof noEmailFormSchema>
+export type NoEmailFormOutput = z.output<typeof noEmailFormSchema>
+export type AddressForm = z.input<typeof addressSchema>
 export type ProfileForm = z.input<typeof profileFormSchema>
 export type ProfileFormOutput = z.output<typeof profileFormSchema>
 
