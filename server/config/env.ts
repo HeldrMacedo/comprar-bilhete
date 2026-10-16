@@ -26,6 +26,16 @@ const serverEnvSchema = z
     INFINITEPAY_HANDLE: z.string().min(1).optional(),
     ADMIN_BOOTSTRAP_LOGIN: z.preprocess(emptyToUndefined, adminLoginSchema.optional()),
     ADMIN_BOOTSTRAP_PASSWORD: z.preprocess(emptyToUndefined, adminPasswordSchema.optional()),
+    MAIL_PROVIDER: z.enum(['mock', 'smtp']).default('mock'),
+    SMTP_HOST: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+    SMTP_PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+    SMTP_PASS: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+    MAIL_FROM: z.preprocess(emptyToUndefined, z.string().min(3).optional()),
   })
   .superRefine((env, context) => {
     if (env.PAYMENT_PROVIDER === 'infinitepay' && !env.INFINITEPAY_HANDLE) {
@@ -48,6 +58,23 @@ const serverEnvSchema = z
         path: ['ADMIN_BOOTSTRAP_PASSWORD'],
         message: 'ADMIN_BOOTSTRAP_LOGIN e ADMIN_BOOTSTRAP_PASSWORD devem ser informados juntos',
       })
+    }
+    if (env.MAIL_PROVIDER === 'smtp') {
+      for (const key of [
+        'SMTP_HOST',
+        'SMTP_PORT',
+        'SMTP_USER',
+        'SMTP_PASS',
+        'MAIL_FROM',
+      ] as const) {
+        if (!env[key]) {
+          context.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} é obrigatório com MAIL_PROVIDER=smtp`,
+          })
+        }
+      }
     }
     if (
       env.TICKET_RESERVATION_PROVIDER !== 'none' &&

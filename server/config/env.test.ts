@@ -39,3 +39,26 @@ it('exige prazo da reserva externa maior que a expiração do pedido', () => {
     }),
   ).toThrow()
 })
+
+it('usa e-mail mock por padrão', () => {
+  expect(parseServerEnv({}).MAIL_PROVIDER).toBe('mock')
+})
+
+it('exige configuração SMTP completa com MAIL_PROVIDER=smtp', () => {
+  expect(() => parseServerEnv({ MAIL_PROVIDER: 'smtp', SMTP_HOST: 'smtp.example.com' })).toThrow(
+    /SMTP_USER/,
+  )
+})
+
+it('aceita SMTP completo', () => {
+  const env = parseServerEnv({
+    MAIL_PROVIDER: 'smtp',
+    SMTP_HOST: 'smtp.example.com',
+    SMTP_PORT: '587',
+    SMTP_USER: 'user',
+    SMTP_PASS: 'pass',
+    MAIL_FROM: 'Sol da Sorte <nao-responda@example.com>',
+  })
+  expect(env.SMTP_PORT).toBe(587)
+  expect(env.SMTP_SECURE).toBe(false)
+})

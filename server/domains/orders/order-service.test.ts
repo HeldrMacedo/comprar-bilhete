@@ -30,6 +30,8 @@ const env: ServerEnv = {
   TICKET_RESERVATION_PROVIDER: 'none',
   TICKET_RESERVATION_TTL_MINUTES: 30,
   INFINITEPAY_API_BASE_URL: 'https://api.checkout.infinitepay.io',
+  MAIL_PROVIDER: 'mock',
+  SMTP_SECURE: false,
 }
 
 const apps: Awaited<ReturnType<typeof buildApp>>[] = []
