@@ -5,13 +5,16 @@ import { accountRepository } from '../repository/account-repository'
 
 export const accountKeys = { all: ['account'] as const, me: ['account', 'me'] as const }
 
-// 401 em qualquer chamada que exige sessão (conta ou Minhas compras) derruba a sessão local.
+// 401 UNAUTHENTICATED em chamada que exige sessão (conta ou Minhas compras) derruba a sessão local.
+// Outros 401 (ex.: senha atual errada, INVALID_CREDENTIALS) não encerram a sessão.
 export function handleAccountUnauthenticated(
   queryClient: QueryClient,
   error: unknown,
   queryKey: readonly unknown[] | undefined,
 ) {
-  if (!(error instanceof ApiError) || error.status !== 401) return
+  if (!(error instanceof ApiError) || error.status !== 401 || error.code !== 'UNAUTHENTICATED') {
+    return
+  }
   if (queryKey?.[0] !== accountKeys.all[0] && queryKey?.[0] !== 'purchases') return
   queryClient.setQueryData(accountKeys.me, null)
 }
