@@ -1,19 +1,31 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useForm, type FieldErrors, type UseFormRegister } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
-import { useCart } from '../features/cart/runtime/cart-context'
-import { isReservationConflict, startCheckout } from '../features/checkout/service/checkout-service'
+import type { Account } from '../features/account/domain/types'
 import {
-  customerSchema,
-  toCheckoutCustomer,
-  type CustomerForm,
-  type CustomerFormOutput,
-} from '../features/checkout/service/customer-schema'
-import { useCustomerLookup } from '../features/checkout/runtime/use-customer-lookup'
+  accountKeys,
+  handleAccountUnauthenticated,
+  useAccount,
+} from '../features/account/runtime/account-queries'
+import { AuthFlow } from '../features/account/ui/AuthFlow'
+import { useCart } from '../features/cart/runtime/cart-context'
+import {
+  isProfileIncomplete,
+  isReservationConflict,
+  startCheckout,
+} from '../features/checkout/service/checkout-service'
+import {
+  orderOptionsSchema,
+  toOrderOptions,
+  type OrderOptionsForm,
+  type OrderOptionsFormOutput,
+} from '../features/checkout/service/order-options'
 import { formatCurrency } from '../shared/lib/currency'
-import { formatCpf, formatPhone, onlyDigits } from '../shared/lib/forms'
+import { formatCpf, formatPhone } from '../shared/lib/forms'
+import { ErrorState } from '../shared/ui/ErrorState'
 import { Spinner } from '../shared/ui/Spinner'
 import { TicketNumbers } from '../shared/ui/TicketNumbers'
 
@@ -28,6 +40,8 @@ export function CartPage() {
     clearCart,
   } = useCart()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const account = useAccount()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const {
@@ -36,48 +50,16 @@ export function CartPage() {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<CustomerForm, unknown, CustomerFormOutput>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: {
-      name: '',
-      cpf: '',
-      phone: '',
-      email: '',
-      address: {
-        zipCode: '',
-        street: '',
-        number: '',
-        complement: '',
-        neighborhood: '',
-        city: '',
-        state: '',
-      },
-      buyingForThirdParty: false,
-      beneficiaryName: '',
-    },
+  } = useForm<OrderOptionsForm, unknown, OrderOptionsFormOutput>({
+    resolver: zodResolver(orderOptionsSchema),
+    defaultValues: { email: '', buyingForThirdParty: false, beneficiaryName: '' },
   })
-  const cpf = watch('cpf')
   const buyingForThirdParty = watch('buyingForThirdParty')
-  const lookup = useCustomerLookup({ cpf })
-  const isNewCustomer = lookup.data?.found === false
+  const accountEmail = account.data?.email
 
   useEffect(() => {
-    if (!lookup.data?.found) return
-    const customer = lookup.data.customer
-    if (customer.name) setValue('name', customer.name, { shouldValidate: true })
-    if (customer.cpf) setValue('cpf', formatCpf(customer.cpf), { shouldValidate: true })
-    if (customer.phone) setValue('phone', formatPhone(customer.phone), { shouldValidate: true })
-    if (customer.email) setValue('email', customer.email, { shouldValidate: true })
-    if (customer.address) {
-      setValue('address.zipCode', customer.address.zipCode)
-      setValue('address.street', customer.address.street)
-      setValue('address.number', customer.address.number)
-      setValue('address.complement', customer.address.complement)
-      setValue('address.neighborhood', customer.address.neighborhood)
-      setValue('address.city', customer.address.city)
-      setValue('address.state', customer.address.state)
-    }
-  }, [lookup.data, setValue])
+    if (accountEmail) setValue('email', accountEmail)
+  }, [accountEmail, setValue])
 
   if (checkoutUrl) {
     return (
@@ -106,16 +88,12 @@ export function CartPage() {
     )
   }
 
-  async function onSubmit(customer: CustomerFormOutput) {
+  async function onSubmit(options: OrderOptionsFormOutput) {
     if (!cart) return
-    if (!lookup.data && onlyDigits(cpf).length === 11) {
-      setSubmitError('Aguarde a consulta do cadastro antes de continuar.')
-      return
-    }
     const currentCart = cart
     setSubmitError(null)
     try {
-      const { checkout } = await startCheckout(currentCart, toCheckoutCustomer(customer))
+      const { checkout } = await startCheckout(currentCart, toOrderOptions(options))
       // O pedido já existe no backend; o carrinho não pode sobreviver para gerar outra compra.
       setCheckoutUrl(checkout.checkoutUrl)
       clearCart()
@@ -126,6 +104,10 @@ export function CartPage() {
         navigate('/', { state: { notice: 'Os bilhetes selecionadas não estão mais disponíveis.' } })
         return
       }
+      // Sessão expirada: zera a conta em cache para o fluxo de entrar voltar no lugar do formulário.
+      handleAccountUnauthenticated(queryClient, error, accountKeys.me)
+      // Cadastro incompleto no servidor: recarrega a conta para mostrar o pedido de completar dados.
+      if (isProfileIncomplete(error)) void account.refetch()
       setSubmitError(
         error instanceof Error ? error.message : 'Nao foi possivel iniciar o pagamento.',
       )
@@ -227,73 +209,43 @@ export function CartPage() {
             ))}
           </section>
 
-          <form
-            id="customer-form"
-            className="surface form-surface"
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-          >
-            <div className="surface__header">
-              <div>
-                <span className="surface__label">Dados do participante</span>
-                <h2>Dados do comprador</h2>
+          {account.isPending ? (
+            <section className="surface">
+              <Spinner label="Verificando sua conta" />
+            </section>
+          ) : account.isError ? (
+            <ErrorState message={account.error.message} onRetry={() => void account.refetch()} />
+          ) : !account.data ? (
+            <section className="surface form-surface">
+              <AuthFlow
+                title="Entre ou cadastre-se para finalizar"
+                onAuthenticated={() => setSubmitError(null)}
+              />
+            </section>
+          ) : !account.data.complete ? (
+            <section className="surface form-surface">
+              <p>Seu cadastro está incompleto. Complete endereço e celular para comprar.</p>
+              <Link className="button button--primary" to="/minha-conta?next=/carrinho">
+                Completar meus dados
+              </Link>
+            </section>
+          ) : (
+            <form
+              id="customer-form"
+              className="surface form-surface"
+              onSubmit={handleSubmit(onSubmit)}
+              noValidate
+            >
+              <div className="surface__header">
+                <div>
+                  <span className="surface__label">Dados do participante</span>
+                  <h2>Dados do comprador</h2>
+                </div>
+                <Link className="text-button" to="/minha-conta?next=/carrinho">
+                  Editar
+                </Link>
               </div>
-            </div>
-            <div className="form-row">
-              <div className="field">
-                <label htmlFor="cpf">CPF</label>
-                <input
-                  id="cpf"
-                  inputMode="numeric"
-                  {...register('cpf')}
-                  onChange={(event) =>
-                    setValue('cpf', formatCpf(event.target.value), { shouldValidate: true })
-                  }
-                  aria-invalid={!!errors.cpf}
-                />
-                {errors.cpf ? <small role="alert">{errors.cpf.message}</small> : null}
-              </div>
-              <div className="field">
-                <label htmlFor="phone">Celular com DDD</label>
-                <input
-                  id="phone"
-                  type="tel"
-                  {...register('phone')}
-                  onChange={(event) =>
-                    setValue('phone', formatPhone(event.target.value), { shouldValidate: true })
-                  }
-                  aria-invalid={!!errors.phone}
-                />
-                {errors.phone ? <small role="alert">{errors.phone.message}</small> : null}
-              </div>
-            </div>
-            <div aria-live="polite" className="lookup-status">
-              {lookup.isFetching
-                ? 'Buscando cadastro...'
-                : lookup.isError
-                  ? 'Nao foi possivel consultar. Tente novamente.'
-                  : lookup.data?.found
-                    ? 'Cliente encontrado'
-                    : isNewCustomer
-                      ? 'Complete seu endereco'
-                      : null}
-              {lookup.isError ? (
-                <button type="button" onClick={() => void lookup.refetch()}>
-                  Tentar novamente
-                </button>
-              ) : null}
-            </div>
-            <div className="form-row">
-              <div className="field">
-                <label htmlFor="name">Nome completo</label>
-                <input
-                  id="name"
-                  autoComplete="name"
-                  {...register('name')}
-                  aria-invalid={!!errors.name}
-                />
-                {errors.name ? <small role="alert">{errors.name.message}</small> : null}
-              </div>
+              <AccountSummary account={account.data} />
               <div className="field">
                 <label htmlFor="email">Email</label>
                 <input
@@ -306,40 +258,39 @@ export function CartPage() {
                 />
                 {errors.email ? <small role="alert">{errors.email.message}</small> : null}
               </div>
-            </div>
-            <label className="checkbox-field" htmlFor="buyingForThirdParty">
-              <input
-                id="buyingForThirdParty"
-                type="checkbox"
-                {...register('buyingForThirdParty')}
-              />
-              Estou comprando para outra pessoa
-            </label>
-            {buyingForThirdParty ? (
-              <div className="field">
-                <label htmlFor="beneficiaryName">Nome de quem vai concorrer</label>
+              <label className="checkbox-field" htmlFor="buyingForThirdParty">
                 <input
-                  id="beneficiaryName"
-                  autoComplete="off"
-                  {...register('beneficiaryName')}
-                  aria-invalid={!!errors.beneficiaryName}
+                  id="buyingForThirdParty"
+                  type="checkbox"
+                  {...register('buyingForThirdParty')}
                 />
-                {errors.beneficiaryName ? (
-                  <small role="alert">{errors.beneficiaryName.message}</small>
-                ) : null}
-              </div>
-            ) : null}
-            <AddressFields register={register} errors={errors} />
-            <p className="privacy-note">
-              <LockKeyhole size={16} /> Seus dados sao usados apenas para identificar a compra e o
-              ganhador.
-            </p>
-            {submitError ? (
-              <div className="inline-error" role="alert">
-                {submitError}
-              </div>
-            ) : null}
-          </form>
+                Estou comprando para outra pessoa
+              </label>
+              {buyingForThirdParty ? (
+                <div className="field">
+                  <label htmlFor="beneficiaryName">Nome de quem vai concorrer</label>
+                  <input
+                    id="beneficiaryName"
+                    autoComplete="off"
+                    {...register('beneficiaryName')}
+                    aria-invalid={!!errors.beneficiaryName}
+                  />
+                  {errors.beneficiaryName ? (
+                    <small role="alert">{errors.beneficiaryName.message}</small>
+                  ) : null}
+                </div>
+              ) : null}
+              <p className="privacy-note">
+                <LockKeyhole size={16} /> Seus dados sao usados apenas para identificar a compra e o
+                ganhador.
+              </p>
+              {submitError ? (
+                <div className="inline-error" role="alert">
+                  {submitError}
+                </div>
+              ) : null}
+            </form>
+          )}
         </div>
 
         <aside className="order-summary surface">
@@ -356,20 +307,22 @@ export function CartPage() {
             <span>Total</span>
             <strong>{formatCurrency(totalInCents)}</strong>
           </div>
-          <button
-            className="button button--primary button--full"
-            form="customer-form"
-            type="submit"
-            disabled={isSubmitting || lookup.isFetching || lookup.isError}
-          >
-            {isSubmitting ? (
-              <Spinner label="Preparando..." />
-            ) : (
-              <>
-                Continuar para o Pix <ArrowRight size={19} />
-              </>
-            )}
-          </button>
+          {account.data?.complete ? (
+            <button
+              className="button button--primary button--full"
+              form="customer-form"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Spinner label="Preparando..." />
+              ) : (
+                <>
+                  Continuar para o Pix <ArrowRight size={19} />
+                </>
+              )}
+            </button>
+          ) : null}
           <div className="safe-payment">
             <ShieldCheck size={20} />
             <span>
@@ -382,102 +335,32 @@ export function CartPage() {
   )
 }
 
-function AddressFields({
-  register,
-  errors,
-}: {
-  register: UseFormRegister<CustomerForm>
-  errors: FieldErrors<CustomerForm>
-}) {
+function AccountSummary({ account }: { account: Account }) {
+  const address = account.address
   return (
-    <div className="address-fields">
-      <h3>Endereco</h3>
-      <div className="form-row">
-        <Field
-          label="CEP"
-          id="address.zipCode"
-          register={register}
-          error={errors.address?.zipCode?.message}
-        />
-        <Field
-          label="Endereco"
-          id="address.street"
-          register={register}
-          error={errors.address?.street?.message}
-        />
+    <dl className="account-summary">
+      <div>
+        <dt>Nome</dt>
+        <dd>{account.name}</dd>
       </div>
-      <div className="form-row">
-        <Field
-          label="Numero"
-          id="address.number"
-          register={register}
-          error={errors.address?.number?.message}
-        />
-        <Field
-          label="Complemento"
-          id="address.complement"
-          register={register}
-          error={errors.address?.complement?.message}
-          required={false}
-        />
+      <div>
+        <dt>CPF</dt>
+        <dd>{formatCpf(account.cpf)}</dd>
       </div>
-      <div className="form-row">
-        <Field
-          label="Bairro"
-          id="address.neighborhood"
-          register={register}
-          error={errors.address?.neighborhood?.message}
-        />
-        <Field
-          label="Cidade"
-          id="address.city"
-          register={register}
-          error={errors.address?.city?.message}
-        />
+      <div>
+        <dt>Celular</dt>
+        <dd>{formatPhone(account.phone)}</dd>
       </div>
-      <Field
-        label="UF"
-        id="address.state"
-        register={register}
-        error={errors.address?.state?.message}
-      />
-    </div>
-  )
-}
-
-type AddressField =
-  | 'address.zipCode'
-  | 'address.street'
-  | 'address.number'
-  | 'address.complement'
-  | 'address.neighborhood'
-  | 'address.city'
-  | 'address.state'
-
-function Field({
-  label,
-  id,
-  register,
-  error,
-  required = true,
-}: {
-  label: string
-  id: AddressField
-  register: UseFormRegister<CustomerForm>
-  error?: string
-  required?: boolean
-}) {
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        required={required}
-        maxLength={id === 'address.state' ? 2 : undefined}
-        {...register(id)}
-        aria-invalid={!!error}
-      />
-      {error ? <small role="alert">{error}</small> : null}
-    </div>
+      {address ? (
+        <div>
+          <dt>Endereço</dt>
+          <dd>
+            {address.street}, {address.number}
+            {address.complement ? ` - ${address.complement}` : ''} - {address.neighborhood},{' '}
+            {address.city}/{address.state}
+          </dd>
+        </div>
+      ) : null}
+    </dl>
   )
 }

@@ -2,12 +2,15 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { handleAccountUnauthenticated } from '../features/account/runtime/account-queries'
+import { RequireAccount } from '../features/account/ui/RequireAccount'
 import { handleAdminUnauthenticated } from '../features/admin/runtime/admin-queries'
 import { CartProvider } from '../features/cart/runtime/CartProvider'
 import { Spinner } from '../shared/ui/Spinner'
 import { AppLayout } from './AppLayout'
+import { AccountPage } from '../pages/AccountPage'
 import { CartPage } from '../pages/CartPage'
 import { HomePage } from '../pages/HomePage'
+import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { PaymentPage } from '../pages/PaymentPage'
 import { PurchasesPage } from '../pages/PurchasesPage'
@@ -50,7 +53,23 @@ export function App() {
               <Route index element={<HomePage />} />
               <Route path="carrinho" element={<CartPage />} />
               <Route path="pagamento" element={<PaymentPage />} />
-              <Route path="minhas-compras" element={<PurchasesPage />} />
+              <Route path="entrar" element={<LoginPage />} />
+              <Route
+                path="minha-conta"
+                element={
+                  <RequireAccount>
+                    <AccountPage />
+                  </RequireAccount>
+                }
+              />
+              <Route
+                path="minhas-compras"
+                element={
+                  <RequireAccount>
+                    <PurchasesPage />
+                  </RequireAccount>
+                }
+              />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

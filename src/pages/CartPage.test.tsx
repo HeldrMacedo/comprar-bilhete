@@ -3,9 +3,12 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Account } from '../features/account/domain/types'
+import { accountRepository } from '../features/account/repository/account-repository'
 import { CartProvider } from '../features/cart/runtime/CartProvider'
-import { CartPage } from './CartPage'
 import type { Cart } from '../features/cart/domain/types'
+import { checkoutRepository } from '../features/checkout/repository/checkout-repository'
+import { CartPage } from './CartPage'
 
 const cart: Cart = {
   entries: [
@@ -27,8 +30,17 @@ const cart: Cart = {
   ],
 }
 
-vi.mock('../features/checkout/repository/customer-repository', () => ({
-  customerRepository: { lookup: vi.fn() },
+vi.mock('../features/account/repository/account-repository', () => ({
+  accountRepository: {
+    getMe: vi.fn(),
+    identify: vi.fn(),
+    requestCode: vi.fn(),
+    login: vi.fn(),
+    register: vi.fn(),
+    setPassword: vi.fn(),
+    updateProfile: vi.fn(),
+    logout: vi.fn(),
+  },
 }))
 
 vi.mock('../features/checkout/repository/checkout-repository', () => ({
@@ -39,16 +51,24 @@ vi.mock('../features/checkout/repository/checkout-repository', () => ({
   },
 }))
 
-const mariaAddress = {
+const address = {
   zipCode: '59062300',
-  street: 'Avenida Lima e Silva',
+  street: 'AVENIDA LIMA E SILVA',
   number: '129',
-  neighborhood: 'Nazare',
-  city: 'Natal',
+  neighborhood: 'NAZARE',
+  city: 'NATAL',
   state: 'RN',
 }
 
-function renderCartPage(initialCart: Cart = cart) {
+const account: Account = {
+  cpf: '52998224725',
+  name: 'Maria da Silva',
+  email: 'maria@example.com',
+  phone: '84999855367',
+  complete: true,
+}
+
+function renderCart(initialCart: Cart = cart) {
   localStorage.setItem('bilhete-da-sorte:cart:v3', JSON.stringify(initialCart))
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -59,6 +79,7 @@ function renderCartPage(initialCart: Cart = cart) {
         <CartProvider>
           <Routes>
             <Route path="/carrinho" element={<CartPage />} />
+            <Route path="/" element={<h1>Início</h1>} />
           </Routes>
         </CartProvider>
       </QueryClientProvider>
@@ -70,128 +91,101 @@ describe('CartPage', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
+    vi.mocked(accountRepository.getMe).mockResolvedValue({ ...account, address })
   })
 
   afterEach(cleanup)
 
-  it('consulta pelo CPF, preenche cliente existente e mantém telefone ausente editável', async () => {
-    const { customerRepository } =
-      await import('../features/checkout/repository/customer-repository')
-    vi.mocked(customerRepository.lookup).mockResolvedValue({
-      found: true,
-      customer: {
-        externalId: '2015',
-        name: 'Maria da Silva',
-        cpf: '52998224725',
-        phone: '',
-      },
-    })
-    renderCartPage()
-    expect(screen.getByRole('heading', { name: 'Sorteio de Quarta' })).toBeVisible()
-    expect(screen.getByRole('heading', { name: 'Sorteio de Domingo' })).toBeVisible()
-    expect(screen.getAllByText('R$ 16,00')[0]).toBeVisible()
-    await userEvent.type(screen.getByLabelText('CPF'), '52998224725')
-    expect(await screen.findByText('Cliente encontrado')).toBeVisible()
-    expect(screen.getByLabelText('Nome completo')).toHaveValue('Maria da Silva')
-    expect(screen.getByLabelText('CPF')).toBeEnabled()
-    expect(screen.getByLabelText('Celular com DDD')).toHaveValue('')
-    expect(customerRepository.lookup).toHaveBeenCalledWith(
-      { cpf: '52998224725' },
-      expect.anything(),
-    )
-    expect(screen.getByLabelText('CEP')).toBeRequired()
+  it('sem sessão mostra o fluxo de entrar no lugar dos dados do comprador', async () => {
+    vi.mocked(accountRepository.getMe).mockResolvedValue(null)
+    renderCart()
+    expect(await screen.findByLabelText('CPF', { exact: true })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /continuar para o pix/i })).not.toBeInTheDocument()
   })
 
-  it('mostra endereco do cliente existente para revisao e envia a alteracao', async () => {
-    const { customerRepository } =
-      await import('../features/checkout/repository/customer-repository')
-    const { checkoutRepository } =
-      await import('../features/checkout/repository/checkout-repository')
-    vi.mocked(customerRepository.lookup).mockResolvedValue({
-      found: true,
-      customer: {
-        externalId: '2015',
-        name: 'Maria da Silva',
-        cpf: '52998224725',
-        phone: '84999855367',
-        address: mariaAddress,
-      },
-    })
+  it('com sessão mostra o resumo da conta e cria o pedido sem dados pessoais no corpo', async () => {
+    vi.mocked(accountRepository.getMe).mockResolvedValue({ ...account, address })
     vi.mocked(checkoutRepository.createOrder).mockRejectedValue(new Error('parar aqui'))
-    renderCartPage()
-    await userEvent.type(screen.getByLabelText('CPF'), '52998224725')
-    expect(await screen.findByText('Cliente encontrado')).toBeVisible()
-    expect(screen.getByLabelText('Endereco')).toHaveValue('Avenida Lima e Silva')
-
-    await userEvent.clear(screen.getByLabelText('Numero'))
-    await userEvent.type(screen.getByLabelText('Numero'), '45')
-    await userEvent.click(screen.getByRole('button', { name: /continuar para o pix/i }))
-    await vi.waitFor(() => expect(checkoutRepository.createOrder).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(checkoutRepository.createOrder).mock.calls[0]?.[0].customer.address).toEqual(
-      expect.objectContaining({ street: 'AVENIDA LIMA E SILVA', number: '45' }),
+    renderCart()
+    expect(await screen.findByText('Maria da Silva')).toBeVisible()
+    expect(screen.getByText('529.982.247-25')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Editar' })).toHaveAttribute(
+      'href',
+      '/minha-conta?next=/carrinho',
     )
+    expect(screen.getByLabelText('Email')).toHaveValue('maria@example.com')
+    await userEvent.click(screen.getByRole('button', { name: /continuar para o pix/i }))
+    expect(checkoutRepository.createOrder).toHaveBeenCalledWith({
+      raffles: expect.any(Array),
+      email: 'maria@example.com',
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('parar aqui')
   })
 
-  it('mostra endereco obrigatorio para novo cliente', async () => {
-    const { customerRepository } =
-      await import('../features/checkout/repository/customer-repository')
-    vi.mocked(customerRepository.lookup).mockResolvedValue({ found: false })
-    renderCartPage()
-    await userEvent.type(screen.getByLabelText('CPF'), '11144477735')
-    expect((await screen.findAllByText('Complete seu endereco'))[0]).toBeVisible()
-    expect(screen.getByLabelText('CEP')).toBeRequired()
-  })
-
-  it('mostra CPF e celular antes do nome', () => {
-    renderCartPage()
-    const inputs = screen.getAllByRole('textbox').map((input) => input.id)
-    expect(inputs.slice(0, 3)).toEqual(['cpf', 'phone', 'name'])
+  it('conta incompleta pede para completar o cadastro', async () => {
+    vi.mocked(accountRepository.getMe).mockResolvedValue({ ...account, complete: false })
+    renderCart()
+    expect(await screen.findByRole('link', { name: /completar meus dados/i })).toHaveAttribute(
+      'href',
+      '/minha-conta?next=/carrinho',
+    )
+    expect(screen.queryByRole('button', { name: /continuar para o pix/i })).not.toBeInTheDocument()
   })
 
   it('pede o nome do terceiro somente quando a compra é para outra pessoa', async () => {
-    const { customerRepository } =
-      await import('../features/checkout/repository/customer-repository')
-    const { checkoutRepository } =
-      await import('../features/checkout/repository/checkout-repository')
-    vi.mocked(customerRepository.lookup).mockResolvedValue({
-      found: true,
-      customer: {
-        externalId: '2015',
-        name: 'Maria da Silva',
-        cpf: '52998224725',
-        phone: '84999855367',
-        address: mariaAddress,
-      },
-    })
     vi.mocked(checkoutRepository.createOrder).mockRejectedValue(new Error('parar aqui'))
-    renderCartPage()
+    renderCart()
+    expect(await screen.findByText('Maria da Silva')).toBeVisible()
     expect(screen.queryByLabelText('Nome de quem vai concorrer')).not.toBeInTheDocument()
 
-    await userEvent.type(screen.getByLabelText('CPF'), '52998224725')
-    expect(await screen.findByText('Cliente encontrado')).toBeVisible()
     await userEvent.click(screen.getByLabelText('Estou comprando para outra pessoa'))
     await userEvent.click(screen.getByRole('button', { name: /continuar para o pix/i }))
     expect(await screen.findByText('Informe o nome completo de quem vai concorrer.')).toBeVisible()
+    expect(checkoutRepository.createOrder).not.toHaveBeenCalled()
 
     await userEvent.type(screen.getByLabelText('Nome de quem vai concorrer'), 'João Terceiro')
     await userEvent.click(screen.getByRole('button', { name: /continuar para o pix/i }))
     await vi.waitFor(() => expect(checkoutRepository.createOrder).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(checkoutRepository.createOrder).mock.calls[0]?.[0].customer).toEqual({
-      name: 'Maria da Silva',
-      cpf: '52998224725',
-      phone: '+5584999855367',
-      address: {
-        ...mariaAddress,
-        street: 'AVENIDA LIMA E SILVA',
-        neighborhood: 'NAZARE',
-        city: 'NATAL',
-      },
+    expect(checkoutRepository.createOrder).toHaveBeenCalledWith({
+      raffles: expect.any(Array),
+      email: 'maria@example.com',
       beneficiaryName: 'João Terceiro',
     })
   })
 
+  it('sessão expirada ao criar o pedido volta para o fluxo de entrar', async () => {
+    const { ApiError } = await import('../shared/api/http-client')
+    vi.mocked(checkoutRepository.createOrder).mockRejectedValue(
+      new ApiError('Entre na sua conta para continuar.', 401, 'UNAUTHENTICATED'),
+    )
+    renderCart()
+    await userEvent.click(await screen.findByRole('button', { name: /continuar para o pix/i }))
+    expect(await screen.findByLabelText('CPF', { exact: true })).toBeVisible()
+    expect(screen.queryByRole('button', { name: /continuar para o pix/i })).not.toBeInTheDocument()
+
+    vi.mocked(accountRepository.identify).mockResolvedValue({ status: 'account' })
+    vi.mocked(accountRepository.login).mockResolvedValue({ ...account, address })
+    await userEvent.type(screen.getByLabelText('CPF', { exact: true }), '52998224725')
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+    await userEvent.type(await screen.findByLabelText('Senha'), 'senha-maria-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+    expect(await screen.findByRole('button', { name: /continuar para o pix/i })).toBeVisible()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('volta ao início e esvazia o carrinho quando os bilhetes não estão mais disponíveis', async () => {
+    const { ApiError } = await import('../shared/api/http-client')
+    vi.mocked(checkoutRepository.createOrder).mockRejectedValue(
+      new ApiError('Bilhete reservado.', 409, 'TICKET_RESERVED'),
+    )
+    renderCart()
+    await userEvent.click(await screen.findByRole('button', { name: /continuar para o pix/i }))
+    expect(await screen.findByRole('heading', { name: 'Início' })).toBeVisible()
+    expect(localStorage.getItem('bilhete-da-sorte:cart:v3')).toBeNull()
+  })
+
   it('diminui a quantidade da surpresinha sem passar de um bilhete', async () => {
-    renderCartPage()
+    renderCart()
     const decrease = screen.getByRole('button', {
       name: 'Diminuir quantidade de Sorteio de Domingo',
     })
@@ -203,7 +197,7 @@ describe('CartPage', () => {
       cart.entries[0]!,
       { ...cart.entries[1]!, selection: { mode: 'random' as const, quantity: 3 } },
     ]
-    renderCartPage({ entries })
+    renderCart({ entries })
     await userEvent.click(
       screen.getByRole('button', { name: 'Diminuir quantidade de Sorteio de Domingo' }),
     )
@@ -212,7 +206,9 @@ describe('CartPage', () => {
   })
 
   it('remove a surpresinha e esvazia o carrinho', async () => {
-    renderCartPage()
+    renderCart()
+    expect(screen.getByRole('heading', { name: 'Sorteio de Quarta' })).toBeVisible()
+    expect(screen.getAllByText('R$ 16,00')[0]).toBeVisible()
     await userEvent.click(
       screen.getByRole('button', { name: 'Remover bilhetes de Sorteio de Domingo' }),
     )
@@ -225,20 +221,6 @@ describe('CartPage', () => {
   })
 
   it('esvazia o carrinho ao entregar o pedido para o pagamento', async () => {
-    const { customerRepository } =
-      await import('../features/checkout/repository/customer-repository')
-    const { checkoutRepository } =
-      await import('../features/checkout/repository/checkout-repository')
-    vi.mocked(customerRepository.lookup).mockResolvedValue({
-      found: true,
-      customer: {
-        externalId: '2015',
-        name: 'Maria da Silva',
-        cpf: '52998224725',
-        phone: '84999855367',
-        address: mariaAddress,
-      },
-    })
     vi.mocked(checkoutRepository.createOrder).mockResolvedValue({
       id: 'order-1',
       status: 'pending',
@@ -255,10 +237,8 @@ describe('CartPage', () => {
     })
 
     try {
-      renderCartPage()
-      await userEvent.type(screen.getByLabelText('CPF'), '52998224725')
-      expect(await screen.findByText('Cliente encontrado')).toBeVisible()
-      await userEvent.click(screen.getByRole('button', { name: /continuar para o pix/i }))
+      renderCart()
+      await userEvent.click(await screen.findByRole('button', { name: /continuar para o pix/i }))
 
       await vi.waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.example/pix'))
       expect(localStorage.getItem('bilhete-da-sorte:cart:v3')).toBeNull()

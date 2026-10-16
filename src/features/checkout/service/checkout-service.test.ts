@@ -1,13 +1,13 @@
 import { expect, it, vi } from 'vitest'
 import type { Cart } from '../../cart/domain/types'
 import { checkoutRepository } from '../repository/checkout-repository'
-import { startCheckout } from './checkout-service'
+import { isProfileIncomplete, startCheckout } from './checkout-service'
 
 vi.mock('../repository/checkout-repository', () => ({
   checkoutRepository: { createOrder: vi.fn(), createCheckout: vi.fn() },
 }))
 
-it('envia as seleções de cada sorteio para um único pedido', async () => {
+it('envia as seleções de cada sorteio para um único pedido, sem dados do cliente', async () => {
   const cart: Cart = {
     entries: [
       {
@@ -36,11 +36,7 @@ it('envia as seleções de cada sorteio para um único pedido', async () => {
     checkoutUrl: 'https://checkout.example',
   })
 
-  await startCheckout(cart, {
-    name: 'Maria da Silva',
-    cpf: '529.982.247-25',
-    phone: '(84) 99985-5367',
-  })
+  await startCheckout(cart, { email: 'maria@example.com', beneficiaryName: 'João Terceiro' })
 
   expect(checkoutRepository.createOrder).toHaveBeenCalledWith({
     raffles: [
@@ -55,7 +51,16 @@ it('envia as seleções de cada sorteio para um único pedido', async () => {
         selection: { mode: 'random', quantity: 2 },
       },
     ],
-    customer: { name: 'Maria da Silva', cpf: '52998224725', phone: '+5584999855367' },
+    email: 'maria@example.com',
+    beneficiaryName: 'João Terceiro',
   })
   expect(checkoutRepository.createCheckout).toHaveBeenCalledTimes(1)
+})
+
+it('reconhece o pedido recusado por cadastro incompleto', async () => {
+  const { ApiError } = await import('../../../shared/api/http-client')
+  expect(isProfileIncomplete(new ApiError('Complete seus dados.', 400, 'PROFILE_INCOMPLETE'))).toBe(
+    true,
+  )
+  expect(isProfileIncomplete(new ApiError('Reservado.', 409, 'TICKET_RESERVED'))).toBe(false)
 })

@@ -1,8 +1,4 @@
 export const apiRoutes = {
-  customerLookup(criteria: { cpf: string }) {
-    const query = new URLSearchParams({ cpf: criteria.cpf })
-    return `/v1/customers/lookup?${query.toString()}`
-  },
   accountIdentify: '/v1/account/identify',
   accountCodes: '/v1/account/codes',
   accountLogin: '/v1/account/login',

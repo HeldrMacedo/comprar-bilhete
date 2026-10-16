@@ -1,20 +1,10 @@
-import { ReceiptText, ShoppingBag } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { ShoppingBag } from 'lucide-react'
+import { Link, Outlet } from 'react-router-dom'
+import { AccountMenu } from '../features/account/ui/AccountMenu'
 import { useCart } from '../features/cart/runtime/cart-context'
-import { formatCpf, isValidCpf, onlyDigits } from '../shared/lib/forms'
 
 export function AppLayout() {
   const { itemCount } = useCart()
-  const navigate = useNavigate()
-  const [cpf, setCpf] = useState('')
-
-  function openPurchases(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    // CPF vai por history.state para não ficar na URL; sem CPF válido a página pede o dado.
-    navigate('/minhas-compras', isValidCpf(cpf) ? { state: { cpf: onlyDigits(cpf) } } : {})
-    setCpf('')
-  }
 
   return (
     <div className="app-shell">
@@ -29,20 +19,7 @@ export function AppLayout() {
           />
         </Link>
         <div className="site-header__actions">
-          <form className="purchase-search" role="search" onSubmit={openPurchases}>
-            <input
-              aria-label="CPF para consultar compras"
-              placeholder="Seu CPF"
-              inputMode="numeric"
-              autoComplete="off"
-              value={cpf}
-              onChange={(event) => setCpf(formatCpf(event.target.value))}
-            />
-            <button type="submit" className="cart-link" aria-label="Minhas compras">
-              <ReceiptText size={20} aria-hidden="true" />
-              <span className="cart-link__label">Minhas compras</span>
-            </button>
-          </form>
+          <AccountMenu />
           <Link
             className="cart-link"
             to="/carrinho"
