@@ -28,5 +28,5 @@ export type Purchase = Omit<Order, 'items'> & {
 export type PurchaseStatus = PaymentStatus
 
 export interface PurchaseRepository {
-  lookupByCpf(cpf: string, signal?: AbortSignal): Promise<Purchase[]>
+  listMine(signal?: AbortSignal): Promise<Purchase[]>
 }

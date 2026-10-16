@@ -52,6 +52,8 @@ export type PageResult<Key extends string, Row> = PageRequest & { total: number 
     Row[]
   >
 
+export type CustomerAccessCode = { code: string; expiresAt: string }
+
 export type CustomerSummary = {
   cpf: string
   name: string
@@ -149,6 +151,7 @@ export interface AdminRepository {
     signal?: AbortSignal,
   ): Promise<PageResult<'customers', CustomerSummary>>
   exportCustomers(filters: CustomerFilters): Promise<DownloadedFile>
+  issueCustomerAccessCode(cpf: string): Promise<CustomerAccessCode>
   getDashboard(signal?: AbortSignal): Promise<DashboardSummary>
   listRaffles(signal?: AbortSignal): Promise<ContestSlot[]>
   updateRaffle(source: ContestSource, values: ContestValues): Promise<ContestSlot>

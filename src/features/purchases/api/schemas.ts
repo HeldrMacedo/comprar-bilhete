@@ -27,4 +27,4 @@ export const purchaseSchema = orderSchema.extend({
   customer: purchaseCustomerSchema.optional(),
 })
 
-export const purchaseLookupSchema = z.object({ orders: z.array(purchaseSchema) })
+export const purchaseListSchema = z.object({ orders: z.array(purchaseSchema) })

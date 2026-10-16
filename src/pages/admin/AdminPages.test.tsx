@@ -33,6 +33,7 @@ vi.mock('../../features/admin/repository/admin-repository', () => ({
     exportOrders: vi.fn(),
     listCustomers: vi.fn(),
     exportCustomers: vi.fn(),
+    issueCustomerAccessCode: vi.fn(),
     getDashboard: vi.fn(),
     listRaffles: vi.fn(),
     updateRaffle: vi.fn(),
@@ -289,26 +290,28 @@ describe('AdminSalesPage', () => {
   })
 })
 
+const customersPage = {
+  page: 1,
+  pageSize: 20,
+  total: 1,
+  customers: [
+    {
+      cpf: '52998224725',
+      name: 'Maria da Silva',
+      phone: '84999855367',
+      orderCount: 3,
+      paidOrderCount: 2,
+      paidTotalInCents: 2600,
+      ticketCount: 3,
+      firstOrderAt: '2026-10-01T12:00:00.000Z',
+      lastOrderAt: '2026-10-08T12:00:00.000Z',
+    },
+  ],
+}
+
 describe('AdminCustomersPage', () => {
   it('lists customers and exports with the current filters', async () => {
-    repository.listCustomers.mockResolvedValue({
-      page: 1,
-      pageSize: 20,
-      total: 1,
-      customers: [
-        {
-          cpf: '52998224725',
-          name: 'Maria da Silva',
-          phone: '84999855367',
-          orderCount: 3,
-          paidOrderCount: 2,
-          paidTotalInCents: 2600,
-          ticketCount: 3,
-          firstOrderAt: '2026-10-01T12:00:00.000Z',
-          lastOrderAt: '2026-10-08T12:00:00.000Z',
-        },
-      ],
-    })
+    repository.listCustomers.mockResolvedValue(customersPage)
     repository.exportCustomers.mockRejectedValue(new Error('A exportação passa de 20000 clientes.'))
     renderAdmin('/admin/clientes?compra=paid')
 
@@ -322,6 +325,39 @@ describe('AdminCustomersPage', () => {
       to: undefined,
     })
     expect(await screen.findByText('A exportação passa de 20000 clientes.')).toBeInTheDocument()
+  })
+
+  it('gera código de acesso para o cliente e mostra uma vez', async () => {
+    repository.listCustomers.mockResolvedValue(customersPage)
+    repository.issueCustomerAccessCode.mockResolvedValue({
+      code: '482913',
+      expiresAt: '2026-10-17T12:00:00.000Z',
+    })
+    renderAdmin('/admin/clientes')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /gerar código de acesso para maria da silva/i }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar código' }))
+
+    expect(await screen.findByText('482913')).toBeVisible()
+    expect(repository.issueCustomerAccessCode).toHaveBeenCalledWith('52998224725')
+    expect(screen.getByText(/o código não será mostrado de novo/i)).toBeVisible()
+  })
+
+  it('mostra o erro da API ao gerar código', async () => {
+    repository.listCustomers.mockResolvedValue(customersPage)
+    repository.issueCustomerAccessCode.mockRejectedValue(
+      new Error('Este cliente já tem e-mail cadastrado.'),
+    )
+    renderAdmin('/admin/clientes')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /gerar código de acesso para maria da silva/i }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar código' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Este cliente já tem e-mail')
   })
 })
 

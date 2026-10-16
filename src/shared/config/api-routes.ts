@@ -13,7 +13,6 @@ export const apiRoutes = {
   availableCards: (raffleId: string) =>
     `/v1/raffles/${encodeURIComponent(raffleId)}/cards?status=available`,
   createOrder: '/v1/orders',
-  purchaseLookup: '/v1/orders/lookup',
   createCheckout: (orderId: string) => `/v1/orders/${encodeURIComponent(orderId)}/checkout`,
   order: (orderId: string, paymentReference?: { transactionNsu: string; slug: string }) => {
     const path = `/v1/orders/${encodeURIComponent(orderId)}`
@@ -35,6 +34,8 @@ export const apiRoutes = {
   adminOrdersExport: (query: URLSearchParams) => `/v1/admin/orders/export?${query.toString()}`,
   adminOrderAction: (orderId: string, action: 'approve' | 'cancel') =>
     `/v1/admin/orders/${encodeURIComponent(orderId)}/${action}`,
+  adminCustomerAccessCode: (cpf: string) =>
+    `/v1/admin/customers/${encodeURIComponent(cpf)}/access-code`,
   adminCustomers: (query: URLSearchParams) => `/v1/admin/customers?${query.toString()}`,
   adminCustomersExport: (query: URLSearchParams) =>
     `/v1/admin/customers/export?${query.toString()}`,

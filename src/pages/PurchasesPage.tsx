@@ -1,16 +1,14 @@
-import { Eraser, ExternalLink, ReceiptText, Search } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { z } from 'zod'
+import { Eraser, ExternalLink, ReceiptText } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { Purchase } from '../features/purchases/domain/types'
-import { usePurchaseLookup } from '../features/purchases/runtime/use-purchase-lookup'
+import { useMyPurchases } from '../features/purchases/runtime/use-my-purchases'
 import {
   describePaymentMethod,
   describeStatus,
 } from '../features/purchases/service/purchase-labels'
 import { ShareReceiptButton } from '../features/purchases/ui/ShareReceiptButton'
 import { formatCurrency } from '../shared/lib/currency'
-import { formatCpf, isValidCpf, onlyDigits } from '../shared/lib/forms'
 import { ErrorState } from '../shared/ui/ErrorState'
 import { Spinner } from '../shared/ui/Spinner'
 
@@ -109,9 +107,6 @@ function InteractiveTicketNumbers({
   )
 }
 
-// O CPF chega por `history.state` (cabeçalho ou retorno do pagamento), nunca pela URL.
-const locationStateSchema = z.object({ cpf: z.string().regex(/^\d{11}$/) })
-
 const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
@@ -122,23 +117,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
 })
 
 export function PurchasesPage() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const initialCpf = locationStateSchema.safeParse(location.state)
-  const searchedCpf = initialCpf.success ? initialCpf.data.cpf : null
-  const [cpfInput, setCpfInput] = useState(searchedCpf ? formatCpf(searchedCpf) : '')
-  const [inputError, setInputError] = useState<string | null>(null)
-  const lookup = usePurchaseLookup(searchedCpf)
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!isValidCpf(cpfInput)) {
-      setInputError('Informe um CPF valido.')
-      return
-    }
-    setInputError(null)
-    navigate('.', { replace: true, state: { cpf: onlyDigits(cpfInput) } })
-  }
+  const purchases = useMyPurchases()
 
   return (
     <section className="container page-section purchases-page">
@@ -148,45 +127,27 @@ export function PurchasesPage() {
         </span>
         <div>
           <h1>Minhas compras</h1>
-          <p>Consulte pagamento, status e dezenas dos bilhetes compradas com seu CPF.</p>
+          <p>Compras feitas com sua conta.</p>
         </div>
       </div>
 
-      <form className="surface purchases-search" onSubmit={onSubmit} noValidate>
-        <div className="field">
-          <label htmlFor="purchase-cpf">CPF do comprador</label>
-          <input
-            id="purchase-cpf"
-            inputMode="numeric"
-            autoComplete="off"
-            value={cpfInput}
-            onChange={(event) => setCpfInput(formatCpf(event.target.value))}
-            aria-invalid={!!inputError}
-          />
-          {inputError ? <small role="alert">{inputError}</small> : null}
-        </div>
-        <button className="button button--primary" type="submit" disabled={lookup.isFetching}>
-          <Search size={18} /> Consultar
-        </button>
-      </form>
-
-      {searchedCpf === null ? null : lookup.isPending ? (
+      {purchases.isPending ? (
         <div className="purchases-state">
           <Spinner label="Buscando suas compras..." />
         </div>
-      ) : lookup.isError ? (
-        <ErrorState message={lookup.error.message} onRetry={() => void lookup.refetch()} />
-      ) : lookup.data.length === 0 ? (
+      ) : purchases.isError ? (
+        <ErrorState message={purchases.error.message} onRetry={() => void purchases.refetch()} />
+      ) : purchases.data.length === 0 ? (
         <div className="surface purchases-state">
           <h2>Nenhuma compra encontrada</h2>
-          <p>Não há compras feitas neste site para o CPF informado.</p>
+          <p>Ainda não há compras feitas com esta conta.</p>
           <Link className="button button--primary" to="/">
             Escolher bilhetes
           </Link>
         </div>
       ) : (
         <div className="purchase-list">
-          {lookup.data.map((purchase) => (
+          {purchases.data.map((purchase) => (
             <PurchaseCard key={purchase.id} purchase={purchase} />
           ))}
         </div>

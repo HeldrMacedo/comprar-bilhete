@@ -81,6 +81,11 @@ export const customerSummarySchema = z.object({
   lastOrderAt: z.string(),
 })
 
+export const customerAccessCodeSchema = z.object({
+  code: z.string().regex(/^\d{6}$/),
+  expiresAt: z.iso.datetime(),
+})
+
 export const customersPageSchema = z.object({
   ...pageFields,
   customers: z.array(customerSummarySchema),

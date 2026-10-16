@@ -170,6 +170,13 @@ export function createAdminHooks(repository: AdminRepository) {
     })
   }
 
+  function useIssueCustomerAccessCode() {
+    return useMutation({
+      mutationKey: adminKeys.all,
+      mutationFn: (cpf: string) => repository.issueCustomerAccessCode(cpf),
+    })
+  }
+
   function useAdminDashboard() {
     return useQuery({
       queryKey: adminKeys.dashboard,
@@ -236,6 +243,7 @@ export function createAdminHooks(repository: AdminRepository) {
     useExportOrders,
     useAdminCustomers,
     useExportCustomers,
+    useIssueCustomerAccessCode,
     useAdminSession,
     useAdminLogin,
     useAdminLogout,
@@ -256,6 +264,7 @@ export const {
   useExportOrders,
   useAdminCustomers,
   useExportCustomers,
+  useIssueCustomerAccessCode,
   useAdminSession,
   useAdminLogin,
   useAdminLogout,

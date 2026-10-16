@@ -9,6 +9,7 @@ import {
   adminOrdersPageSchema,
   adminUserResponseSchema,
   adminUsersResponseSchema,
+  customerAccessCodeSchema,
   customersPageSchema,
   dashboardSummarySchema,
   noContentSchema,
@@ -92,6 +93,11 @@ const liveRepository: AdminRepository = {
   exportCustomers(filters) {
     return requestFile(apiRoutes.adminCustomersExport(toQuery(filters)), 'clientes.csv')
   },
+  issueCustomerAccessCode(cpf) {
+    return requestJson(apiRoutes.adminCustomerAccessCode(cpf), customerAccessCodeSchema, {
+      method: 'POST',
+    })
+  },
   getDashboard(signal) {
     return requestJson(apiRoutes.adminDashboard, dashboardSummarySchema, { signal })
   },
@@ -135,6 +141,7 @@ const mockRepository: AdminRepository = {
   exportOrders: async () => unavailable(),
   listCustomers: async () => unavailable(),
   exportCustomers: async () => unavailable(),
+  issueCustomerAccessCode: async () => unavailable(),
   getDashboard: async () => unavailable(),
   listRaffles: async () => unavailable(),
   updateRaffle: async () => unavailable(),

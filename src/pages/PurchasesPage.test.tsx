@@ -11,7 +11,7 @@ import { createReceiptFiles, shareReceipts } from '../features/purchases/runtime
 import { PurchasesPage } from './PurchasesPage'
 
 vi.mock('../features/purchases/repository/purchase-repository', () => ({
-  purchaseRepository: { lookupByCpf: vi.fn() },
+  purchaseRepository: { listMine: vi.fn() },
 }))
 
 vi.mock('../features/purchases/runtime/share-receipt', () => ({
@@ -58,7 +58,7 @@ const pending: Purchase = {
   checkoutUrl: 'https://checkout.example/3',
 }
 
-function renderApp(initialEntry: string | { pathname: string; state?: unknown } = '/') {
+function renderApp(initialEntry = '/') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -84,15 +84,11 @@ describe('PurchasesPage', () => {
 
   afterEach(cleanup)
 
-  it('abre Minhas compras pelo CPF digitado no cabeçalho', async () => {
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([paid])
-    renderApp()
-
-    await userEvent.type(screen.getByLabelText('CPF para consultar compras'), '52998224725')
-    await userEvent.click(screen.getByRole('button', { name: /minhas compras/i }))
+  it('lista as compras da conta sem pedir CPF', async () => {
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([paid])
+    renderApp('/minhas-compras')
 
     const card = await screen.findByRole('article', { name: '11111111' })
-    expect(purchaseRepository.lookupByCpf).toHaveBeenCalledWith('52998224725', expect.anything())
     expect(within(card).getByText('Pago')).toBeVisible()
     expect(within(card).getByText('R$ 16,00')).toBeVisible()
     expect(within(card).getByText('Pix')).toBeVisible()
@@ -107,22 +103,12 @@ describe('PurchasesPage', () => {
       'href',
       'https://recibo.example/1',
     )
-    expect(screen.getByLabelText('CPF do comprador')).toHaveValue('529.982.247-25')
-  })
-
-  it('pede o CPF quando a página é aberta sem ele e valida o dígito', async () => {
-    renderApp('/minhas-compras')
-
-    await userEvent.type(screen.getByLabelText('CPF do comprador'), '11111111111')
-    await userEvent.click(screen.getByRole('button', { name: 'Consultar' }))
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Informe um CPF valido.')
-    expect(purchaseRepository.lookupByCpf).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('CPF do comprador')).not.toBeInTheDocument()
   })
 
   it('não mostra análise manual como sucesso e oferece pagamento do pedido pendente', async () => {
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([inReview, pending])
-    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([inReview, pending])
+    renderApp('/minhas-compras')
 
     const review = await screen.findByRole('article', { name: '22222222' })
     expect(within(review).getByText('Em análise')).toBeVisible()
@@ -141,10 +127,10 @@ describe('PurchasesPage', () => {
     const second = { ...paid.items![0]!, id: 'card-002', code: '#002' }
     const order: Purchase = { ...paid, items: [...paid.items!, second] }
     const files = [new File(['png'], 'bilhete-001.png'), new File(['png'], 'bilhete-002.png')]
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([order])
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([order])
     vi.mocked(createReceiptFiles).mockResolvedValue(files)
     vi.mocked(shareReceipts).mockResolvedValue('shared')
-    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+    renderApp('/minhas-compras')
 
     const card = await screen.findByRole('article', { name: '11111111' })
     await userEvent.click(within(card).getByRole('button', { name: /compartilhar no whatsapp/i }))
@@ -159,10 +145,10 @@ describe('PurchasesPage', () => {
   })
 
   it('avisa quando as imagens foram baixadas em vez de compartilhadas', async () => {
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([paid])
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([paid])
     vi.mocked(createReceiptFiles).mockResolvedValue([new File(['png'], 'bilhete-001.png')])
     vi.mocked(shareReceipts).mockResolvedValue('downloaded')
-    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+    renderApp('/minhas-compras')
 
     const card = await screen.findByRole('article', { name: '11111111' })
     await userEvent.click(within(card).getByRole('button', { name: /compartilhar no whatsapp/i }))
@@ -174,12 +160,12 @@ describe('PurchasesPage', () => {
 
   it('mantém as imagens prontas quando o navegador exige novo toque para compartilhar', async () => {
     const files = [new File(['png'], 'bilhete-001.png')]
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([paid])
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([paid])
     vi.mocked(createReceiptFiles).mockResolvedValue(files)
     vi.mocked(shareReceipts)
       .mockRejectedValueOnce(new DOMException('sem gesto', 'NotAllowedError'))
       .mockResolvedValueOnce('shared')
-    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+    renderApp('/minhas-compras')
 
     const card = await screen.findByRole('article', { name: '11111111' })
     const button = within(card).getByRole('button', { name: /compartilhar no whatsapp/i })
@@ -192,16 +178,16 @@ describe('PurchasesPage', () => {
   })
 
   it('não oferece comprovante para pedido em análise ou pendente', async () => {
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([inReview, pending])
-    renderApp({ pathname: '/minhas-compras', state: { cpf: '52998224725' } })
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([inReview, pending])
+    renderApp('/minhas-compras')
 
     await screen.findByRole('article', { name: '22222222' })
     expect(screen.queryByRole('button', { name: /compartilhar/i })).not.toBeInTheDocument()
   })
 
-  it('informa quando o CPF não tem compras', async () => {
-    vi.mocked(purchaseRepository.lookupByCpf).mockResolvedValue([])
-    renderApp({ pathname: '/minhas-compras', state: { cpf: '11144477735' } })
+  it('informa quando a conta não tem compras', async () => {
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([])
+    renderApp('/minhas-compras')
 
     expect(await screen.findByRole('heading', { name: 'Nenhuma compra encontrada' })).toBeVisible()
   })
