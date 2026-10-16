@@ -43,7 +43,8 @@ O resultado vai para `docs/API_CONTRACTS.md` e pode ajustar o que fica só no SQ
 - `account-repository.ts`: contas, sessões e códigos.
 - `verification-service.ts`: gera código de 6 dígitos (`crypto.randomInt`), guarda só o hash, valida por 15 minutos, no máximo 5 tentativas, reenvio após 60 segundos; ao emitir um código novo, invalida os anteriores da mesma finalidade. Código gerado pelo admin vale 24 horas.
 - `account-service.ts`: `identify`, `login`, `register`, `setPassword`, `updateProfile`, `logout`, `authenticate`. Reaproveita `hashPassword`/`verifyPassword` de `server/domains/admin/password.ts` (mover para `server/shared/password.ts`). Senha com no mínimo 8 caracteres. Login com usuário inexistente gasta o mesmo tempo de `scrypt` que senha errada.
-- `mail/`: `MailGateway` com `SmtpMailGateway` e `MockMailGateway`. Em mock, o código é fixo (`000000`), para testes e E2E. O texto do e-mail informa o código, a validade e que ninguém da Sol da Sorte pede esse código.
+- `mail-gateway.ts`, `mock-mail-gateway.ts`, `smtp-mail-gateway.ts`: `MailGateway` com `SmtpMailGateway` e `MockMailGateway`. Em mock, o código é fixo (`000000`), para testes e E2E. O texto do e-mail informa o código, a validade e que ninguém da Sol da Sorte pede esse código.
+- No mock da API, Maria (`52998224725`) passa a ter e-mail, para cobrir o primeiro acesso.
 - `CustomerGateway` ganha `register(input)`, que chama `POST /pessoa/cadastro` com `senha` e `confirma_senha`, e `requireTicketApiTls`.
 
 ### Ambiente (`server/config/env.ts`)
@@ -67,14 +68,14 @@ Todas as rotas com `Cache-Control: no-store`; escritas conferem `Origin` contra 
 - `GET /api/v1/account/me`: dados da conta ou `401 UNAUTHENTICATED`.
 - `PUT /api/v1/account/profile {customer, currentPassword}`: confere a senha atual e envia os dados para `/pessoa/cadastro` com ela.
 - `POST /api/v1/account/logout`: apaga a sessão e o cookie.
-- `POST /api/v1/admin/customers/:cpf/first-access-code`: admin autenticado gera código `admin`, mostrado uma única vez na resposta; fica em `admin_audit_log`.
+- `POST /api/v1/admin/customers/:cpf/access-code`: admin autenticado gera código `admin`, mostrado uma única vez na resposta; fica em `admin_audit_log`.
 
 ### Pedidos
 
 - `POST /api/v1/orders` exige sessão. O comprador vem de `customer_accounts` (com `externalId`); o corpo traz apenas itens, `beneficiaryName` e e-mail do pedido (padrão: e-mail da conta).
 - `CustomerService.resolveForOrder` passa a receber a conta; `ensureRegistered` continua como salvaguarda para conta sem `externalId`.
 - `GET /api/v1/orders/mine` substitui `POST /api/v1/orders/lookup`; mesmo presenter e mesmas regras de dados pessoais.
-- `GET /api/v1/orders/:id` de pedido com dados pessoais passa a exigir sessão do dono.
+- `GET /api/v1/orders/:id` não muda: `presentOrder` não devolve dados pessoais.
 - Removidos: `GET /api/v1/customers/lookup` e `POST /api/v1/orders/lookup`.
 
 ## Frontend
@@ -84,7 +85,7 @@ Todas as rotas com `Cache-Control: no-store`; escritas conferem `Origin` contra 
 - `AccountProvider`/`useAccount` lê `/me` e expõe `login`, `logout` e `refresh`.
 - `ui/AuthFlow`: fluxo em etapas reutilizado na página e no checkout:
   1. CPF.
-  2. Conforme `status`: senha (com "Esqueci minha senha"), cadastro (nome, CPF, celular, e-mail, endereço com busca de CEP já existente, senha e confirmação), primeiro acesso (mostra o e-mail mascarado e envia o código) ou mensagem de `no_email` com campo para código do admin.
+  2. Conforme `status`: senha (com "Esqueci minha senha"), cadastro (nome, CPF, celular, e-mail, endereço, senha e confirmação), primeiro acesso (mostra o e-mail mascarado e envia o código) ou mensagem de `no_email` com campo para código do admin.
   3. Código: campo de 6 dígitos, reenvio com contagem de 60 s; no primeiro acesso e em "esqueci a senha", nova senha.
 
 ### Páginas e cabeçalho
