@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-Aplicação full-stack no mesmo repositório. O React possui três domínios: `raffle` apresenta o sorteio e seleciona bilhetes; `cart` mantém a seleção local; `checkout` conversa somente com o backend próprio. O servidor Fastify persiste pedidos, integra InfinitePay e encapsula a API externa de bilhetes.
+Aplicação full-stack no mesmo repositório. O React possui quatro domínios: `raffle` apresenta o sorteio e seleciona bilhetes; `cart` mantém a seleção local; `account` cuida de entrar, cadastrar e da sessão do cliente; `checkout` conversa somente com o backend próprio. O servidor Fastify persiste pedidos, integra InfinitePay e encapsula a API externa de bilhetes.
 
 ```text
 React → Backend Fastify → SQLite
@@ -18,6 +18,7 @@ O backend é a autoridade sobre disponibilidade, preço, reserva, pedido e pagam
 server/
 ├── config/              ambiente validado
 ├── domains/
+│   ├── accounts/        conta de cliente, sessão, códigos e e-mail
 │   ├── orders/          pedido, reserva, persistência e orquestração
 │   ├── payments/        porta + providers mock/InfinitePay
 │   └── tickets/         porta + providers mock/API externa
@@ -34,6 +35,7 @@ src/
 ├── app/                 composição, layout e estilos globais
 ├── features/
 │   ├── raffle/          domain → api → repository → service → ui
+│   ├── account/         domain → api → repository → service → runtime → ui
 │   ├── cart/            domain → runtime
 │   └── checkout/        domain → api → repository → service
 ├── pages/               composição de jornadas; sem acesso HTTP direto
@@ -45,7 +47,7 @@ As páginas podem compor features. Features não importam páginas ou `app`. `do
 ## Fluxo de compra
 
 ```text
-Sorteio ativo → aleatória ou manual → carrinho → identificação
+Sorteio ativo → aleatória ou manual → carrinho → entrar/cadastrar
 → backend reserva/cria pedido → backend cria link InfinitePay
 → checkout hospedado → retorno → polling do pedido
 → backend confirma pagamento → sucesso

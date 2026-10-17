@@ -43,7 +43,7 @@ O resultado vai para `docs/API_CONTRACTS.md` e pode ajustar o que fica só no SQ
 - `account-repository.ts`: contas, sessões e códigos.
 - `verification-service.ts`: gera código de 6 dígitos (`crypto.randomInt`), guarda só o hash, valida por 15 minutos, no máximo 5 tentativas, reenvio após 60 segundos; ao emitir um código novo, invalida os anteriores da mesma finalidade. Código gerado pelo admin vale 24 horas.
 - `account-service.ts`: `identify`, `login`, `register`, `setPassword`, `updateProfile`, `logout`, `authenticate`. Reaproveita `hashPassword`/`verifyPassword` de `server/domains/admin/password.ts` (mover para `server/shared/password.ts`). Senha com no mínimo 8 caracteres. Login com usuário inexistente gasta o mesmo tempo de `scrypt` que senha errada.
-- `mail-gateway.ts`, `mock-mail-gateway.ts`, `smtp-mail-gateway.ts`: `MailGateway` com `SmtpMailGateway` e `MockMailGateway`. Em mock, o código é fixo (`000000`), para testes e E2E. O texto do e-mail informa o código, a validade e que ninguém da Sol da Sorte pede esse código.
+- `mail-gateway.ts`, `mock-mail-gateway.ts`, `smtp-mail-gateway.ts`: `MailGateway` com `SmtpMailGateway` e `MockMailGateway`. O código é fixo (`000000`) só quando `MAIL_PROVIDER`, `TICKET_PROVIDER` e `PAYMENT_PROVIDER` são todos `mock` (testes e E2E); com mock de e-mail e algum provider live, o código é aleatório e nunca entregue, e o startup avisa para configurar SMTP. O texto do e-mail informa o código, a validade e que ninguém da Sol da Sorte pede esse código.
 - No mock da API, Maria (`52998224725`) passa a ter e-mail, para cobrir o primeiro acesso.
 - `CustomerGateway` ganha `register(input)`, que chama `POST /pessoa/cadastro` com `senha` e `confirma_senha`, e `requireTicketApiTls`.
 
@@ -60,20 +60,19 @@ Todas as rotas com `Cache-Control: no-store`; escritas conferem `Origin` contra 
   - `first_access`: CPF existe na API com e-mail; inclui `maskedEmail` (`jo***@gmail.com`).
   - `no_email`: CPF existe na API sem e-mail; orientar procurar lotérica/suporte ou usar código do admin.
   - `new`: abrir cadastro.
-    Revela se o CPF está cadastrado (exigência do cliente). Limite de 10 por minuto por IP.
+    Revela se o CPF está cadastrado (exigência do cliente). Limite por IP de `ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE` por minuto (padrão 10).
 - `POST /api/v1/account/login {cpf, password}`: cria a sessão. Falha com `401 INVALID_CREDENTIALS` e mensagem genérica. Limite de 10 falhas por minuto por IP e 5 por 15 minutos por CPF.
-- `POST /api/v1/account/codes {cpf, purpose, email?}`: envia o código. `signup` exige `email` e só vale para CPF sem conta e fora da API; `first_access` e `reset` usam sempre o e-mail da API (ou da conta local, se a API não tiver). Sempre responde `202`, sem confirmar entrega.
-- `POST /api/v1/account/register {customer, password, code}`: confere o código de `signup`, chama `/pessoa/cadastro` e relê `GET /pessoa/cpf/{cpf}` para obter `pessoas_id`. Só então cria a conta local e a sessão. Se a API falhar, nada local é criado e o código continua válido até expirar.
-- `POST /api/v1/account/password {cpf, code, password, email?}`: primeiro acesso, "esqueci a senha" e código do admin. Envia a senha (e, no código do admin, o e-mail informado) para `/pessoa/cadastro`, grava o hash local, encerra as demais sessões do CPF e cria uma nova.
+- `POST /api/v1/account/codes {cpf, purpose, email?}`: envia o código. `signup` exige `email` e só vale para CPF sem conta e fora da API; `first_access` e `reset` usam sempre o e-mail da API (ou da conta local, se a API não tiver). Responde `202` sem corpo; erros de domínio (`ACCOUNT_EXISTS`, `ACCOUNT_NOT_FOUND`, `EMAIL_NOT_REGISTERED`, `CODE_RESEND_TOO_SOON`, `MAIL_UNAVAILABLE`) passam adiante, já que `identify` revela o estado do CPF. Limite por IP de `ACCOUNT_CODE_LIMIT_PER_MINUTE` (padrão 5).
+- `POST /api/v1/account/register {customer, password, code}`: confere o código de `signup`, chama `/pessoa/cadastro` e relê `GET /pessoa/cpf/{cpf}` para obter `pessoas_id`. Só então cria a conta local e a sessão. Se a API falhar, nada local é criado e o código continua válido até expirar. Código errado em `/register` e `/password`: além do limite por IP, 10 falhas por hora por CPF.
+- `POST /api/v1/account/password {cpf, code, password, email?}`: primeiro acesso, "esqueci a senha" e código do admin. Envia a senha (e, no código do admin, o e-mail informado, aceito só quando nem a API nem a conta têm e-mail) para `/pessoa/cadastro`, grava o hash local, encerra as demais sessões do CPF e cria uma nova.
 - `GET /api/v1/account/me`: dados da conta ou `401 UNAUTHENTICATED`.
 - `PUT /api/v1/account/profile {customer, currentPassword}`: confere a senha atual e envia os dados para `/pessoa/cadastro` com ela.
 - `POST /api/v1/account/logout`: apaga a sessão e o cookie.
-- `POST /api/v1/admin/customers/:cpf/access-code`: admin autenticado gera código `admin`, mostrado uma única vez na resposta; fica em `admin_audit_log`.
+- `POST /api/v1/admin/customers/:cpf/access-code`: admin autenticado gera código `admin` só para CPF sem e-mail na API nem na conta (senão `409 CUSTOMER_HAS_EMAIL`), mostrado uma única vez na resposta; fica em `admin_audit_log`.
 
 ### Pedidos
 
-- `POST /api/v1/orders` exige sessão. O comprador vem de `customer_accounts` (com `externalId`); o corpo traz apenas itens, `beneficiaryName` e e-mail do pedido (padrão: e-mail da conta).
-- `CustomerService.resolveForOrder` passa a receber a conta; `ensureRegistered` continua como salvaguarda para conta sem `externalId`.
+- `POST /api/v1/orders` exige sessão. A rota monta o comprador a partir da conta da sessão (nome, CPF, celular, endereço e e-mail) e `resolveForOrder` relê a pessoa na API para obter o `externalId`; o corpo traz apenas itens, `beneficiaryName` e e-mail do pedido (padrão: e-mail da conta). Conta sem cadastro completo: `400 PROFILE_INCOMPLETE`.
 - `GET /api/v1/orders/mine` substitui `POST /api/v1/orders/lookup`; mesmo presenter e mesmas regras de dados pessoais.
 - `GET /api/v1/orders/:id` não muda: `presentOrder` não devolve dados pessoais.
 - Removidos: `GET /api/v1/customers/lookup` e `POST /api/v1/orders/lookup`.
@@ -96,6 +95,8 @@ Todas as rotas com `Cache-Control: no-store`; escritas conferem `Origin` contra 
 - Removidos: `use-customer-lookup` e `customer-repository` do checkout, campo de CPF do cabeçalho e de "Minhas compras".
 
 ## Segurança
+
+- `trustProxy` do Fastify é pré-requisito de deploy para os limites por IP. O bloqueio por CPF pode travar uma vítima (troca aceita).
 
 - Código e senha nunca vão para log, resposta ou URL.
 - O e-mail de destino do primeiro acesso e do "esqueci a senha" vem sempre do cadastro; nunca de entrada do navegador.

@@ -3419,7 +3419,12 @@ Ver a tabela da spec. No plano: `OrderService` continua recebendo `customer` (a 
 ## Progresso
 
 - 2026-10-16: spec aprovada e plano criado.
+- 2026-10-16: tarefas 1 a 12 implementadas e revisadas: migração v8, `shared/password`, e-mail (mock/SMTP), `CustomerGateway.register`, `verification-service`, `account-service`, rotas `/api/v1/account/*` com limites, pedido e Minhas compras pela sessão, código de acesso no painel, feature `account` no frontend (`AuthFlow`, cabeçalho, `/entrar`, `/minha-conta`, carrinho).
+- 2026-10-17: tarefa 13 (remoção de `customers/lookup` e `orders/lookup`, Minhas compras pela conta), tarefa 14 (E2E de cadastro, login e compra com conta) e tarefa 15 (documentação) concluídas.
+- Decisões durante a execução: limites por IP de `identify` e `codes` configuráveis por env (`ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE`, `ACCOUNT_CODE_LIMIT_PER_MINUTE`; 1000 no Playwright); código do admin restrito a CPF sem e-mail (`409 CUSTOMER_HAS_EMAIL`); `/codes` repassa erros de domínio em vez de sempre `202`; limite de 10 falhas por hora por CPF em `/register` e `/password`; código fixo `000000` só com e-mail, bilhetes e pagamento todos mock; `requestJson` aceita `202`/`204` sem corpo; `401` só derruba a sessão no frontend com `UNAUTHENTICATED`; `safeAccountRedirect` recusa barra invertida.
+- Pendente: tarefa 0 (validar `POST /pessoa/cadastro` na API real, exige CPF de teste autorizado). Por isso este plano continua em `active/`; ao concluí-la, ajustar o gateway live e `docs/API_CONTRACTS.md` se o contrato divergir e mover para `completed/`.
 
 ## Validação
 
-A preencher ao executar.
+- 2026-10-17: `npm run check` (lint, prettier, validate:architecture, validate:docs, testes e build) e `npm run test:e2e` (chromium e mobile Pixel 7) passam com os providers mock; ver relatório da tarefa 15 em `.superpowers/sdd/2026-10-16-login-cliente/`.
+- Não validado: `POST /pessoa/cadastro` contra a API real (tarefa 0); envio por SMTP real (`MAIL_PROVIDER=smtp`); `trustProxy` em produção.

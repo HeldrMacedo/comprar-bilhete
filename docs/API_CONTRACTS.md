@@ -5,17 +5,31 @@
 O React usa apenas `/api`, encaminhado pelo Vite ao Fastify local.
 
 - `GET /api/health` — saúde do servidor.
-- `GET /api/v1/customers/lookup?cpf=` — consulta cadastro somente por CPF (11 dígitos); telefone não é critério de busca.
 - `GET /api/v1/raffles/active` — lista de concursos ativos normalizados, sem bilhetes; `[]` quando ambos os blocos são ausentes ou expirados. Cada concurso inclui `purchaseEnabled`; é `false` quando a origem live usa HTTP sem `TICKET_API_ALLOW_HTTP=true`. Os campos opcionais `prizes` (lista ordenada), `luckySpins` (`count` e `label`) e `doubleChance` (booleano) alimentam os cards da Home; dados ausentes não são inventados. `hasBanner` indica que `banner_sorteiocap`/`banner_sorteioesp` está preenchido; a origem da imagem (`TICKET_BANNER_BASE_URL`, padrão `http://solidariedadesorte.ddns.net:8080`) não é exposta.
 - `GET /api/v1/raffles/:id/banner` — repassa a imagem do banner de um concurso ativo (`Cache-Control: public, max-age=300`), evitando bloqueio de conteúdo misto HTTP em página HTTPS; `404` quando o concurso não tem banner. A Home mostra a imagem no carrossel e volta aos textos se ela não carregar. `prize` é o último prêmio preenchido de `prizes`, ou `Prêmios a confirmar` quando a lista estiver vazia.
 - `GET /api/v1/raffles/{id}/cards` — bilhetes disponíveis normalizadas.
-- `POST /api/v1/orders` — cria pedido e reserva localmente os bilhetes.
-- `POST /api/v1/orders/lookup` — "Minhas compras": recebe `{ "cpf": "52998224725" }` no corpo e devolve `{ "orders": [...] }` com até 20 pedidos do CPF, do mais recente ao mais antigo. Cada pedido traz os campos públicos do pedido mais `createdAt`, `paidAt`, `paymentMethod` (`capture_method` da InfinitePay, por exemplo `pix`) e `checkoutUrl` apenas quando `pending`. Só pedido `paid` traz, para o comprovante, `customer` (`name` do titular, que é `beneficiaryName` quando houver, `city`, `phone` e `cpf`) e, em cada item, `identification`, `drawDate`, `prizes`, `luckySpins`, `validationBatch` e `batchPosition`. Os demais status nunca devolvem dados pessoais. Limite de 10 consultas por minuto por IP (`429 RATE_LIMITED`).
+- `POST /api/v1/orders` — exige sessão de cliente; cria pedido e reserva localmente os bilhetes. O comprador vem da conta (nome, CPF, celular, e-mail e endereço); o corpo traz apenas `raffles` (ou o formato de um concurso), `beneficiaryName` e `email` do pedido (padrão: e-mail da conta). Campo `customer` no corpo é ignorado. Sem sessão: `401 UNAUTHENTICATED`; conta sem cadastro completo: `400 PROFILE_INCOMPLETE`.
+- `GET /api/v1/orders/mine` — "Minhas compras": exige sessão de cliente, sem corpo nem CPF na requisição, `Cache-Control: no-store`, e devolve `{ "orders": [...] }` com até 20 pedidos do CPF da conta, do mais recente ao mais antigo. Cada pedido traz os campos públicos do pedido mais `createdAt`, `paidAt`, `paymentMethod` (`capture_method` da InfinitePay, por exemplo `pix`) e `checkoutUrl` apenas quando `pending`. Só pedido `paid` traz, para o comprovante, `customer` (`name` do titular, que é `beneficiaryName` quando houver, `city`, `phone` e `cpf`) e, em cada item, `identification`, `drawDate`, `prizes`, `luckySpins`, `validationBatch` e `batchPosition`. Os demais status nunca devolvem dados pessoais. Sem sessão: `401 UNAUTHENTICATED`.
 - `POST /api/v1/orders/{id}/checkout` — cria ou reutiliza o link InfinitePay.
 - `GET /api/v1/orders/{id}` — consulta status seguro do pedido.
 - `GET /api/v1/orders/{id}?transaction_nsu=&slug=` — reconcilia o redirect na InfinitePay.
 - `POST /api/v1/webhooks/infinitepay` — persiste notificação e agenda reconciliação.
 - `GET /api/v1/site-settings` — `{ "youtubeVideoId": string | null }` para a seção "Assista ao sorteio" da Home.
+
+### Conta de cliente
+
+Todas as rotas `/api/v1/account/*` respondem com `Cache-Control: no-store`. Métodos de escrita com `Origin` diferente de `PUBLIC_APP_URL` recebem `403 FORBIDDEN_ORIGIN`. A sessão é o cookie `customer_session` (`HttpOnly`, `SameSite=Strict`, `Path=/api`, `Secure` quando `PUBLIC_APP_URL` é HTTPS), definido em `login`, `register` e `password`; expira após 30 dias sem uso no servidor. CPF tem 11 dígitos; senha, de 8 a 128 caracteres. Corpo inválido: `400` com `message` "Dados inválidos." e `issues`, sem `code`. Falha da API de bilhetes: `502 UPSTREAM_ERROR`, sem efeito local.
+
+- `POST /api/v1/account/identify` — `{ "cpf" }`; devolve `{ "status": "account" }` (há conta no site: pedir senha), `{ "status": "first_access", "maskedEmail": "jo***@gmail.com" }` (CPF na API com e-mail), `{ "status": "no_email" }` (CPF na API sem e-mail) ou `{ "status": "new" }`. Revela se o CPF está cadastrado. Limite por IP de `ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE` (padrão 10) por minuto: `429 RATE_LIMITED`.
+- `POST /api/v1/account/codes` — `{ "cpf", "purpose": "signup", "email" }` ou `{ "cpf", "purpose": "first_access" | "reset" }`; `202` sem corpo. `signup` vale só para CPF sem conta e fora da API (senão `409 ACCOUNT_EXISTS`) e envia ao e-mail informado. `first_access` e `reset` enviam sempre ao e-mail do cadastro (API; se ela não tiver, o da conta local), nunca a um e-mail do corpo. Erros: `409 ACCOUNT_EXISTS` (`first_access` com conta), `409 ACCOUNT_NOT_FOUND` (`reset` sem conta), `409 EMAIL_NOT_REGISTERED` (cadastro sem e-mail), `429 CODE_RESEND_TOO_SOON` (menos de 60 s do último código da mesma finalidade), `503 MAIL_UNAVAILABLE` (falha do SMTP). Limite por IP de `ACCOUNT_CODE_LIMIT_PER_MINUTE` (padrão 5) por minuto: `429 RATE_LIMITED`. Código: 6 dígitos, 15 minutos, guardado só como hash; um código novo invalida os anteriores da mesma finalidade.
+- `POST /api/v1/account/login` — `{ "cpf", "password" }`; `{ "account" }` e cookie. CPF ou senha errados: `401 INVALID_CREDENTIALS`, sem distinguir. Após 10 falhas por minuto no IP ou 5 em 15 minutos no CPF, `429 RATE_LIMITED`.
+- `POST /api/v1/account/register` — `{ "customer": { "name", "cpf", "phone", "email", "address" }, "password", "code" }`; `201 { "account" }` e cookie. Confere o código de `signup` (e-mail igual ao do código), chama `POST /pessoa/cadastro`, relê `GET /pessoa/cpf/{cpf}` para obter o `externalId` e só então cria a conta local. Se a API falhar, nada local é criado e o código continua válido. `400 INVALID_CODE` (inválido, expirado ou com 5 tentativas esgotadas, mensagem única), `409 ACCOUNT_EXISTS`, `502 CUSTOMER_NOT_REGISTERED` (cadastro não localizado após a criação). Código errado: 10 falhas por minuto por IP e 10 por hora por CPF, depois `429 RATE_LIMITED`.
+- `POST /api/v1/account/password` — `{ "cpf", "code", "password", "email"? }`; `{ "account" }` e cookie. Serve ao primeiro acesso, ao "esqueci a senha" e ao código do admin: envia a senha para `/pessoa/cadastro`, grava o hash local, encerra as demais sessões do CPF e cria uma nova. Com código do admin, o e-mail vale só quando nem a API nem a conta têm um; sem e-mail disponível: `400 EMAIL_REQUIRED`. `400 INVALID_CODE`, `404 CUSTOMER_NOT_FOUND`. Mesmos limites de falha de `register`.
+- `GET /api/v1/account/me` — `{ "account" }` ou `401 UNAUTHENTICATED`. `account`: `cpf`, `externalId`, `name`, `email` (ou `null`), `phone`, `address` (quando houver) e `complete` (cadastro completo para comprar). Hash de senha nunca é exposto.
+- `PUT /api/v1/account/profile` — `{ "customer": { "name", "phone", "email", "address" }, "currentPassword" }`; devolve `{ "account" }`. O CPF não muda. Confere a senha atual (`401 INVALID_CREDENTIALS`, que não derruba a sessão) e regrava o cadastro na API com ela; se a API falhar, a conta local não muda. `401 UNAUTHENTICATED` sem sessão.
+- `POST /api/v1/account/logout` — apaga a sessão e o cookie; `204`, mesmo sem sessão.
+
+Códigos de erro de conta: `INVALID_CREDENTIALS`, `INVALID_CODE`, `CODE_RESEND_TOO_SOON`, `ACCOUNT_EXISTS`, `ACCOUNT_NOT_FOUND`, `EMAIL_NOT_REGISTERED`, `EMAIL_REQUIRED`, `MAIL_UNAVAILABLE`, `UNAUTHENTICATED`, `PROFILE_INCOMPLETE` (em `POST /api/v1/orders`), `RATE_LIMITED` e, no painel, `CUSTOMER_HAS_EMAIL`. Os limites vivem em memória por processo; atrás de proxy exigem `trustProxy`.
 
 ### Painel administrativo
 
@@ -36,6 +50,7 @@ Todas as rotas abaixo respondem com `Cache-Control: no-store`. Métodos de escri
 - `POST /api/v1/admin/orders/{id}/cancel` — `{ "reason" }`. `pending`: libera reservas local e externa. `manual_review`: marca `cancelled` sem estorno (feito fora do sistema). Outros status: `409`.
 - `GET /api/v1/admin/customers?q=&purchase=paid|unpaid&from=&to=&page=&pageSize=` — um cliente por CPF, derivado dos pedidos locais: nome, celular e endereço do pedido mais recente, `orderCount`, `paidOrderCount`, `paidTotalInCents`, `ticketCount` (bilhetes pagos), `firstOrderAt`, `lastOrderAt`. `from`/`to` filtram o último pedido.
 - `GET /api/v1/admin/customers/export` — mesmos filtros; CSV no mesmo formato da exportação de vendas.
+- `POST /api/v1/admin/customers/{cpf}/access-code` — gera o código de primeiro acesso (finalidade `admin`) para CPF sem e-mail no cadastro; devolve `{ "code", "expiresAt" }` (24 horas), mostrado uma única vez e guardado só como hash. O cliente o informa em `POST /api/v1/account/password`. Auditado como `customer.access_code`. `404 CUSTOMER_NOT_FOUND` se o CPF não existe na API nem no site; `409 CUSTOMER_HAS_EMAIL` se a API ou a conta já têm e-mail.
 
 - `GET /api/v1/admin/raffles` — `{ raffles }` com os concursos do registro atual da API de bilhetes: `source` (`cap` = quarta, `esp` = domingo), `contestId`, `salesStartAt`, `salesEndAt` (`AAAA-MM-DDTHH:MM`), `drawDate`, `drawTime`, `priceInCents`, `prizes` (até 5), `luckySpinsCount`, `luckySpinsLabel`, `doubleChance`. Datas e horas são locais de `America/Fortaleza`, como a API guarda.
 - `PUT /api/v1/admin/raffles/{cap|esp}` — mesmos campos (sem `source`/`contestId`). Valida início antes do fim das vendas, fim até o horário do sorteio, de 1 a 5 prêmios e preço inteiro em centavos. Grava na API de bilhetes (ver "Escrita") e devolve `{ raffle }`; se a releitura não confirmar os valores, `502 UPSTREAM_NOT_APPLIED`. Auditado com valores antes e depois.
@@ -51,38 +66,25 @@ Entrada de pedido com um ou dois concursos:
     { "raffleId": "2026040", "selection": { "mode": "manual", "cardIds": ["000123"] } },
     { "raffleId": "2026041", "selection": { "mode": "random", "quantity": 2 } }
   ],
-  "customer": {
-    "name": "Maria da Silva",
-    "cpf": "52998224725",
-    "phone": "84999855367",
-    "email": "maria@example.com",
-    "beneficiaryName": "João Terceiro"
-  }
+  "email": "maria@example.com",
+  "beneficiaryName": "João Terceiro"
 }
 ```
 
-`customer` é sempre o comprador: nome, CPF, telefone (obrigatório), email (opcional) e endereço
-formam o cadastro em `pessoa`. O email informado vale para o pedido e para o checkout da
-InfinitePay; se omitido, usa o email do cadastro existente, quando houver. `beneficiaryName` é opcional e só é enviado quando a compra é para outra pessoa;
-ele não cria cadastro, apenas define o `nome` gravado no bilhete.
+O comprador é sempre o dono da sessão: nome, CPF, telefone e endereço vêm da conta (que já está em `pessoa`); o backend monta o `customer` do pedido e `resolveForOrder` relê a pessoa na API para obter o `externalId`. `email` é opcional e vale para o pedido e para o checkout da InfinitePay; se omitido, usa o e-mail da conta. `beneficiaryName` é opcional e só é enviado quando a compra é para outra pessoa; não cria cadastro, apenas define o `nome` gravado no bilhete.
 
-O formato anterior para um concurso continua aceito:
+O formato de um concurso continua aceito:
 
 ```json
 {
   "raffleId": "2024029",
-  "selection": { "mode": "manual", "cardIds": ["000123", "000456"] },
-  "customer": {
-    "name": "Maria da Silva",
-    "cpf": "52998224725",
-    "phone": "84999855367"
-  }
+  "selection": { "mode": "manual", "cardIds": ["000123", "000456"] }
 }
 ```
 
 Para surpresinha, `selection` deve ser `{ "mode": "random", "quantity": 3 }`, com
 quantidade inteira entre 1 e 50. O backend ignora o preço do navegador, consulta o
-concurso ativo, resolve o cliente novamente, atribui os bilhetes e recalcula o total. As
+concurso ativo, relê o comprador na API, atribui os bilhetes e recalcula o total. As
 reservas de ambos os concursos são criadas em uma transação e resultam em um pedido e
 um checkout. Cada item da resposta inclui `raffleId`, `raffleTitle` e `unitPriceInCents`.
 A resposta pública inclui `items`, `selectionMode`, `unitPriceInCents`, `totalInCents`
@@ -123,8 +125,9 @@ O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, 
 
 ### Escrita
 
-- `POST /pessoa` com `nome`, `cpf` e `fone` — formato ainda precisa de validação live.
-- `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API. O backend envia também `pessoas_id` (ID do comprador em `pessoa`) e `nome` (`beneficiaryName` quando a compra é para terceiro; senão o nome do comprador), campos opcionais segundo o swagger. Para cliente novo, o backend cadastra a pessoa após o pagamento e relê `GET /pessoa/cpf/{cpf}` para obter `pessoas_id`, pois a resposta de `POST /pessoa` não documenta o ID.
+- `POST /pessoa/cadastro` — cadastra ou edita a pessoa (usado por cadastro, primeiro acesso, troca de senha e edição de perfil). O backend envia `nome`, `cpf`, `senha`, `confirma_senha`, `email` (vazio quando não há), `fone`, `cep`, `endereco`, `numero`, `complemento`, `bairro`, `cidade` e `uf`. **Contrato não validado contra a API real** (Tarefa 0 do plano `2026-10-16-login-cliente` pendente): o swagger só traz `nome`, `cpf`, `senha`, `confirma_senha`, `email`, `fone`, `cidade` e `cep`; falta confirmar se os campos extras de endereço são aceitos e gravados, se a edição exige reenviar a senha, se campos omitidos são apagados e o formato da resposta (o backend não depende do ID nela, relê `GET /pessoa/cpf/{cpf}`). Com origem HTTP e sem `TICKET_API_ALLOW_HTTP=true`, a chamada é bloqueada.
+- `POST /pessoa` com `nome`, `cpf` e `fone` — rota anterior, não usada mais pelo backend.
+- `PUT /bilhete/validar` com `numero`, `concurso_id`, `lote_validacao`, `estabelecimento_id` e `posicao_lote` — campos obrigatórios confirmados por respostas de validação da API. O backend envia também `pessoas_id` (ID do comprador em `pessoa`) e `nome` (`beneficiaryName` quando a compra é para terceiro; senão o nome do comprador), campos opcionais segundo o swagger. O `pessoas_id` vem da pessoa já cadastrada pela conta (relida em `GET /pessoa/cpf/{cpf}`); o cadastro acontece em `POST /pessoa/cadastro` quando a conta é criada, não mais após o pagamento.
 - `PUT /concurso/{id}` — usado pelo painel. O swagger não documenta o corpo; o backend lê `GET /concurso/atual`, troca só os campos `*_sorteiocap` ou `*_sorteioesp` do concurso editado (`data_inicio_*`, `data_fim_*` como `AAAA-MM-DD HH:MM:SS`, `data_*`, `hora_*`, `valor_bilhete_*` decimal, `qte_premios_*`, `premio_01..05_*` com `null` nos vazios, `qtd_giros_*`, `giros_*` (`"0"` sem giros) e `dupla_chance_*` 0/1), envia o registro inteiro e relê para confirmar. Formato ainda não validado contra a API real.
 - `PUT /bilhete/reservado` e `GET /bilhete/reservado?concurso_id=&numero=&estabelecimento_id=` — **provisório, ainda não publicado**. Reserva com `reservado: true` e recebe `data_reservado` (token); libera com `reservado: false` e o `data_reservado` recebido. `409` indica bilhete já reservada/validada ou token que não é o dono. Contrato detalhado em [design-docs/2026-09-27-concorrencia-reserva-bilhete.md](design-docs/2026-09-27-concorrencia-reserva-bilhete.md).
 
