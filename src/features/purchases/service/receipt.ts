@@ -22,6 +22,8 @@ const footer = [
   '',
   '• Documentação pessoal',
   '• Comprovante de endereço',
+  '',
+  'Ganhadores fora da Região Norte da Bahia, a retirada do prêmio deverá acontecer na sede do Sol da Sorte, em Jacobina, ou em uma de nossas representantes.'
 ]
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -83,7 +85,7 @@ export function buildReceipt(purchase: Purchase, item: PurchaseItem): ReceiptLin
   if (purchase.customer) {
     const { name, city, phone, cpf } = purchase.customer
     lines.push(doubleRule, space, left('DADOS DO CLIENTE'), singleRule, left(`NOME: ${name}`))
-    if (city) lines.push(space, left(city))
+    if (city) lines.push(space, left(`CIDADE: ${city}`))
     lines.push(left(`FONE: ${phone}`), left(`CPF: ${formatCpf(cpf)}`))
   }
 
