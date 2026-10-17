@@ -43,6 +43,7 @@ export class TicketEmailService {
       })
       this.repository.markSent(order.id)
     } catch (error) {
+      // Mensagens livres podem conter dados do cliente: só a classe do erro vai para o registro.
       const attempts = claimed.attempts + 1
       const delay = RETRY_DELAYS_MS[attempts - 1]
       this.repository.markFailedAttempt(
@@ -52,7 +53,7 @@ export class TicketEmailService {
         error instanceof MailDeliveryError
           ? error.summary
           : error instanceof Error
-            ? error.message
+            ? `falha ao montar ou enviar o e-mail (${error.name})`
             : 'Falha desconhecida',
       )
     }

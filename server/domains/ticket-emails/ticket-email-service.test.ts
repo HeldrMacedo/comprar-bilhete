@@ -71,6 +71,17 @@ describe('TicketEmailService', () => {
     expect(repository.get(orderId)).toMatchObject({ status: 'failed', attempts: 5 })
   })
 
+  it('erro que não é de envio não grava dados pessoais em lastError', async () => {
+    const { orders, repository, mail, service, orderId } = setup()
+    vi.spyOn(mail, 'send').mockRejectedValue(new Error('falhou para maria@example.com'))
+    orders.markPaid(orderId)
+
+    expect(await service.processNext()).toBe(true)
+    const lastError = repository.get(orderId)?.lastError
+    expect(lastError).not.toContain('maria@example.com')
+    expect(lastError).toBe('falha ao montar ou enviar o e-mail (Error)')
+  })
+
   it('processPending esvazia a fila até o limite por rodada', async () => {
     const { orders, mail, service, orderId } = setup()
     const second = order({
