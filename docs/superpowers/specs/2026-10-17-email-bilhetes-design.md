@@ -33,8 +33,10 @@ do comprovante impresso da Sol da Sorte.
    5 min, 30 min e 2 h; na 5ª falha, `status = 'failed'`.
 5. Reenvio pelo painel: `POST /api/v1/admin/orders/:id/resend-email` volta o item para
    `pending`, `attempts = 0`, `next_attempt_at = agora`, e registra na auditoria do admin.
-   Aceito para `sent` e `failed`; `pending` responde `409 EMAIL_ALREADY_QUEUED` e
-   `no_recipient` responde `409 EMAIL_NO_RECIPIENT`. Pedido que não é `paid` responde `409`.
+   Aceito para `sent`, `failed` e pedido pago antes da fila existir (sem registro, que é
+   criado); `pending` responde `409 EMAIL_ALREADY_QUEUED`, pedido sem e-mail responde
+   `409 EMAIL_NO_RECIPIENT` e pedido que não é `paid` responde `409 ORDER_NOT_PAID`.
+6. Cada rodada do worker processa até 10 envios, para a fila não crescer em picos de venda.
 
 ## Backend
 
