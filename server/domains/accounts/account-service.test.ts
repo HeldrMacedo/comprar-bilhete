@@ -94,6 +94,19 @@ describe('AccountService', () => {
     })
   })
 
+  it('conta pública não expõe o id interno da API', async () => {
+    const { service } = setup()
+    await service.requestCode({ purpose: 'first_access', cpf: maria })
+    const { account } = await service.setPassword({
+      cpf: maria,
+      code: '000000',
+      password: 'senha-maria-1',
+    })
+    const publicAccount = service.toPublic(account)
+    expect(publicAccount).not.toHaveProperty('externalId')
+    expect(publicAccount).toMatchObject({ cpf: maria, complete: true })
+  })
+
   it('login com senha errada ou CPF sem conta dá a mesma resposta', async () => {
     const { service } = setup()
     await service.requestCode({ purpose: 'first_access', cpf: maria })

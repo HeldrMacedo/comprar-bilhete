@@ -22,7 +22,8 @@ const TOUCH_INTERVAL_MS = 60_000
 const DUMMY_HASH = hashPassword(randomBytes(16).toString('hex'))
 
 export type CustomerSession = { account: Account; tokenHash: string }
-export type PublicAccount = Account & { complete: boolean }
+// Sem o `externalId` (pessoas_id da API), que só o backend usa para vincular bilhetes.
+export type PublicAccount = Omit<Account, 'externalId'> & { complete: boolean }
 
 function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
@@ -229,8 +230,16 @@ export class AccountService {
     this.repository.deleteSession(session.tokenHash)
   }
 
+  // Campo a campo, como `withoutHash`: dado novo na conta não vaza para o navegador por acaso.
   toPublic(account: Account): PublicAccount {
-    return { ...account, complete: isProfileComplete(account) }
+    return {
+      cpf: account.cpf,
+      name: account.name,
+      email: account.email,
+      phone: account.phone,
+      ...(account.address ? { address: account.address } : {}),
+      complete: isProfileComplete(account),
+    }
   }
 
   private createSession(cpf: string) {

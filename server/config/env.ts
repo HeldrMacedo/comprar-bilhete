@@ -3,6 +3,29 @@ import { adminLoginSchema, adminPasswordSchema } from '../domains/admin/admin-ty
 
 const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value)
 
+const proxyAddressSchema = z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()])
+
+// Mesmo formato que o `trustProxy` do Fastify aceita: booleano, número de saltos ou lista de
+// IPs/CIDRs confiáveis separados por vírgula. Vazio equivale a não confiar em proxy.
+const trustProxySchema = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .optional()
+    .transform((value, context): boolean | number | string[] => {
+      if (value === undefined || value === 'false') return false
+      if (value === 'true') return true
+      if (/^\d+$/.test(value)) return Number(value)
+      const addresses = value.split(',').map((item) => item.trim())
+      if (addresses.every((item) => proxyAddressSchema.safeParse(item).success)) return addresses
+      context.addIssue({
+        code: 'custom',
+        message: 'TRUST_PROXY aceita true, false, número de saltos ou lista de IPs/CIDRs',
+      })
+      return z.NEVER
+    }),
+)
+
 const serverEnvSchema = z
   .object({
     SERVER_PORT: z.coerce.number().int().positive().default(3333),
@@ -38,6 +61,7 @@ const serverEnvSchema = z
     MAIL_FROM: z.preprocess(emptyToUndefined, z.string().min(3).optional()),
     ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
     ACCOUNT_CODE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
+    TRUST_PROXY: trustProxySchema,
   })
   .superRefine((env, context) => {
     if (env.PAYMENT_PROVIDER === 'infinitepay' && !env.INFINITEPAY_HANDLE) {
@@ -77,6 +101,14 @@ const serverEnvSchema = z
           })
         }
       }
+    }
+    // Site público sem SMTP: nenhum cliente receberia código para entrar ou criar a senha.
+    if (env.MAIL_PROVIDER === 'mock' && new URL(env.PUBLIC_APP_URL).protocol === 'https:') {
+      context.addIssue({
+        code: 'custom',
+        path: ['MAIL_PROVIDER'],
+        message: 'MAIL_PROVIDER=mock não é permitido com PUBLIC_APP_URL HTTPS; configure SMTP',
+      })
     }
     if (
       env.TICKET_RESERVATION_PROVIDER !== 'none' &&

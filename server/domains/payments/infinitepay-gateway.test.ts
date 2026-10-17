@@ -96,13 +96,11 @@ describe('InfinitePayGateway', () => {
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
-    const gateway = new InfinitePayGateway(
-      parseServerEnv({
-        PAYMENT_PROVIDER: 'infinitepay',
-        INFINITEPAY_HANDLE: 'helder-macedo',
-        PUBLIC_APP_URL: 'https://loja.example',
-      }),
-    )
+    // Só a origem pública importa aqui; HTTPS de verdade exigiria SMTP configurado no env.
+    const gateway = new InfinitePayGateway({
+      ...parseServerEnv({ PAYMENT_PROVIDER: 'infinitepay', INFINITEPAY_HANDLE: 'helder-macedo' }),
+      PUBLIC_APP_URL: 'https://loja.example',
+    })
 
     await gateway.createCheckout(order())
 

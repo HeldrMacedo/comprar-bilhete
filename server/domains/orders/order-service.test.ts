@@ -36,6 +36,7 @@ const env: ServerEnv = {
   SMTP_SECURE: false,
   ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: 10,
   ACCOUNT_CODE_LIMIT_PER_MINUTE: 5,
+  TRUST_PROXY: false,
 }
 
 const apps: Awaited<ReturnType<typeof buildApp>>[] = []

@@ -114,15 +114,6 @@ export class AccountRepository {
       )
   }
 
-  updatePassword(cpf: string, passwordHash: string, now: string) {
-    this.database
-      .prepare(
-        `UPDATE customer_accounts
-         SET password_hash = ?, password_changed_at = ?, updated_at = ? WHERE cpf = ?`,
-      )
-      .run(passwordHash, now, now, cpf)
-  }
-
   insertSession(tokenHash: string, cpf: string, createdAt: string, expiresAt: string) {
     this.database
       .prepare(

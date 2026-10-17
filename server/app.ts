@@ -60,7 +60,11 @@ type AppOptions = {
 
 export async function buildApp(options: AppOptions = {}) {
   const env = options.env ?? parseServerEnv()
-  const app = Fastify({ logger: options.logger ?? true })
+  // Atrás de proxy, só com TRUST_PROXY o request.ip é o do cliente e os limites por IP funcionam.
+  // Número de saltos vira função: os tipos do Fastify não aceitam o número que o runtime aceita.
+  const hops = env.TRUST_PROXY
+  const trustProxy = typeof hops === 'number' ? (_address: string, hop: number) => hop < hops : hops
+  const app = Fastify({ logger: options.logger ?? true, trustProxy })
   const database = createDatabase(env.DATABASE_PATH)
   const now = options.now ?? (() => new Date())
   const tickets =
@@ -80,7 +84,7 @@ export async function buildApp(options: AppOptions = {}) {
   const accountRepository = new AccountRepository(database)
   const mail =
     options.mail ??
-    (env.MAIL_PROVIDER === 'smtp' ? new SmtpMailGateway(env) : new MockMailGateway())
+    (env.MAIL_PROVIDER === 'smtp' ? new SmtpMailGateway(env, app.log) : new MockMailGateway())
   // Código fixo só em modo totalmente mock, para testes e E2E sem caixa de e-mail. Com cadastro
   // ou pagamento reais, um código previsível permitiria tomar a conta de qualquer CPF.
   const fullyMock =

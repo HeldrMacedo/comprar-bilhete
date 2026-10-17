@@ -15,6 +15,7 @@ import {
   customerCookieOptions,
   requireCustomer,
 } from './customer-session.js'
+import { DomainError } from '../shared/errors.js'
 import { createFailureLimiter, createRateLimiter } from './rate-limit.js'
 
 const PREFIX = '/api/v1/account'
@@ -38,10 +39,13 @@ export async function registerAccountRoutes(
     reply.setCookie(CUSTOMER_SESSION_COOKIE, token, cookieOptions)
   }
 
+  // Só código errado conta: falha da API ou CPF já cadastrado não pode travar o titular.
   function recordCodeFailure(ip: string, cpf: string) {
     return (error: unknown): never => {
-      codeFailuresByIp.recordFailure(ip)
-      codeFailuresByCpf.recordFailure(cpf)
+      if (error instanceof DomainError && error.code === 'INVALID_CODE') {
+        codeFailuresByIp.recordFailure(ip)
+        codeFailuresByCpf.recordFailure(cpf)
+      }
       throw error
     }
   }

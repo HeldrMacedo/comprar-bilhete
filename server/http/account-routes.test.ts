@@ -42,6 +42,7 @@ describe('rotas de conta', () => {
     expect(me.json()).toMatchObject({
       account: { cpf: '52998224725', name: 'Maria da Silva', complete: true },
     })
+    expect(me.json().account).not.toHaveProperty('externalId')
   })
 
   it('cookie de sessão é HttpOnly e SameSite=Strict', async () => {
@@ -114,6 +115,34 @@ describe('rotas de conta', () => {
     expect(blocked.statusCode).toBe(429)
   })
 
+  it('erros que não são código errado não consomem o limite de /register', async () => {
+    const app = await createApp()
+    const maria = {
+      name: 'Maria da Silva',
+      cpf: '52998224725',
+      phone: '84999855367',
+      email: 'maria@example.com',
+      address: {
+        zipCode: '59000000',
+        street: 'RUA A',
+        number: '10',
+        neighborhood: 'CENTRO',
+        city: 'NATAL',
+        state: 'RN',
+      },
+    }
+    // CPF já cadastrado na API: cada tentativa falha com ACCOUNT_EXISTS, nunca com 429.
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/account/register',
+        payload: { customer: maria, password: 'senha-maria-1', code: '111111' },
+      })
+      expect(response.statusCode).toBe(409)
+      expect(response.json()).toMatchObject({ code: 'ACCOUNT_EXISTS' })
+    }
+  })
+
   it('pedido de código repassa erro de domínio em vez de 202', async () => {
     const app = await createApp()
     await loginAsMaria(app)
@@ -177,6 +206,41 @@ describe('rotas de conta', () => {
       payload: { cpf: '52998224725', code: sent, password: 'senha-maria-1' },
     })
     expect(valid.statusCode).toBe(200)
+  })
+
+  it('com TRUST_PROXY, cada IP de X-Forwarded-For tem o próprio limite de identify', async () => {
+    async function identifyFrom(app: Awaited<ReturnType<typeof buildApp>>, ip: string) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/account/identify',
+        headers: { 'x-forwarded-for': ip },
+        payload: { cpf: '52998224725' },
+      })
+      return response.statusCode
+    }
+    async function appWith(trustProxy: string | undefined) {
+      const app = await buildApp({
+        env: parseServerEnv({
+          DATABASE_PATH: ':memory:',
+          ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: '1',
+          ...(trustProxy ? { TRUST_PROXY: trustProxy } : {}),
+        }),
+        logger: false,
+        startWorker: false,
+      })
+      apps.push(app)
+      return app
+    }
+
+    const behindProxy = await appWith('true')
+    expect(await identifyFrom(behindProxy, '203.0.113.1')).toBe(200)
+    expect(await identifyFrom(behindProxy, '203.0.113.2')).toBe(200)
+    expect(await identifyFrom(behindProxy, '203.0.113.1')).toBe(429)
+
+    // Sem TRUST_PROXY o cabeçalho é ignorado: todos dividem o IP do proxy.
+    const direct = await appWith(undefined)
+    expect(await identifyFrom(direct, '203.0.113.1')).toBe(200)
+    expect(await identifyFrom(direct, '203.0.113.2')).toBe(429)
   })
 
   it('recusa escrita de outra origem', async () => {
