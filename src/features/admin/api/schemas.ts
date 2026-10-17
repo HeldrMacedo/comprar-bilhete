@@ -32,6 +32,7 @@ export const adminOrderSchema = z.object({
   paidAmountInCents: z.number().int().optional(),
   captureMethod: z.string().optional(),
   lastError: z.string().optional(),
+  emailStatus: z.enum(['pending', 'sent', 'failed', 'no_recipient']).optional(),
   customer: z.object({
     name: z.string(),
     cpf: z.string(),

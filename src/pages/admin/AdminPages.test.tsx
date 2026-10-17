@@ -209,6 +209,55 @@ const pendingOrder: AdminOrder = {
 }
 
 describe('AdminSalesPage', () => {
+  it('mostra o status do e-mail e reenvia com motivo', async () => {
+    const paidOrder: AdminOrder = { ...pendingOrder, status: 'paid', emailStatus: 'failed' }
+    repository.listOrders.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      orders: [paidOrder],
+    })
+    repository.runOrderAction.mockResolvedValue({ ...paidOrder, emailStatus: 'pending' })
+    renderAdmin('/admin/vendas')
+
+    expect(await screen.findByText('Falhou')).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reenviar e-mail do pedido de Maria da Silva' }),
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Reenviar e-mail dos bilhetes' })
+    await userEvent.type(within(dialog).getByLabelText('Motivo'), 'Cliente não recebeu')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reenviar' }))
+
+    expect(repository.runOrderAction).toHaveBeenCalledWith(
+      paidOrder.id,
+      'resend-email',
+      'Cliente não recebeu',
+    )
+    expect(await screen.findByText('E-mail colocado na fila de envio.')).toBeInTheDocument()
+  })
+
+  it('não oferece reenvio para pedido sem e-mail ou já na fila', async () => {
+    repository.listOrders.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 2,
+      orders: [
+        { ...pendingOrder, status: 'paid', emailStatus: 'no_recipient' },
+        {
+          ...pendingOrder,
+          id: '11111111-0000-4000-8000-000000000002',
+          status: 'paid',
+          emailStatus: 'pending',
+        },
+      ],
+    })
+    renderAdmin('/admin/vendas')
+
+    expect(await screen.findByText('Sem e-mail')).toBeInTheDocument()
+    expect(screen.getByText('Na fila')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Reenviar e-mail/ })).not.toBeInTheDocument()
+  })
+
   it('reads filters from the URL, approves with a reason and reports the outcome', async () => {
     repository.listOrders.mockResolvedValue({
       page: 1,

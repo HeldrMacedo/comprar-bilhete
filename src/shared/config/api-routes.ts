@@ -32,7 +32,7 @@ export const apiRoutes = {
   siteSettings: '/v1/site-settings',
   adminOrders: (query: URLSearchParams) => `/v1/admin/orders?${query.toString()}`,
   adminOrdersExport: (query: URLSearchParams) => `/v1/admin/orders/export?${query.toString()}`,
-  adminOrderAction: (orderId: string, action: 'approve' | 'cancel') =>
+  adminOrderAction: (orderId: string, action: 'approve' | 'cancel' | 'resend-email') =>
     `/v1/admin/orders/${encodeURIComponent(orderId)}/${action}`,
   adminCustomerAccessCode: (cpf: string) =>
     `/v1/admin/customers/${encodeURIComponent(cpf)}/access-code`,

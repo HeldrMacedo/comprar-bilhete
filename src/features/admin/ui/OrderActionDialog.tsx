@@ -13,6 +13,9 @@ type OrderActionDialogProps = {
 }
 
 function describe(order: AdminOrder, action: OrderAction) {
+  if (action === 'resend-email') {
+    return 'Os bilhetes serão enviados de novo para o e-mail do pedido, com o PDF em anexo.'
+  }
   const total = formatCurrency(order.totalInCents)
   if (action === 'cancel') {
     return order.status === 'manual_review'
@@ -37,18 +40,22 @@ export function OrderActionDialog({
   const reasonId = useId()
   const invalid = reason.trim().length < 5
   const title =
-    action === 'cancel'
-      ? 'Cancelar pedido'
-      : order?.status === 'manual_review'
-        ? 'Tentar entregar novamente'
-        : 'Aprovar pagamento manualmente'
+    action === 'resend-email'
+      ? 'Reenviar e-mail dos bilhetes'
+      : action === 'cancel'
+        ? 'Cancelar pedido'
+        : order?.status === 'manual_review'
+          ? 'Tentar entregar novamente'
+          : 'Aprovar pagamento manualmente'
+  const confirmLabel =
+    action === 'resend-email' ? 'Reenviar' : action === 'cancel' ? 'Cancelar pedido' : 'Aprovar'
 
   return (
     <ConfirmDialog
       title={title}
       open={order !== null}
       tone={action === 'cancel' ? 'danger' : 'primary'}
-      confirmLabel={action === 'cancel' ? 'Cancelar pedido' : 'Aprovar'}
+      confirmLabel={confirmLabel}
       pending={pending}
       error={error}
       onClose={onClose}

@@ -1,4 +1,4 @@
-import type { AdminOrder, OrderStatus } from '../domain/types'
+import type { AdminOrder, EmailStatus, OrderStatus } from '../domain/types'
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
   pending: 'Pendente',
@@ -35,4 +35,27 @@ export function describeCaptureMethod(method: string | undefined) {
   if (method === 'pix') return 'Pix'
   if (method === 'credit_card') return 'Cartão de crédito'
   return method
+}
+
+export const emailStatusLabels: Record<EmailStatus, string> = {
+  pending: 'Na fila',
+  sent: 'Enviado',
+  failed: 'Falhou',
+  no_recipient: 'Sem e-mail',
+}
+
+export const emailStatusTones: Record<EmailStatus, BadgeTone> = {
+  pending: 'info',
+  sent: 'success',
+  failed: 'danger',
+  no_recipient: 'neutral',
+}
+
+// Pedido pago antes da fila existir não tem status e também pode receber o e-mail.
+export function canResendEmail(order: AdminOrder) {
+  return (
+    order.status === 'paid' &&
+    order.emailStatus !== 'pending' &&
+    order.emailStatus !== 'no_recipient'
+  )
 }

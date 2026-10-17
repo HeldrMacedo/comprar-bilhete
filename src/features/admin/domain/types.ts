@@ -16,6 +16,8 @@ export type UpdateAdminUserInput = Partial<CreateAdminUserInput & { active: bool
 export type OrderStatus =
   'pending' | 'processing' | 'paid' | 'expired' | 'cancelled' | 'manual_review'
 
+export type EmailStatus = 'pending' | 'sent' | 'failed' | 'no_recipient'
+
 export type AdminOrder = {
   id: string
   status: OrderStatus
@@ -26,6 +28,7 @@ export type AdminOrder = {
   paidAmountInCents?: number
   captureMethod?: string
   lastError?: string
+  emailStatus?: EmailStatus
   customer: { name: string; cpf: string; phone: string; beneficiaryName?: string }
   items: Array<{
     id: string
@@ -75,7 +78,7 @@ export type CustomerSummary = {
   lastOrderAt: string
 }
 
-export type OrderAction = 'approve' | 'cancel'
+export type OrderAction = 'approve' | 'cancel' | 'resend-email'
 
 export type DownloadedFile = { blob: Blob; fileName: string }
 

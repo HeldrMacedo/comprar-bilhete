@@ -1,4 +1,4 @@
-import { Check, Download, Search, X } from 'lucide-react'
+import { Check, Download, Mail, Search, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { AdminOrder, OrderAction } from '../../features/admin/domain/types'
@@ -15,7 +15,10 @@ import {
 import {
   canApprove,
   canCancel,
+  canResendEmail,
   describeCaptureMethod,
+  emailStatusLabels,
+  emailStatusTones,
   orderStatusLabels,
   orderStatusTones,
 } from '../../features/admin/service/order-labels'
@@ -27,7 +30,10 @@ import { formatCurrency } from '../../shared/lib/currency'
 import { formatDateTime } from '../../shared/lib/date'
 import { formatCpf, formatPhone } from '../../shared/lib/forms'
 
-function describeOutcome(order: AdminOrder) {
+function describeOutcome(order: AdminOrder, action: OrderAction) {
+  if (action === 'resend-email') {
+    return { tone: 'success' as const, text: 'E-mail colocado na fila de envio.' }
+  }
   if (order.status === 'paid') {
     return { tone: 'success' as const, text: 'Pedido aprovado e bilhetes validados.' }
   }
@@ -133,11 +139,23 @@ export function AdminSalesPage() {
       ),
     },
     {
+      key: 'email',
+      header: 'E-mail',
+      render: (order) =>
+        order.emailStatus ? (
+          <StatusBadge tone={emailStatusTones[order.emailStatus]}>
+            {emailStatusLabels[order.emailStatus]}
+          </StatusBadge>
+        ) : (
+          <span className="admin-hint">—</span>
+        ),
+    },
+    {
       key: 'actions',
       header: 'Ações',
       align: 'end',
       render: (order) =>
-        canApprove(order) || canCancel(order) ? (
+        canApprove(order) || canCancel(order) || canResendEmail(order) ? (
           <div className="admin-row-actions">
             {canApprove(order) ? (
               <button
@@ -159,6 +177,17 @@ export function AdminSalesPage() {
                 onClick={() => openAction(order, 'cancel')}
               >
                 <X size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+            {canResendEmail(order) ? (
+              <button
+                type="button"
+                className="admin-icon-button"
+                aria-label={`Reenviar e-mail do pedido de ${order.customer.name}`}
+                title="Reenviar e-mail"
+                onClick={() => openAction(order, 'resend-email')}
+              >
+                <Mail size={16} aria-hidden="true" />
               </button>
             ) : null}
           </div>
@@ -278,7 +307,7 @@ export function AdminSalesPage() {
             {
               onSuccess: (order) => {
                 setTarget(null)
-                setNotice(describeOutcome(order))
+                setNotice(describeOutcome(order, target.action))
               },
             },
           )
