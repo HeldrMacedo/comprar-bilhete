@@ -22,7 +22,7 @@ A consulta de compras só por CPF foi considerada insegura pelo cliente. Entra u
 
 ## Consequências
 
-- `identify` revela se o CPF tem cadastro (risco aceito pelo cliente em 16/10/2026); limites por IP e por CPF vivem em memória e exigem `trustProxy` atrás de proxy. Ver [SECURITY.md](../SECURITY.md) e o rastreador de dívida.
+- `identify` revela se o CPF tem cadastro (risco aceito pelo cliente em 16/10/2026); limites por IP e por CPF vivem em memória e exigem `TRUST_PROXY` atrás de proxy. Ver [SECURITY.md](../SECURITY.md) e o rastreador de dívida.
 - Com `MAIL_PROVIDER=mock`, o código é fixo `000000` apenas quando bilhetes e pagamento também são mock; com provider live o código é aleatório e nunca entregue, então produção precisa de SMTP.
 - A senha trafega até a API de bilhetes, sem TLS enquanto `TICKET_API_ALLOW_HTTP=true`.
 - Contratos e códigos de erro em [API_CONTRACTS.md](../API_CONTRACTS.md).

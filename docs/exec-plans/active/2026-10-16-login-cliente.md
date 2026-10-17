@@ -3412,6 +3412,15 @@ git commit -m "docs: login de cliente, contratos e segurança"
 
 ---
 
+## Pendências para produção
+
+Bloqueiam ligar o login de cliente com `TICKET_PROVIDER=live` e SMTP em produção:
+
+- Executar a tarefa 0 antes de `TICKET_PROVIDER=live` com SMTP: `POST /pessoa/cadastro` pode apagar campos omitidos, como os endereços parciais de quem foi cadastrado na lotérica, e o contrato ainda não foi validado contra a API real.
+- Não usar `TICKET_API_ALLOW_HTTP=true` com o login ativo: as senhas trafegariam sem TLS entre o backend e a API de bilhetes.
+- Definir `TRUST_PROXY` no deploy atrás de proxy/HTTPS; sem ele os limites por IP valem para o site inteiro.
+- Configurar o SMTP (`MAIL_PROVIDER=smtp` e `SMTP_*`); com `PUBLIC_APP_URL` HTTPS o servidor recusa iniciar com `MAIL_PROVIDER=mock`.
+
 ## Decisões e alternativas descartadas
 
 Ver a tabela da spec. No plano: `OrderService` continua recebendo `customer` (a rota monta a partir da sessão), para não reescrever os testes do serviço; cookie registrado no escopo raiz porque `@fastify/cookie` não pode ser registrado duas vezes na mesma árvore.
@@ -3422,9 +3431,10 @@ Ver a tabela da spec. No plano: `OrderService` continua recebendo `customer` (a 
 - 2026-10-16: tarefas 1 a 12 implementadas e revisadas: migração v8, `shared/password`, e-mail (mock/SMTP), `CustomerGateway.register`, `verification-service`, `account-service`, rotas `/api/v1/account/*` com limites, pedido e Minhas compras pela sessão, código de acesso no painel, feature `account` no frontend (`AuthFlow`, cabeçalho, `/entrar`, `/minha-conta`, carrinho).
 - 2026-10-17: tarefa 13 (remoção de `customers/lookup` e `orders/lookup`, Minhas compras pela conta), tarefa 14 (E2E de cadastro, login e compra com conta) e tarefa 15 (documentação) concluídas.
 - Decisões durante a execução: limites por IP de `identify` e `codes` configuráveis por env (`ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE`, `ACCOUNT_CODE_LIMIT_PER_MINUTE`; 1000 no Playwright); código do admin restrito a CPF sem e-mail (`409 CUSTOMER_HAS_EMAIL`); `/codes` repassa erros de domínio em vez de sempre `202`; limite de 10 falhas por hora por CPF em `/register` e `/password`; código fixo `000000` só com e-mail, bilhetes e pagamento todos mock; `requestJson` aceita `202`/`204` sem corpo; `401` só derruba a sessão no frontend com `UNAUTHENTICATED`; `safeAccountRedirect` recusa barra invertida.
+- 2026-10-17: correções da revisão final: `TRUST_PROXY` repassado ao Fastify; log da falha do SMTP só com `code`/`responseCode`/`command` e timeouts; limite de código errado só com `INVALID_CODE`; código de acesso por CPF digitado no painel; `externalId` fora das respostas de conta; cache de Minhas compras limpo ao trocar de conta; `AccountRepository.updatePassword` removido; `MAIL_PROVIDER=mock` recusado com `PUBLIC_APP_URL` HTTPS; runbook de CPF sequestrado em `docs/SECURITY.md` e novos itens no rastreador de dívida.
 - Pendente: tarefa 0 (validar `POST /pessoa/cadastro` na API real, exige CPF de teste autorizado). Por isso este plano continua em `active/`; ao concluí-la, ajustar o gateway live e `docs/API_CONTRACTS.md` se o contrato divergir e mover para `completed/`.
 
 ## Validação
 
 - 2026-10-17: `npm run check` (lint, prettier, validate:architecture, validate:docs, testes e build) e `npm run test:e2e` (chromium e mobile Pixel 7) passam com os providers mock; ver relatório da tarefa 15 em `.superpowers/sdd/2026-10-16-login-cliente/`.
-- Não validado: `POST /pessoa/cadastro` contra a API real (tarefa 0); envio por SMTP real (`MAIL_PROVIDER=smtp`); `trustProxy` em produção.
+- Não validado: `POST /pessoa/cadastro` contra a API real (tarefa 0); envio por SMTP real (`MAIL_PROVIDER=smtp`); `TRUST_PROXY` atrás do proxy de produção. Ver "Pendências para produção".
