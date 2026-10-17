@@ -243,10 +243,32 @@ export class OrderRepository {
     }
   }
 
+  // O e-mail dos bilhetes entra na fila junto com o status: webhook repetido, reprocessamento
+  // ou nova aprovação não geram segundo envio (order_id é a chave).
   markPaid(orderId: string) {
-    this.database
-      .prepare("UPDATE orders SET status = 'paid', paid_at = ?, last_error = NULL WHERE id = ?")
-      .run(this.now().toISOString(), orderId)
+    const now = this.now().toISOString()
+    this.database.exec('BEGIN IMMEDIATE')
+    try {
+      this.database
+        .prepare("UPDATE orders SET status = 'paid', paid_at = ?, last_error = NULL WHERE id = ?")
+        .run(now, orderId)
+      this.database
+        .prepare(
+          `INSERT OR IGNORE INTO order_emails (
+             order_id, status, attempts, next_attempt_at, created_at, updated_at
+           )
+           SELECT id,
+                  CASE WHEN COALESCE(json_extract(customer_json, '$.email'), '') = ''
+                       THEN 'no_recipient' ELSE 'pending' END,
+                  0, ?, ?, ?
+           FROM orders WHERE id = ?`,
+        )
+        .run(now, now, now, orderId)
+      this.database.exec('COMMIT')
+    } catch (error) {
+      this.database.exec('ROLLBACK')
+      throw error
+    }
   }
 
   markManualReview(orderId: string, message: string) {

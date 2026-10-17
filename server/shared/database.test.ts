@@ -22,7 +22,7 @@ describe('database migrations', () => {
   it('creates an empty database at schema version 8', () => {
     const database = createDatabase(':memory:')
 
-    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 8 })
+    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 9 })
     expect(database.prepare('PRAGMA table_info(orders)').all()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'selection_mode' }),
@@ -36,7 +36,13 @@ describe('database migrations', () => {
       .all()
       .map((row) => (row as { name: string }).name)
     expect(tables).toEqual(
-      expect.arrayContaining(['admin_users', 'admin_sessions', 'admin_audit_log', 'site_settings']),
+      expect.arrayContaining([
+        'admin_users',
+        'admin_sessions',
+        'admin_audit_log',
+        'site_settings',
+        'order_emails',
+      ]),
     )
     database.close()
   })
@@ -105,7 +111,7 @@ describe('database migrations', () => {
 
     const upgraded = createDatabase(path)
 
-    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 8 })
+    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 9 })
     expect(upgraded.prepare('SELECT * FROM orders').get()).toMatchObject({
       id: '00000000-0000-4000-8000-000000000001',
       selection_mode: 'manual',

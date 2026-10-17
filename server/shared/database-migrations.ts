@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 8
+const CURRENT_SCHEMA_VERSION = 9
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -28,6 +28,7 @@ export function migrateDatabase(database: DatabaseSync) {
       if (version < 6) migrateToVersion6(database)
       if (version < 7) migrateToVersion7(database)
       if (version < 8) migrateToVersion8(database)
+      if (version < 9) migrateToVersion9(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -91,6 +92,7 @@ function createLatestSchema(database: DatabaseSync) {
   database.exec(BATCH_SEQUENCES_SCHEMA)
   database.exec(ADMIN_SCHEMA)
   database.exec(ACCOUNT_SCHEMA)
+  database.exec(ORDER_EMAILS_SCHEMA)
 }
 
 function migrateToVersion2(database: DatabaseSync) {
@@ -289,4 +291,23 @@ const ACCOUNT_SCHEMA = `
 
 function migrateToVersion8(database: DatabaseSync) {
   database.exec(ACCOUNT_SCHEMA)
+}
+
+const ORDER_EMAILS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS order_emails (
+    order_id TEXT PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_recipient')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    last_error TEXT,
+    sent_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_order_emails_queue ON order_emails(status, next_attempt_at);
+`
+
+function migrateToVersion9(database: DatabaseSync) {
+  database.exec(ORDER_EMAILS_SCHEMA)
 }
