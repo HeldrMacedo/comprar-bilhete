@@ -124,3 +124,26 @@ test('mostra indicadores e gráficos no dashboard', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Faturamento por dia' })).toBeVisible()
   await expect(page.getByRole('list', { name: 'Pedidos por status' })).toBeVisible()
 })
+
+test('envia o e-mail dos bilhetes do pedido aprovado e permite reenviar', async ({ page }) => {
+  const card = await createPendingOrder(page)
+  const code = card.replace('card-', '#')
+
+  await signIn(page, `/admin/vendas?status=pending&q=${encodeURIComponent(code)}`)
+  await page.getByRole('button', { name: 'Aprovar pedido de João Souza' }).click()
+  const approve = page.getByRole('dialog', { name: 'Aprovar pagamento manualmente' })
+  await approve.getByLabel('Motivo').fill('Pix recebido direto na conta')
+  await approve.getByRole('button', { name: 'Aprovar' }).click()
+  await expect(page.getByText('Pedido aprovado e bilhetes validados.')).toBeVisible()
+
+  await expect(async () => {
+    await page.goto(`/admin/vendas?q=${encodeURIComponent(code)}`)
+    await expect(page.getByText('Enviado')).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 30_000 })
+
+  await page.getByRole('button', { name: 'Reenviar e-mail do pedido de João Souza' }).click()
+  const resend = page.getByRole('dialog', { name: 'Reenviar e-mail dos bilhetes' })
+  await resend.getByLabel('Motivo').fill('Cliente não recebeu')
+  await resend.getByRole('button', { name: 'Reenviar' }).click()
+  await expect(page.getByText('E-mail colocado na fila de envio.')).toBeVisible()
+})

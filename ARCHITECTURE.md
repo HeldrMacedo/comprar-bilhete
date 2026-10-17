@@ -21,6 +21,7 @@ server/
 │   ├── accounts/        conta de cliente, sessão, códigos e e-mail
 │   ├── orders/          pedido, reserva, persistência e orquestração
 │   ├── payments/        porta + providers mock/InfinitePay
+│   ├── ticket-emails/   fila `order_emails`, cartela, HTML, PDF e worker do e-mail dos bilhetes
 │   └── tickets/         porta + providers mock/API externa
 ├── http/                rotas e presenters
 └── shared/              SQLite, HTTP externo e erros

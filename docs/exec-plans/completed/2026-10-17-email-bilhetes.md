@@ -1998,7 +1998,17 @@ Ver a tabela da spec. Acrescentada no plano: reenvio aceita pedido pago antes da
 ## Progresso
 
 - 2026-10-17: spec aprovada; plano escrito.
+- 2026-10-17: tarefa 1 — fila `order_emails` (migração v9) e enfileiramento no `markPaid` (`dfcc191`).
+- 2026-10-17: tarefa 2 — estrutura da cartela de bilhetes (`03d53e3`, com ajuste de teste do comprovante em `76f5e00`).
+- 2026-10-17: tarefa 3 — HTML e texto do e-mail com a cartela (`9f88dfe`).
+- 2026-10-17: tarefa 4 — PDF com os bilhetes do pedido (`17a1258`, correção de página em `6f3718f`).
+- 2026-10-17: tarefa 5 — `MailGateway.send` com anexos (`5b00947`).
+- 2026-10-17: tarefa 6 — envio com novas tentativas no worker (`9dcec19`, erro sem dados pessoais em `ea67989`).
+- 2026-10-17: tarefa 7 — status e reenvio no painel, backend (`c41b90f`).
+- 2026-10-17: tarefa 8 — status e reenvio no painel de vendas, frontend (`193fb57`).
+- 2026-10-17: tarefa 9 — E2E, documentação e verificação final (commit `docs: e-mail dos bilhetes, contratos e segurança; E2E de reenvio`).
 
 ## Validação
 
-Pendente.
+- `npm run check`: passou (lint, Prettier, `validate:architecture`, `validate:docs`, build e 332 testes Vitest em 57 arquivos).
+- `npm run test:e2e`: 38 testes passaram (chromium e mobile Pixel 7), inclusive o novo "envia o e-mail dos bilhetes do pedido aprovado e permite reenviar".
