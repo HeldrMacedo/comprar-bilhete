@@ -283,6 +283,55 @@ describe('admin sales', () => {
     expect(row).toContain(';Pendente;Maria da Silva;52998224725;84999855367;')
     expect(row).toContain(';10,00;')
   })
+
+  it('mostra o status do e-mail dos bilhetes e reenvia pedido pago', async () => {
+    const { app, headers, createOrder } = await setup()
+    const orderId = await createOrder('maria', ['card-001'])
+
+    const list = async () =>
+      (await app.inject({ method: 'GET', url: '/api/v1/admin/orders', headers })).json<{
+        orders: Array<{ id: string; emailStatus?: string }>
+      }>().orders[0]
+
+    expect(await list()).not.toHaveProperty('emailStatus')
+
+    const approved = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/orders/${orderId}/approve`,
+      headers,
+      payload: { reason: 'Pix recebido direto na conta' },
+    })
+    expect(approved.json()).toMatchObject({ order: { status: 'paid', emailStatus: 'pending' } })
+
+    const queued = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/orders/${orderId}/resend-email`,
+      headers,
+      payload: { reason: 'Cliente não recebeu' },
+    })
+    expect(queued.statusCode).toBe(409)
+    expect(queued.json()).toMatchObject({ code: 'EMAIL_ALREADY_QUEUED' })
+    expect(await list()).toMatchObject({ id: orderId, emailStatus: 'pending' })
+  })
+
+  it('recusa reenvio de pedido não pago e sem motivo', async () => {
+    const { app, headers, createOrder } = await setup()
+    const orderId = await createOrder('maria', ['card-001'])
+    const noReason = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/orders/${orderId}/resend-email`,
+      headers,
+      payload: { reason: 'ok' },
+    })
+    expect(noReason.statusCode).toBe(400)
+    const pending = await app.inject({
+      method: 'POST',
+      url: `/api/v1/admin/orders/${orderId}/resend-email`,
+      headers,
+      payload: { reason: 'Cliente não recebeu' },
+    })
+    expect(pending.json()).toMatchObject({ code: 'ORDER_NOT_PAID' })
+  })
 })
 
 describe('admin customers', () => {

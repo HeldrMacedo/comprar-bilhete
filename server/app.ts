@@ -188,6 +188,7 @@ export async function buildApp(options: AppOptions = {}) {
       new AdminSalesRepository(database),
       orderRepository,
       service,
+      ticketEmails,
       adminRepository,
       now,
     ),

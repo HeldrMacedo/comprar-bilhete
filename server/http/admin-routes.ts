@@ -167,7 +167,13 @@ export async function registerAdminRoutes(
       protectedScope.get(`${ADMIN_PREFIX}/orders`, async (request) => {
         const { page, filters } = splitPage(request.query)
         const result = services.sales.listOrders(salesFiltersSchema.parse(filters), page)
-        return { ...page, total: result.total, orders: result.orders.map(presentAdminOrder) }
+        return {
+          ...page,
+          total: result.total,
+          orders: result.orders.map((order) =>
+            presentAdminOrder(order, result.emailStatuses.get(order.id)),
+          ),
+        }
       })
 
       protectedScope.get(`${ADMIN_PREFIX}/orders/export`, async (request, reply) => {
@@ -186,14 +192,21 @@ export async function registerAdminRoutes(
         const { id } = orderParamsSchema.parse(request.params)
         const { reason } = orderActionInputSchema.parse(request.body)
         const order = await services.sales.approve(requireAdminSession(request), id, reason)
-        return { order: presentAdminOrder(order) }
+        return { order: presentAdminOrder(order, services.sales.emailStatusOf(order.id)) }
       })
 
       protectedScope.post(`${ADMIN_PREFIX}/orders/:id/cancel`, async (request) => {
         const { id } = orderParamsSchema.parse(request.params)
         const { reason } = orderActionInputSchema.parse(request.body)
         const order = await services.sales.cancel(requireAdminSession(request), id, reason)
-        return { order: presentAdminOrder(order) }
+        return { order: presentAdminOrder(order, services.sales.emailStatusOf(order.id)) }
+      })
+
+      protectedScope.post(`${ADMIN_PREFIX}/orders/:id/resend-email`, async (request) => {
+        const { id } = orderParamsSchema.parse(request.params)
+        const { reason } = orderActionInputSchema.parse(request.body)
+        const order = services.sales.resendEmail(requireAdminSession(request), id, reason)
+        return { order: presentAdminOrder(order, services.sales.emailStatusOf(order.id)) }
       })
 
       protectedScope.get(`${ADMIN_PREFIX}/customers`, async (request) => {

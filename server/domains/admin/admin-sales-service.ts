@@ -3,6 +3,7 @@ import { DomainError } from '../../shared/errors.js'
 import type { OrderRepository } from '../orders/order-repository.js'
 import type { OrderService } from '../orders/order-service.js'
 import type { Order } from '../orders/order-types.js'
+import type { TicketEmailService } from '../ticket-emails/ticket-email-service.js'
 import type { AdminRepository } from './admin-repository.js'
 import type { AdminSession } from './admin-auth-service.js'
 import type {
@@ -33,13 +34,28 @@ export class AdminSalesService {
     private readonly sales: AdminSalesRepository,
     private readonly orders: OrderRepository,
     private readonly orderService: OrderService,
+    private readonly ticketEmails: TicketEmailService,
     private readonly audit: AdminRepository,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   listOrders(filters: SalesFilters, page: Page) {
     this.orders.expirePending()
-    return this.sales.searchOrders(filters, page)
+    const result = this.sales.searchOrders(filters, page)
+    return {
+      ...result,
+      emailStatuses: this.ticketEmails.statusesOf(result.orders.map((order) => order.id)),
+    }
+  }
+
+  emailStatusOf(orderId: string) {
+    return this.ticketEmails.statusesOf([orderId]).get(orderId)
+  }
+
+  resendEmail(actor: AdminSession, orderId: string, reason: string) {
+    this.ticketEmails.resend(orderId)
+    this.record(actor, 'order.resend_email', orderId, { reason })
+    return this.requireOrder(orderId)
   }
 
   listCustomers(filters: CustomerFilters, page: Page) {
