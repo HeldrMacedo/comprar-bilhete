@@ -40,7 +40,7 @@ describe('renderTicketCardsPdf', () => {
   it('gera PDF com cada bilhete começando em página nova', async () => {
     const pdf = await renderTicketCardsPdf(document)
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-')
-    expect(pageCount(pdf)).toBeGreaterThanOrEqual(2)
+    expect(pageCount(pdf)).toBe(2)
   })
 
   it('bilhete pequeno ocupa uma página só', async () => {

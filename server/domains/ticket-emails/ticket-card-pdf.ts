@@ -9,7 +9,7 @@ import {
 type Pdf = InstanceType<typeof PDFDocument>
 
 const CELL_WIDTH = 30
-const CELL_HEIGHT = 20
+const CELL_HEIGHT = 17
 const GRID_GAP = 36
 const BRAND = '#0062ff'
 
@@ -48,7 +48,7 @@ function drawCard(pdf: Pdf, document: TicketCardDocument, card: TicketCard) {
 
   for (const prize of card.prizes) {
     const gridRows = Math.max(prize.first.length, prize.second.length)
-    const needed = (prize.title ? 16 : 0) + 14 + gridRows * CELL_HEIGHT + 12
+    const needed = (prize.title ? 14 : 0) + 14 + gridRows * CELL_HEIGHT + 8
     ensureSpace(pdf, needed)
     if (prize.title) {
       pdf.font('Helvetica-Bold').fontSize(11).fillColor('#111111')
@@ -62,10 +62,10 @@ function drawCard(pdf: Pdf, document: TicketCardDocument, card: TicketCard) {
     drawGrid(pdf, left, top, withSecond ? '1ª CHANCE' : '', prize.first)
     if (withSecond) drawGrid(pdf, left + gridWidth + GRID_GAP, top, '2ª CHANCE', prize.second)
     pdf.x = pdf.page.margins.left
-    pdf.y = top + 14 + gridRows * CELL_HEIGHT + 10
+    pdf.y = top + 14 + gridRows * CELL_HEIGHT + 6
   }
 
-  ensureSpace(pdf, 200)
+  ensureSpace(pdf, footerHeight(pdf, card, document, width))
   rule(pdf)
   pdf.font('Helvetica').fontSize(10).fillColor('#111111')
   if (card.luckySpins) {
@@ -93,6 +93,27 @@ function drawCard(pdf: Pdf, document: TicketCardDocument, card: TicketCard) {
   }
 }
 
+// Altura do bloco final (giros, dados da compra, comprador e rodapé), medida com as mesmas
+// fontes usadas no desenho, para que ele só vá para outra página se realmente não couber.
+function footerHeight(pdf: Pdf, card: TicketCard, document: TicketCardDocument, width: number) {
+  const lines = [
+    card.luckySpins ? 1 : 0,
+    2,
+    card.batch ? 1 : 0,
+    document.paidAt ? 1 : 0,
+    2 + (document.customerCity ? 1 : 0),
+  ].reduce((sum, count) => sum + count, 0)
+  pdf.font('Helvetica').fontSize(10)
+  const info = lines * pdf.currentLineHeight() + 3 * 10
+  pdf.fontSize(8)
+  const footer = PRIZE_FOOTER.reduce(
+    (sum, line) =>
+      sum + (line ? pdf.heightOfString(line, { width }) : pdf.currentLineHeight() * 0.4),
+    0,
+  )
+  return info + footer + 4
+}
+
 function drawGrid(pdf: Pdf, left: number, top: number, label: string, rows: string[][]) {
   if (label) {
     pdf
@@ -109,7 +130,7 @@ function drawGrid(pdf: Pdf, left: number, top: number, label: string, rows: stri
       pdf.rect(x, y, CELL_WIDTH, CELL_HEIGHT).stroke()
       const value = row[column]
       if (value) {
-        pdf.text(value, x, y + 5, { width: CELL_WIDTH, align: 'center', lineBreak: false })
+        pdf.text(value, x, y + 4, { width: CELL_WIDTH, align: 'center', lineBreak: false })
       }
     }
   })
