@@ -75,12 +75,13 @@ describe('buildReceipt', () => {
         'DATA DA COMPRA: 16/09/2026 17:57',
         'DADOS DO CLIENTE',
         'NOME: JOAO JAILSON DA SILVA',
-        'Natal',
+        'CIDADE: Natal',
         'FONE: 84987175711',
         'CPF: 529.982.247-25',
         'Parabéns, sua compra foi realizada com sucesso!',
         '• Documentação pessoal',
         '• Comprovante de endereço',
+        'Ganhadores fora da Região Norte da Bahia, a retirada do prêmio deverá acontecer na sede do Sol da Sorte, em Jacobina, ou em uma de nossas representantes.',
       ]),
     )
   })

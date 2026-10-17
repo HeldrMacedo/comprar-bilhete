@@ -23,7 +23,7 @@ const footer = [
   '• Documentação pessoal',
   '• Comprovante de endereço',
   '',
-  'Ganhadores fora da Região Norte da Bahia, a retirada do prêmio deverá acontecer na sede do Sol da Sorte, em Jacobina, ou em uma de nossas representantes.'
+  'Ganhadores fora da Região Norte da Bahia, a retirada do prêmio deverá acontecer na sede do Sol da Sorte, em Jacobina, ou em uma de nossas representantes.',
 ]
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
