@@ -7,6 +7,8 @@ import { AccountRepository } from './domains/accounts/account-repository.js'
 import { AccountService } from './domains/accounts/account-service.js'
 import type { MailGateway } from './domains/accounts/mail-gateway.js'
 import { MockMailGateway } from './domains/accounts/mock-mail-gateway.js'
+import { TicketEmailRepository } from './domains/ticket-emails/ticket-email-repository.js'
+import { TicketEmailService } from './domains/ticket-emails/ticket-email-service.js'
 import { SmtpMailGateway } from './domains/accounts/smtp-mail-gateway.js'
 import { VerificationService } from './domains/accounts/verification-service.js'
 import { AdminAuthService } from './domains/admin/admin-auth-service.js'
@@ -123,6 +125,13 @@ export async function buildApp(options: AppOptions = {}) {
         ? new MockTicketReservationGateway(env.TICKET_RESERVATION_TTL_MINUTES * 60_000, now)
         : new NoopTicketReservationGateway())
   const orderRepository = new OrderRepository(database, now)
+  const ticketEmails = new TicketEmailService(
+    new TicketEmailRepository(database, now),
+    orderRepository,
+    mail,
+    env.PUBLIC_APP_URL,
+    now,
+  )
   const service = new OrderService(
     orderRepository,
     tickets,
@@ -198,6 +207,8 @@ export async function buildApp(options: AppOptions = {}) {
     worker = setInterval(() => {
       void service.processNextPaymentEvent().catch((error: unknown) => app.log.error(error))
       void service.releaseAbandonedReservations().catch((error: unknown) => app.log.error(error))
+      // Rodadas sobrepostas não duplicam envio: o item fica reservado por 10 min.
+      void ticketEmails.processPending().catch((error: unknown) => app.log.error(error))
     }, 5_000)
     worker.unref()
   }
