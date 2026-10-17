@@ -135,4 +135,29 @@ describe('TicketEmailService', () => {
       expect.objectContaining({ code: 'EMAIL_NO_RECIPIENT', statusCode: 409 }),
     )
   })
+
+  it('não roda duas rodadas ao mesmo tempo no mesmo processo', async () => {
+    const { orders, mail, service, orderId } = setup()
+    orders.markPaid(orderId)
+    let release: () => void = () => undefined
+    vi.spyOn(mail, 'send').mockImplementation(
+      () => new Promise<void>((resolve) => (release = resolve)),
+    )
+    const first = service.processPending()
+    await vi.waitFor(() => expect(mail.send).toHaveBeenCalled())
+    expect(await service.processPending()).toBe(0)
+    release()
+    expect(await first).toBe(1)
+    expect(mail.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('pedido corrompido conta como tentativa falha em vez de ser reivindicado para sempre', async () => {
+    const { orders, repository, service, orderId } = setup()
+    orders.markPaid(orderId)
+    vi.spyOn(orders, 'get').mockImplementation(() => {
+      throw new Error('linha corrompida')
+    })
+    expect(await service.processNext()).toBe(true)
+    expect(repository.get(orderId)).toMatchObject({ status: 'pending', attempts: 1 })
+  })
 })

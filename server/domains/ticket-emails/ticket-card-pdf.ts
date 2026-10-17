@@ -9,7 +9,8 @@ import {
 type Pdf = InstanceType<typeof PDFDocument>
 
 const CELL_WIDTH = 30
-const CELL_HEIGHT = 17
+const CELL_HEIGHT = 15
+const LABEL_HEIGHT = 10
 const GRID_GAP = 36
 const BRAND = '#0062ff'
 
@@ -19,7 +20,7 @@ export function renderTicketCardsPdf(document: TicketCardDocument): Promise<Buff
   return new Promise((resolve, reject) => {
     const pdf = new PDFDocument({
       size: 'A4',
-      margin: 40,
+      margin: 30,
       info: { Title: 'Bilhetes Sol da Sorte' },
     })
     const chunks: Buffer[] = []
@@ -48,21 +49,21 @@ function drawCard(pdf: Pdf, document: TicketCardDocument, card: TicketCard) {
 
   for (const prize of card.prizes) {
     const gridRows = Math.max(prize.first.length, prize.second.length)
-    const needed = (prize.title ? 14 : 0) + 14 + gridRows * CELL_HEIGHT + 8
+    const needed = (prize.title ? 12 : 0) + LABEL_HEIGHT + gridRows * CELL_HEIGHT + 6
     ensureSpace(pdf, needed)
     if (prize.title) {
-      pdf.font('Helvetica-Bold').fontSize(11).fillColor('#111111')
+      pdf.font('Helvetica-Bold').fontSize(10).fillColor('#111111')
       pdf.text(prize.title, { align: 'center', width })
     }
     const withSecond = prize.second.length > 0
     const gridWidth = CELL_WIDTH * 5
     const totalWidth = withSecond ? gridWidth * 2 + GRID_GAP : gridWidth
     const left = pdf.page.margins.left + (width - totalWidth) / 2
-    const top = pdf.y + 2
+    const top = pdf.y + 1
     drawGrid(pdf, left, top, withSecond ? '1ª CHANCE' : '', prize.first)
     if (withSecond) drawGrid(pdf, left + gridWidth + GRID_GAP, top, '2ª CHANCE', prize.second)
     pdf.x = pdf.page.margins.left
-    pdf.y = top + 14 + gridRows * CELL_HEIGHT + 6
+    pdf.y = top + LABEL_HEIGHT + gridRows * CELL_HEIGHT + 4
   }
 
   ensureSpace(pdf, footerHeight(pdf, card, document, width))
@@ -82,7 +83,7 @@ function drawCard(pdf: Pdf, document: TicketCardDocument, card: TicketCard) {
   if (card.batch) pdf.text(card.batch, { width })
   if (document.paidAt) pdf.text(`DATA DA COMPRA: ${document.paidAt}`, { width })
   rule(pdf)
-  pdf.text(`NOME: ${document.customerName}`, { width })
+  pdf.text(`NOME: ${document.holderName}`, { width })
   if (document.customerCity) pdf.text(`CIDADE: ${document.customerCity}`, { width })
   pdf.text(`CPF: ${document.maskedCpf}`, { width })
   rule(pdf)
@@ -118,19 +119,19 @@ function drawGrid(pdf: Pdf, left: number, top: number, label: string, rows: stri
   if (label) {
     pdf
       .font('Helvetica-Bold')
-      .fontSize(8)
+      .fontSize(7)
       .fillColor('#374151')
       .text(label, left, top, { width: CELL_WIDTH * 5, align: 'center', lineBreak: false })
   }
-  pdf.font('Helvetica-Bold').fontSize(11).fillColor('#111111').strokeColor('#1f2937')
+  pdf.font('Helvetica-Bold').fontSize(10).fillColor('#111111').strokeColor('#1f2937')
   rows.forEach((row, rowIndex) => {
     for (let column = 0; column < 5; column += 1) {
       const x = left + column * CELL_WIDTH
-      const y = top + 14 + rowIndex * CELL_HEIGHT
+      const y = top + LABEL_HEIGHT + rowIndex * CELL_HEIGHT
       pdf.rect(x, y, CELL_WIDTH, CELL_HEIGHT).stroke()
       const value = row[column]
       if (value) {
-        pdf.text(value, x, y + 4, { width: CELL_WIDTH, align: 'center', lineBreak: false })
+        pdf.text(value, x, y + 3.5, { width: CELL_WIDTH, align: 'center', lineBreak: false })
       }
     }
   })

@@ -85,4 +85,14 @@ describe('TicketEmailRepository', () => {
     emails.requeue(orderId)
     expect(emails.get(orderId)).toMatchObject({ status: 'pending', attempts: 0 })
   })
+
+  it('requeue de e-mail já enviado limpa a data de envio', () => {
+    const { orders, emails, orderId } = setup()
+    orders.markPaid(orderId)
+    emails.claimNext()
+    emails.markSent(orderId)
+    emails.requeue(orderId)
+    expect(emails.get(orderId)).toMatchObject({ status: 'pending' })
+    expect(emails.get(orderId)?.sentAt).toBeFalsy()
+  })
 })

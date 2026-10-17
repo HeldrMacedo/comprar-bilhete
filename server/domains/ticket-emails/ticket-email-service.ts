@@ -21,13 +21,13 @@ export class TicketEmailService {
   async processNext() {
     const claimed = this.repository.claimNext()
     if (!claimed) return false
-    const order = this.orders.get(claimed.orderId)
-    const to = order?.customer.email
-    if (!order || !to) {
-      this.repository.markNoRecipient(claimed.orderId)
-      return true
-    }
     try {
+      const order = this.orders.get(claimed.orderId)
+      const to = order?.customer.email
+      if (!order || !to) {
+        this.repository.markNoRecipient(claimed.orderId)
+        return true
+      }
       const document = buildTicketCards(order, this.appUrl)
       const pdf = await renderTicketCardsPdf(document)
       await this.mail.send({
@@ -47,7 +47,7 @@ export class TicketEmailService {
       const attempts = claimed.attempts + 1
       const delay = RETRY_DELAYS_MS[attempts - 1]
       this.repository.markFailedAttempt(
-        order.id,
+        claimed.orderId,
         attempts,
         delay === undefined ? null : new Date(this.now().getTime() + delay),
         error instanceof MailDeliveryError
@@ -61,10 +61,19 @@ export class TicketEmailService {
   }
 
   // Rodada do worker: vários envios por vez para a fila não crescer em picos de venda.
+  // Um laço por vez no processo: o worker não espera a rodada anterior terminar.
+  private running = false
+
   async processPending(limit = 10) {
-    let processed = 0
-    while (processed < limit && (await this.processNext())) processed += 1
-    return processed
+    if (this.running) return 0
+    this.running = true
+    try {
+      let processed = 0
+      while (processed < limit && (await this.processNext())) processed += 1
+      return processed
+    } finally {
+      this.running = false
+    }
   }
 
   resend(orderId: string) {

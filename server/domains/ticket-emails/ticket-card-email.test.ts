@@ -4,6 +4,7 @@ import { renderTicketCardEmail } from './ticket-card-email.js'
 
 const document: TicketCardDocument = {
   customerName: 'Maria <script>alert(1)</script>',
+  holderName: 'Maria <script>alert(1)</script>',
   customerCity: 'NATAL',
   maskedCpf: '***.950.174-**',
   totalPaid: 'R$ 10,00',
@@ -65,5 +66,48 @@ describe('renderTicketCardEmail', () => {
     })
     expect(single.html).not.toContain('2ª CHANCE')
     expect(single.text).not.toContain('2ª CHANCE')
+  })
+
+  it('limita o HTML a poucos KB e avisa dos bilhetes que ficaram só no PDF', () => {
+    const rows = Array.from({ length: 4 }, (_, row) =>
+      Array.from({ length: 5 }, (_, column) => String(row * 5 + column + 1).padStart(2, '0')),
+    )
+    const base = document.cards[0]!
+    const cards = Array.from({ length: 10 }, (_, index) => ({
+      ...base,
+      title: `BILHETE 6041008${String(index).padStart(4, '0')}-00`,
+      prizes: ['1º PRÊMIO', '2º PRÊMIO', '3º PRÊMIO', '4º PRÊMIO'].map((title) => ({
+        title,
+        first: rows,
+        second: rows,
+      })),
+    }))
+    const { html, text } = renderTicketCardEmail({ ...document, cards })
+    const rendered = cards.filter((card) => html.includes(card.title)).length
+    expect(html.length).toBeLessThan(100_000)
+    expect(rendered).toBeGreaterThanOrEqual(1)
+    expect(rendered).toBeLessThan(10)
+    expect(html).toContain(`E mais ${10 - rendered} bilhetes no PDF em anexo e em`)
+    expect(html).toContain('href="https://soldasorte.example/minhas-compras"')
+    for (const card of cards) expect(text).toContain(card.title)
+  })
+
+  it('usa o singular quando só um bilhete fica de fora e não avisa quando todos cabem', () => {
+    const rows = Array.from({ length: 4 }, () => ['01', '02', '03', '04', '05'])
+    const cardsOf = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        ...document.cards[0]!,
+        title: `BILHETE ${index}`,
+        prizes: Array.from({ length: 4 }, () => ({ first: rows, second: rows })),
+      }))
+    expect(renderTicketCardEmail(document).html).not.toContain('E mais')
+    const html = (count: number) =>
+      renderTicketCardEmail({ ...document, cards: cardsOf(count) }).html
+    const fits = Array.from({ length: 12 }, (_, index) => index + 1).filter(
+      (count) => !html(count).includes('E mais'),
+    )
+    const last = Math.max(...fits)
+    expect(last).toBeLessThan(12)
+    expect(html(last + 1)).toContain('E mais 1 bilhete no PDF em anexo')
   })
 })

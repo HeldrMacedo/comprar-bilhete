@@ -87,4 +87,17 @@ describe('buildTicketCards', () => {
       expect(receipt).toContain(line)
     }
   })
+
+  it('titular é o beneficiário em compra para terceiros e o comprador nos demais casos', () => {
+    const own = buildTicketCards(order({ items: [fullTicket] }), 'https://soldasorte.example/')
+    expect(own.holderName).toBe(existingMaria.name)
+    const gift = buildTicketCards(
+      order({
+        items: [fullTicket],
+        customer: { ...existingMaria, beneficiaryName: 'Ana Beneficiária' },
+      }),
+      'https://soldasorte.example/',
+    )
+    expect(gift).toMatchObject({ customerName: existingMaria.name, holderName: 'Ana Beneficiária' })
+  })
 })

@@ -61,7 +61,7 @@ export class SmtpMailGateway implements MailGateway {
 
   async send(message: MailMessage) {
     try {
-      await this.transporter.sendMail({ from: this.from, ...message })
+      await this.transporter.sendMail({ ...message, from: this.from })
     } catch (error) {
       const parsed = smtpErrorSchema.safeParse(error)
       const details = parsed.success ? parsed.data : {}

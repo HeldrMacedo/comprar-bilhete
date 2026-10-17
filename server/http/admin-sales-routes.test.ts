@@ -1,6 +1,12 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app.js'
 import { parseServerEnv } from '../config/env.js'
+import { AdminRepository } from '../domains/admin/admin-repository.js'
+import { TicketEmailRepository } from '../domains/ticket-emails/ticket-email-repository.js'
+import { createDatabase } from '../shared/database.js'
 import { MockTicketGateway } from '../domains/tickets/mock-ticket-gateway.js'
 import { ADMIN_SESSION_COOKIE } from './admin-routes.js'
 import { CUSTOMER_SESSION_COOKIE } from './customer-session.js'
@@ -49,11 +55,11 @@ async function registerJoao(app: App) {
   return { [CUSTOMER_SESSION_COOKIE]: cookie.value }
 }
 
-async function setup(now: () => Date = () => new Date()) {
+async function setup(now: () => Date = () => new Date(), databasePath = ':memory:') {
   const tickets = new MockTicketGateway()
   const app = await buildApp({
     env: parseServerEnv({
-      DATABASE_PATH: ':memory:',
+      DATABASE_PATH: databasePath,
       PUBLIC_APP_URL: ORIGIN,
       ADMIN_BOOTSTRAP_LOGIN: 'admin',
       ADMIN_BOOTSTRAP_PASSWORD: PASSWORD,
@@ -312,6 +318,45 @@ describe('admin sales', () => {
     expect(queued.statusCode).toBe(409)
     expect(queued.json()).toMatchObject({ code: 'EMAIL_ALREADY_QUEUED' })
     expect(await list()).toMatchObject({ id: orderId, emailStatus: 'pending' })
+  })
+
+  it('reenvia pedido já enviado, volta para a fila e audita o motivo', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'resend-'))
+    const path = join(directory, 'app.sqlite')
+    const { app, headers, createOrder } = await setup(() => new Date(), path)
+    // Segunda conexão ao mesmo arquivo: simula o worker e lê o registro de auditoria.
+    const database = createDatabase(path)
+    try {
+      const orderId = await createOrder('maria', ['card-001'])
+      await app.inject({
+        method: 'POST',
+        url: `/api/v1/admin/orders/${orderId}/approve`,
+        headers,
+        payload: { reason: 'Pix recebido direto na conta' },
+      })
+      const emails = new TicketEmailRepository(database)
+      expect(emails.claimNext()?.orderId).toBe(orderId)
+      emails.markSent(orderId)
+      expect(emails.get(orderId)).toMatchObject({ status: 'sent' })
+
+      const resent = await app.inject({
+        method: 'POST',
+        url: `/api/v1/admin/orders/${orderId}/resend-email`,
+        headers,
+        payload: { reason: 'Cliente não recebeu' },
+      })
+      expect(resent.statusCode).toBe(200)
+      expect(resent.json()).toMatchObject({ order: { id: orderId, emailStatus: 'pending' } })
+
+      const audit = new AdminRepository(database)
+        .listAudit(10)
+        .find((row) => row.action === 'order.resend_email')
+      expect(audit).toMatchObject({ target_id: orderId })
+      expect(JSON.parse(audit!.details_json)).toEqual({ reason: 'Cliente não recebeu' })
+    } finally {
+      database.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it('recusa reenvio de pedido não pago e sem motivo', async () => {

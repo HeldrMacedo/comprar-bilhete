@@ -98,7 +98,7 @@ export class TicketEmailRepository {
          VALUES (?, 'pending', 0, ?, ?, ?)
          ON CONFLICT(order_id) DO UPDATE SET
            status = 'pending', attempts = 0, next_attempt_at = excluded.next_attempt_at,
-           last_error = NULL, updated_at = excluded.updated_at`,
+           last_error = NULL, sent_at = NULL, updated_at = excluded.updated_at`,
       )
       .run(orderId, now, now, now)
   }

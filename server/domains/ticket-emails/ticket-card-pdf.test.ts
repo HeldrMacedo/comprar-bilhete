@@ -23,6 +23,7 @@ const card: TicketCard = {
 }
 const document: TicketCardDocument = {
   customerName: 'Maria da Silva',
+  holderName: 'Maria da Silva',
   customerCity: 'NATAL',
   maskedCpf: '***.950.174-**',
   totalPaid: 'R$ 20,00',
@@ -49,5 +50,22 @@ describe('renderTicketCardsPdf', () => {
       cards: [{ ...card, prizes: [{ first: [rows[0]!], second: [] }] }],
     })
     expect(pageCount(small)).toBe(1)
+  })
+
+  it('bilhete com 5 prêmios de 20+20 dezenas cabe em uma página', async () => {
+    const five = await renderTicketCardsPdf({
+      ...document,
+      cards: [
+        {
+          ...card,
+          prizes: ['1º', '2º', '3º', '4º', '5º'].map((title) => ({
+            title: `${title} PRÊMIO`,
+            first: rows,
+            second: rows,
+          })),
+        },
+      ],
+    })
+    expect(pageCount(five)).toBe(1)
   })
 })

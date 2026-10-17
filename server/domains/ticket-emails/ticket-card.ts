@@ -12,6 +12,8 @@ export type TicketCard = {
 }
 export type TicketCardDocument = {
   customerName: string
+  // Titular que aparece no bilhete: o beneficiário, em compra para terceiros.
+  holderName: string
   customerCity?: string
   maskedCpf: string
   totalPaid: string
@@ -60,6 +62,7 @@ export function buildTicketCards(order: Order, appUrl: string): TicketCardDocume
   const city = customer.address?.city
   return {
     customerName: customer.name,
+    holderName: customer.beneficiaryName ?? customer.name,
     ...(city ? { customerCity: city } : {}),
     maskedCpf: `***.${customer.cpf.slice(3, 6)}.${customer.cpf.slice(6, 9)}-**`,
     totalPaid: formatCents(order.paidAmountInCents ?? order.totalInCents),

@@ -19,7 +19,7 @@ afterEach(() => {
 })
 
 describe('database migrations', () => {
-  it('creates an empty database at schema version 8', () => {
+  it('creates an empty database at schema version 9', () => {
     const database = createDatabase(':memory:')
 
     expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 9 })
