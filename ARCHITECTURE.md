@@ -29,6 +29,8 @@ server/
 
 Providers permitem testar toda a jornada sem efeitos externos. Em live, o pagamento é reconciliado antes da venda e falhas de entrega entram em `manual_review`.
 
+O worker de e-mail dos bilhetes roda a cada 5 s, com até 10 envios por rodada e um único laço por vez no processo. Cada item reivindicado fica reservado por 10 min, então rodadas de outras instâncias não duplicam o envio.
+
 ## Estrutura
 
 ```text
