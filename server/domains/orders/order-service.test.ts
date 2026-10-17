@@ -37,6 +37,7 @@ const env: ServerEnv = {
   ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: 10,
   ACCOUNT_CODE_LIMIT_PER_MINUTE: 5,
   TRUST_PROXY: false,
+  ALLOWED_ORIGINS: [],
 }
 
 const apps: Awaited<ReturnType<typeof buildApp>>[] = []

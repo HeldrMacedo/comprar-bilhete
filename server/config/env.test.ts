@@ -90,6 +90,16 @@ it('aceita TRUST_PROXY como booleano, número de saltos ou lista de IPs/CIDRs', 
   expect(() => parseServerEnv({ TRUST_PROXY: '10.0.0.1,proxy.local' })).toThrow(/TRUST_PROXY/)
 })
 
+it('ALLOWED_ORIGINS vira lista de origens extras', () => {
+  expect(parseServerEnv({}).ALLOWED_ORIGINS).toEqual([])
+  expect(parseServerEnv({ ALLOWED_ORIGINS: '' }).ALLOWED_ORIGINS).toEqual([])
+  expect(
+    parseServerEnv({ ALLOWED_ORIGINS: 'http://localhost:5173, https://app.example/caminho' })
+      .ALLOWED_ORIGINS,
+  ).toEqual(['http://localhost:5173', 'https://app.example'])
+  expect(() => parseServerEnv({ ALLOWED_ORIGINS: 'localhost:5173' })).toThrow(/ALLOWED_ORIGINS/)
+})
+
 it('recusa e-mail mock com site público HTTPS', () => {
   expect(() =>
     parseServerEnv({ PUBLIC_APP_URL: 'https://soldasorte.example', MAIL_PROVIDER: 'mock' }),

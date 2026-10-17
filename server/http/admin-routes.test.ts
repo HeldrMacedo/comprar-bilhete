@@ -92,6 +92,31 @@ describe('admin session', () => {
     await limited.close()
   })
 
+  it('accepts writes from an origin listed in ALLOWED_ORIGINS', async () => {
+    const extra = await buildApp({
+      env: parseServerEnv({
+        DATABASE_PATH: ':memory:',
+        TICKET_PROVIDER: 'mock',
+        PAYMENT_PROVIDER: 'mock',
+        PUBLIC_APP_URL: 'http://app.example',
+        ALLOWED_ORIGINS: ORIGIN,
+        ADMIN_BOOTSTRAP_LOGIN: 'admin',
+        ADMIN_BOOTSTRAP_PASSWORD: PASSWORD,
+      }),
+      logger: false,
+      startWorker: false,
+    })
+    const response = await extra.inject({
+      method: 'POST',
+      url: '/api/v1/admin/session',
+      headers: { origin: ORIGIN },
+      payload: { login: 'admin', password: PASSWORD },
+    })
+
+    expect(response.statusCode).toBe(200)
+    await extra.close()
+  })
+
   it('rejects writes from another origin', async () => {
     const response = await app.inject({
       method: 'POST',

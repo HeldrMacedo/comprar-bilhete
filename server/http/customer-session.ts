@@ -15,14 +15,14 @@ export function customerCookieOptions(env: ServerEnv) {
   } as const
 }
 
+export function isAllowedOrigin(origin: string, env: ServerEnv) {
+  return origin === new URL(env.PUBLIC_APP_URL).origin || env.ALLOWED_ORIGINS.includes(origin)
+}
+
 // SameSite=Strict já barra CSRF em navegadores atuais; Origin cobre os demais.
 export function assertAllowedOrigin(request: FastifyRequest, env: ServerEnv) {
   const origin = request.headers.origin
-  if (
-    WRITE_METHODS.has(request.method) &&
-    origin &&
-    origin !== new URL(env.PUBLIC_APP_URL).origin
-  ) {
+  if (WRITE_METHODS.has(request.method) && origin && !isAllowedOrigin(origin, env)) {
     throw new DomainError('Origem não permitida.', 403, 'FORBIDDEN_ORIGIN')
   }
 }

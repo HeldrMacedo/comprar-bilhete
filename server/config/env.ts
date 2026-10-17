@@ -26,6 +26,27 @@ const trustProxySchema = z.preprocess(
     }),
 )
 
+// Origens aceitas em escritas além da de PUBLIC_APP_URL, separadas por vírgula. Serve a túneis
+// de desenvolvimento que reescrevem o cabeçalho Origin (o devtunnel troca por http://localhost:5173).
+const allowedOriginsSchema = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .optional()
+    .transform((value, context): string[] => {
+      if (value === undefined) return []
+      const urls = value.split(',').map((item) => item.trim())
+      if (urls.every((item) => z.url({ protocol: /^https?$/ }).safeParse(item).success)) {
+        return urls.map((item) => new URL(item).origin)
+      }
+      context.addIssue({
+        code: 'custom',
+        message: 'ALLOWED_ORIGINS aceita URLs http(s) completas separadas por vírgula',
+      })
+      return z.NEVER
+    }),
+)
+
 const serverEnvSchema = z
   .object({
     SERVER_PORT: z.coerce.number().int().positive().default(3333),
@@ -62,6 +83,7 @@ const serverEnvSchema = z
     ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
     ACCOUNT_CODE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
     TRUST_PROXY: trustProxySchema,
+    ALLOWED_ORIGINS: allowedOriginsSchema,
   })
   .superRefine((env, context) => {
     if (env.PAYMENT_PROVIDER === 'infinitepay' && !env.INFINITEPAY_HANDLE) {

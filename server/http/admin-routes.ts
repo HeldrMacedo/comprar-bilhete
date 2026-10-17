@@ -29,6 +29,7 @@ import {
 } from '../domains/tickets/contest-admin-gateway.js'
 import { DomainError } from '../shared/errors.js'
 import { presentAdminOrder } from './admin-presenter.js'
+import { isAllowedOrigin } from './customer-session.js'
 import { createFailureLimiter } from './rate-limit.js'
 
 export const ADMIN_SESSION_COOKIE = 'admin_session'
@@ -81,7 +82,6 @@ export async function registerAdminRoutes(
   env: ServerEnv,
   services: AdminServices,
 ) {
-  const allowedOrigin = new URL(env.PUBLIC_APP_URL).origin
   const cookieOptions = {
     path: ADMIN_PREFIX,
     httpOnly: true,
@@ -94,7 +94,7 @@ export async function registerAdminRoutes(
     // SameSite=Strict já barra CSRF em navegadores atuais; Origin cobre os demais.
     scope.addHook('onRequest', async (request) => {
       const origin = request.headers.origin
-      if (WRITE_METHODS.has(request.method) && origin && origin !== allowedOrigin) {
+      if (WRITE_METHODS.has(request.method) && origin && !isAllowedOrigin(origin, env)) {
         throw new DomainError('Origem não permitida.', 403, 'ADMIN_FORBIDDEN_ORIGIN')
       }
     })

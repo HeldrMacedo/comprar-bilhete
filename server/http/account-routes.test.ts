@@ -254,6 +254,28 @@ describe('rotas de conta', () => {
     expect(response.statusCode).toBe(403)
   })
 
+  it('aceita escrita de origem listada em ALLOWED_ORIGINS', async () => {
+    const app = await buildApp({
+      env: parseServerEnv({
+        DATABASE_PATH: ':memory:',
+        TICKET_PROVIDER: 'mock',
+        PAYMENT_PROVIDER: 'mock',
+        ALLOWED_ORIGINS: 'http://localhost:5173',
+        PUBLIC_APP_URL: 'http://app.example',
+      }),
+      logger: false,
+      startWorker: false,
+    })
+    apps.push(app)
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/account/identify',
+      headers: { origin: 'http://localhost:5173' },
+      payload: { cpf: '52998224725' },
+    })
+    expect(response.statusCode).toBe(200)
+  })
+
   it('logout apaga a sessão', async () => {
     const app = await createApp()
     const cookies = await loginAsMaria(app)
