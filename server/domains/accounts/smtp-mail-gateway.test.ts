@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseServerEnv } from '../../config/env.js'
+import { MailDeliveryError } from './mail-gateway.js'
 import { SmtpMailGateway } from './smtp-mail-gateway.js'
 
 const { createTransport, sendMail } = vi.hoisted(() => {
@@ -67,5 +68,49 @@ describe('SmtpMailGateway', () => {
       { code: 'MAIL_UNAVAILABLE' },
     )
     expect(log.error).toHaveBeenCalledWith({}, 'Falha ao enviar e-mail de verificação')
+  })
+
+  it('envia mensagem com HTML, texto e anexos pelo remetente configurado', async () => {
+    sendMail.mockResolvedValue({})
+    const gateway = new SmtpMailGateway(env, { error: vi.fn() })
+    const content = Buffer.from('%PDF-')
+    await gateway.send({
+      to: 'maria@example.com',
+      subject: 'Assunto',
+      html: '<p>Oi</p>',
+      text: 'Oi',
+      attachments: [{ filename: 'bilhetes.pdf', content, contentType: 'application/pdf' }],
+    })
+    expect(sendMail).toHaveBeenCalledWith({
+      from: 'Sol da Sorte <nao-responda@example.com>',
+      to: 'maria@example.com',
+      subject: 'Assunto',
+      html: '<p>Oi</p>',
+      text: 'Oi',
+      attachments: [{ filename: 'bilhetes.pdf', content, contentType: 'application/pdf' }],
+    })
+  })
+
+  it('falha no envio vira MailDeliveryError só com dados técnicos', async () => {
+    sendMail.mockRejectedValue(
+      Object.assign(new Error('falhou para maria@example.com'), {
+        code: 'EENVELOPE',
+        responseCode: 550,
+        command: 'RCPT TO',
+      }),
+    )
+    const log = { error: vi.fn() }
+    const gateway = new SmtpMailGateway(env, log)
+    const failure = gateway.send({ to: 'maria@example.com', subject: 's', html: 'h', text: 't' })
+
+    await expect(failure).rejects.toBeInstanceOf(MailDeliveryError)
+    await expect(failure).rejects.toMatchObject({
+      summary: 'code=EENVELOPE responseCode=550 command=RCPT TO',
+    })
+    expect(log.error).toHaveBeenCalledWith(
+      { code: 'EENVELOPE', responseCode: 550, command: 'RCPT TO' },
+      'Falha ao enviar e-mail dos bilhetes',
+    )
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain('maria@example.com')
   })
 })

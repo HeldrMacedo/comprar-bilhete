@@ -2,7 +2,12 @@ import nodemailer, { type Transporter } from 'nodemailer'
 import { z } from 'zod'
 import type { ServerEnv } from '../../config/env.js'
 import { DomainError } from '../../shared/errors.js'
-import { verificationEmailText, type MailGateway } from './mail-gateway.js'
+import {
+  MailDeliveryError,
+  verificationEmailText,
+  type MailGateway,
+  type MailMessage,
+} from './mail-gateway.js'
 
 export type MailErrorLogger = { error(details: object, message: string): void }
 
@@ -51,6 +56,17 @@ export class SmtpMailGateway implements MailGateway {
         503,
         'MAIL_UNAVAILABLE',
       )
+    }
+  }
+
+  async send(message: MailMessage) {
+    try {
+      await this.transporter.sendMail({ from: this.from, ...message })
+    } catch (error) {
+      const parsed = smtpErrorSchema.safeParse(error)
+      const details = parsed.success ? parsed.data : {}
+      this.log.error(details, 'Falha ao enviar e-mail dos bilhetes')
+      throw new MailDeliveryError(details)
     }
   }
 }
