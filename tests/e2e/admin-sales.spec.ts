@@ -1,30 +1,56 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 
-const buyer = { name: 'João Souza', cpf: '98765432100', phone: '84988887777' }
+const buyer = {
+  name: 'João Souza',
+  cpf: '98765432100',
+  phone: '84988887777',
+  email: 'joao.souza@example.com',
+  address: {
+    zipCode: '59000000',
+    street: 'RUA A',
+    number: '10',
+    neighborhood: 'CENTRO',
+    city: 'NATAL',
+    state: 'RN',
+  },
+}
+const buyerPassword = 'senha-joao-1'
+
+// Pedido exige sessão de cliente. O servidor do E2E é compartilhado entre testes e projetos:
+// João se cadastra na primeira vez (código fixo do e-mail mock) e depois só entra com a senha.
+async function signInBuyer(page: Page) {
+  const identify = await page.request.post('/api/v1/account/identify', {
+    data: { cpf: buyer.cpf },
+  })
+  expect(identify.ok(), await identify.text()).toBe(true)
+  const { status } = (await identify.json()) as { status: string }
+  if (status === 'account') {
+    const login = await page.request.post('/api/v1/account/login', {
+      data: { cpf: buyer.cpf, password: buyerPassword },
+    })
+    expect(login.ok(), await login.text()).toBe(true)
+    return
+  }
+  const code = await page.request.post('/api/v1/account/codes', {
+    data: { purpose: 'signup', cpf: buyer.cpf, email: buyer.email },
+  })
+  expect(code.status(), await code.text()).toBe(202)
+  const registered = await page.request.post('/api/v1/account/register', {
+    data: { customer: buyer, password: buyerPassword, code: '000000' },
+  })
+  expect(registered.status(), await registered.text()).toBe(201)
+}
 
 // O backend do E2E é compartilhado: outras jornadas vendem e reservam bilhetes. Tenta do fim
 // da lista disponível até conseguir reservar e devolve o bilhete usado.
 async function createPendingOrder(page: Page) {
+  await signInBuyer(page)
   const response = await page.request.get('/api/v1/raffles/sorteio-setembro/cards')
   const cards = ((await response.json()) as Array<{ id: string }>).reverse()
   for (const { id } of cards) {
     const created = await page.request.post('/api/v1/orders', {
-      data: {
-        raffleId: 'sorteio-setembro',
-        selection: { mode: 'manual', cardIds: [id] },
-        customer: {
-          ...buyer,
-          address: {
-            zipCode: '59000000',
-            street: 'RUA A',
-            number: '10',
-            neighborhood: 'CENTRO',
-            city: 'NATAL',
-            state: 'RN',
-          },
-        },
-      },
+      data: { raffleId: 'sorteio-setembro', selection: { mode: 'manual', cardIds: [id] } },
     })
     if (created.status() === 201) return id
     expect(created.status(), await created.text()).toBe(409)
