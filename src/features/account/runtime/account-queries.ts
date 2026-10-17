@@ -4,6 +4,13 @@ import type { Account, AccountRepository, CodeRequest, Profile } from '../domain
 import { accountRepository } from '../repository/account-repository'
 
 export const accountKeys = { all: ['account'] as const, me: ['account', 'me'] as const }
+const purchasesKey = ['purchases'] as const
+
+// Troca de identidade: as compras em cache são do dono anterior e não podem ser mostradas.
+function resetAccountCache(queryClient: QueryClient, account: Account | null) {
+  queryClient.setQueryData(accountKeys.me, account)
+  queryClient.removeQueries({ queryKey: purchasesKey })
+}
 
 // 401 UNAUTHENTICATED em chamada que exige sessão (conta ou Minhas compras) derruba a sessão local.
 // Outros 401 (ex.: senha atual errada, INVALID_CREDENTIALS) não encerram a sessão.
@@ -15,14 +22,14 @@ export function handleAccountUnauthenticated(
   if (!(error instanceof ApiError) || error.status !== 401 || error.code !== 'UNAUTHENTICATED') {
     return
   }
-  if (queryKey?.[0] !== accountKeys.all[0] && queryKey?.[0] !== 'purchases') return
-  queryClient.setQueryData(accountKeys.me, null)
+  if (queryKey?.[0] !== accountKeys.all[0] && queryKey?.[0] !== purchasesKey[0]) return
+  resetAccountCache(queryClient, null)
 }
 
 export function createAccountHooks(repository: AccountRepository) {
   function useSignedIn() {
     const queryClient = useQueryClient()
-    return (account: Account) => queryClient.setQueryData(accountKeys.me, account)
+    return (account: Account) => resetAccountCache(queryClient, account)
   }
 
   return {
@@ -77,10 +84,7 @@ export function createAccountHooks(repository: AccountRepository) {
       const queryClient = useQueryClient()
       return useMutation({
         mutationFn: () => repository.logout(),
-        onSuccess: () => {
-          queryClient.setQueryData(accountKeys.me, null)
-          queryClient.removeQueries({ queryKey: ['purchases'] })
-        },
+        onSuccess: () => resetAccountCache(queryClient, null),
       })
     },
   }

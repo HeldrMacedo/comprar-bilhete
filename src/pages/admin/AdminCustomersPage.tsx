@@ -18,7 +18,9 @@ import { Dialog } from '../../features/admin/ui/Dialog'
 import { Pagination } from '../../features/admin/ui/Pagination'
 import { formatCurrency } from '../../shared/lib/currency'
 import { formatDateTime } from '../../shared/lib/date'
-import { formatCpf, formatPhone } from '../../shared/lib/forms'
+import { formatCpf, formatPhone, isValidCpf, onlyDigits } from '../../shared/lib/forms'
+
+type CodeTarget = { cpf: string; label: string }
 
 function buildColumns(onIssueCode: (customer: CustomerSummary) => void): Column<CustomerSummary>[] {
   return [
@@ -87,12 +89,27 @@ export function AdminCustomersPage() {
   const customers = useAdminCustomers(filters, page)
   const exportCustomers = useExportCustomers()
   const issueCode = useIssueCustomerAccessCode()
-  const [codeTarget, setCodeTarget] = useState<CustomerSummary | null>(null)
+  const [codeTarget, setCodeTarget] = useState<CodeTarget | null>(null)
+  const [accessCpf, setAccessCpf] = useState('')
+  const [accessCpfError, setAccessCpfError] = useState<string | null>(null)
   const issued = issueCode.data
-  const columns = buildColumns((customer) => {
+  const columns = buildColumns((customer) => openCodeDialog(customer.cpf, customer.name))
+
+  function openCodeDialog(cpf: string, label: string) {
     issueCode.reset()
-    setCodeTarget(customer)
-  })
+    setCodeTarget({ cpf, label })
+  }
+
+  // Cliente sem pedido no site (lotérica, sem e-mail) não aparece na tabela.
+  function issueByCpf(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!isValidCpf(accessCpf)) {
+      setAccessCpfError('Informe um CPF válido.')
+      return
+    }
+    setAccessCpfError(null)
+    openCodeDialog(onlyDigits(accessCpf), `o CPF ${formatCpf(accessCpf)}`)
+  }
 
   function closeCodeDialog() {
     setCodeTarget(null)
@@ -188,6 +205,40 @@ export function AdminCustomersPage() {
         </div>
       </form>
 
+      <form
+        className="admin-access-form"
+        aria-label="Gerar código de acesso por CPF"
+        noValidate
+        onSubmit={issueByCpf}
+      >
+        <div className="field">
+          <label htmlFor="access-cpf">CPF do cliente</label>
+          <input
+            id="access-cpf"
+            name="cpf"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            value={accessCpf}
+            aria-invalid={accessCpfError ? true : undefined}
+            aria-describedby="access-cpf-hint"
+            onChange={(event) => setAccessCpf(formatCpf(event.target.value))}
+          />
+          <span id="access-cpf-hint" className="admin-hint">
+            Para quem não tem e-mail no cadastro, mesmo sem pedido no site.
+          </span>
+        </div>
+        <button type="submit" className="button button--secondary">
+          <KeyRound size={18} aria-hidden="true" />
+          Gerar código de acesso
+        </button>
+        {accessCpfError ? (
+          <p className="admin-form-error" role="alert">
+            {accessCpfError}
+          </p>
+        ) : null}
+      </form>
+
       <DataTable
         caption="Clientes"
         columns={columns}
@@ -216,8 +267,8 @@ export function AdminCustomersPage() {
         onClose={closeCodeDialog}
       >
         <p>
-          Gerar código de primeiro acesso para {codeTarget?.name}? Ele vale por 24 horas e substitui
-          o anterior.
+          Gerar código de primeiro acesso para {codeTarget?.label}? Ele vale por 24 horas e
+          substitui o anterior.
         </p>
       </ConfirmDialog>
       <Dialog

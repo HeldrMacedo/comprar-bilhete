@@ -345,6 +345,31 @@ describe('AdminCustomersPage', () => {
     expect(screen.getByText(/o código não será mostrado de novo/i)).toBeVisible()
   })
 
+  it('gera código por CPF digitado para cliente sem pedido no site', async () => {
+    repository.listCustomers.mockResolvedValue({ ...customersPage, customers: [], total: 0 })
+    repository.issueCustomerAccessCode.mockResolvedValue({
+      code: '730155',
+      expiresAt: '2026-10-17T12:00:00.000Z',
+    })
+    renderAdmin('/admin/clientes')
+
+    const cpf = await screen.findByLabelText('CPF do cliente')
+    await userEvent.type(cpf, '111.444.777-36')
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar código de acesso' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Informe um CPF válido.')
+    expect(repository.issueCustomerAccessCode).not.toHaveBeenCalled()
+
+    await userEvent.clear(cpf)
+    await userEvent.type(cpf, '111.444.777-35')
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar código de acesso' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('111.444.777-35')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Gerar código' }))
+
+    expect(await screen.findByText('730155')).toBeVisible()
+    expect(repository.issueCustomerAccessCode).toHaveBeenCalledWith('11144477735')
+  })
+
   it('mostra o erro da API ao gerar código', async () => {
     repository.listCustomers.mockResolvedValue(customersPage)
     repository.issueCustomerAccessCode.mockRejectedValue(

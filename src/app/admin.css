@@ -945,3 +945,39 @@
   font-size: 2rem;
   letter-spacing: 0.2em;
 }
+
+.admin-access-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-access-form > .field {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+.admin-access-form > .button {
+  margin-top: 26px;
+}
+
+.admin-access-form > .admin-form-error {
+  flex-basis: 100%;
+}
+
+@media (max-width: 860px) {
+  .admin-access-form > .field {
+    max-width: none;
+  }
+
+  .admin-access-form > .button {
+    flex: 1 1 100%;
+    margin-top: 0;
+  }
+}
