@@ -58,8 +58,7 @@ export function createAccountHooks(repository: AccountRepository) {
     useRegister() {
       const signedIn = useSignedIn()
       return useMutation({
-        mutationFn: (input: { customer: Profile; password: string; code: string }) =>
-          repository.register(input),
+        mutationFn: (input: { customer: Profile; password: string }) => repository.register(input),
         onSuccess: signedIn,
       })
     },

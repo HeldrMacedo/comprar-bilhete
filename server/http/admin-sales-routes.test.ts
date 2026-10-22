@@ -38,17 +38,12 @@ afterEach(async () => {
 type Buyer = 'maria' | 'joao'
 type App = Awaited<ReturnType<typeof buildApp>>
 
-// CPF fora do mock: cadastro novo com o código fixo do modo totalmente mock.
+// CPF fora do mock: cadastro novo, que já entra sem código.
 async function registerJoao(app: App) {
-  await app.inject({
-    method: 'POST',
-    url: '/api/v1/account/codes',
-    payload: { purpose: 'signup', cpf: joao.cpf, email: joao.email },
-  })
   const response = await app.inject({
     method: 'POST',
     url: '/api/v1/account/register',
-    payload: { customer: joao, password: 'senha-joao-1', code: '000000' },
+    payload: { customer: joao, password: 'senha-joao-1' },
   })
   const cookie = response.cookies.find((item) => item.name === CUSTOMER_SESSION_COOKIE)
   if (!cookie) throw new Error(`cadastro do João falhou: ${response.body}`)

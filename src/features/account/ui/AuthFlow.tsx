@@ -33,7 +33,6 @@ type Step =
   | { name: 'no-email'; cpf: string }
   | { name: 'signup'; cpf: string }
   | { name: 'code'; cpf: string; purpose: 'first_access' | 'reset' }
-  | { name: 'signup-code'; cpf: string; signup: SignupFormOutput }
 
 function stepTitle(step: Step, title: string) {
   switch (step.name) {
@@ -49,8 +48,6 @@ function stepTitle(step: Step, title: string) {
       return 'Crie sua conta'
     case 'code':
       return step.purpose === 'reset' ? 'Recupere sua senha' : 'Crie sua senha'
-    case 'signup-code':
-      return 'Confirme seu e-mail'
   }
 }
 
@@ -196,14 +193,12 @@ export function AuthFlow({
           cpf={step.cpf}
           busy={busy}
           onSubmit={(signup) =>
-            void attempt(async () => {
-              await requestCode.mutateAsync({
-                purpose: 'signup',
-                cpf: step.cpf,
-                email: signup.email,
-              })
-              goTo({ name: 'signup-code', cpf: step.cpf, signup })
-            })
+            void authenticate(() =>
+              registerAccount.mutateAsync({
+                customer: toProfile(signup),
+                password: signup.password,
+              }),
+            )
           }
         />
       ) : null}
@@ -222,34 +217,6 @@ export function AuthFlow({
             }}
             onResend={() =>
               attempt(() => requestCode.mutateAsync({ purpose: step.purpose, cpf: step.cpf }))
-            }
-          />
-        </>
-      ) : null}
-
-      {step.name === 'signup-code' ? (
-        <>
-          <p>Enviamos um código de 6 dígitos para {step.signup.email}. Ele vale por 15 minutos.</p>
-          <CodeStep
-            submitLabel="Confirmar e entrar"
-            busy={busy}
-            onSubmit={async ({ code }) => {
-              await authenticate(() =>
-                registerAccount.mutateAsync({
-                  customer: toProfile(step.signup),
-                  password: step.signup.password,
-                  code,
-                }),
-              )
-            }}
-            onResend={() =>
-              attempt(() =>
-                requestCode.mutateAsync({
-                  purpose: 'signup',
-                  cpf: step.cpf,
-                  email: step.signup.email,
-                }),
-              )
             }
           />
         </>
@@ -507,7 +474,7 @@ function SignupStep({
           {...register('confirmPassword')}
         />
       </div>
-      <SubmitButton busy={busy} label="Enviar código" />
+      <SubmitButton busy={busy} label="Criar conta e entrar" />
     </form>
   )
 }

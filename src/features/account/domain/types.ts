@@ -21,15 +21,13 @@ export type IdentifyResult =
   | { status: 'no_email' }
   | { status: 'new' }
 export type Profile = { name: string; cpf: string; phone: string; email: string; address: Address }
-export type CodeRequest =
-  | { purpose: 'signup'; cpf: string; email: string }
-  | { purpose: 'first_access' | 'reset'; cpf: string }
+export type CodeRequest = { purpose: 'first_access' | 'reset'; cpf: string }
 export interface AccountRepository {
   getMe(signal?: AbortSignal): Promise<Account | null>
   identify(cpf: string): Promise<IdentifyResult>
   requestCode(request: CodeRequest): Promise<void>
   login(cpf: string, password: string): Promise<Account>
-  register(input: { customer: Profile; password: string; code: string }): Promise<Account>
+  register(input: { customer: Profile; password: string }): Promise<Account>
   setPassword(input: {
     cpf: string
     code: string

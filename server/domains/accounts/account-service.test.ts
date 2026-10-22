@@ -44,11 +44,8 @@ describe('AccountService', () => {
     expect(await service.identify('39053344705')).toEqual({ status: 'no_email' })
   })
 
-  it('cadastra CPF novo só com código do e-mail informado e já entra', async () => {
+  it('cadastra CPF novo sem código de e-mail e já entra', async () => {
     const { service, mail } = setup()
-    await service.requestCode({ purpose: 'signup', cpf: newCpf, email: 'novo@example.com' })
-    expect(mail.sent[0]?.to).toBe('novo@example.com')
-
     const result = await service.register({
       customer: {
         name: 'Cliente Novo',
@@ -58,29 +55,27 @@ describe('AccountService', () => {
         address,
       },
       password: 'senha-nova-1',
-      code: '000000',
     })
     expect(result.account.externalId).toMatch(/^mock-/)
+    expect(mail.sent).toHaveLength(0)
     expect(await service.identify(newCpf)).toEqual({ status: 'account' })
     expect(service.authenticate(result.token)?.account.cpf).toBe(newCpf)
   })
 
-  it('recusa cadastro com e-mail diferente do que recebeu o código', async () => {
+  it('recusa cadastro de CPF que já está na API', async () => {
     const { service } = setup()
-    await service.requestCode({ purpose: 'signup', cpf: newCpf, email: 'novo@example.com' })
     await expect(
       service.register({
         customer: {
-          name: 'X Y Z',
-          cpf: newCpf,
+          name: 'Maria da Silva',
+          cpf: maria,
           phone: '84999998888',
           email: 'outro@example.com',
           address,
         },
         password: 'senha-nova-1',
-        code: '000000',
       }),
-    ).rejects.toMatchObject({ code: 'INVALID_CODE' })
+    ).rejects.toMatchObject({ code: 'ACCOUNT_EXISTS' })
   })
 
   it('primeiro acesso envia código ao e-mail do cadastro e cria senha', async () => {
@@ -126,7 +121,6 @@ describe('AccountService', () => {
     customers.register = async () => {
       throw new Error('API fora do ar')
     }
-    await service.requestCode({ purpose: 'signup', cpf: newCpf, email: 'novo@example.com' })
     await expect(
       service.register({
         customer: {
@@ -137,7 +131,6 @@ describe('AccountService', () => {
           address,
         },
         password: 'senha-nova-1',
-        code: '000000',
       }),
     ).rejects.toThrow()
     expect(await service.identify(newCpf)).toEqual({ status: 'new' })

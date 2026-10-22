@@ -18,7 +18,7 @@ const buyer = {
 const buyerPassword = 'senha-joao-1'
 
 // Pedido exige sessão de cliente. O servidor do E2E é compartilhado entre testes e projetos:
-// João se cadastra na primeira vez (código fixo do e-mail mock) e depois só entra com a senha.
+// João se cadastra na primeira vez e depois só entra com a senha.
 async function signInBuyer(page: Page) {
   const identify = await page.request.post('/api/v1/account/identify', {
     data: { cpf: buyer.cpf },
@@ -32,12 +32,8 @@ async function signInBuyer(page: Page) {
     expect(login.ok(), await login.text()).toBe(true)
     return
   }
-  const code = await page.request.post('/api/v1/account/codes', {
-    data: { purpose: 'signup', cpf: buyer.cpf, email: buyer.email },
-  })
-  expect(code.status(), await code.text()).toBe(202)
   const registered = await page.request.post('/api/v1/account/register', {
-    data: { customer: buyer, password: buyerPassword, code: '000000' },
+    data: { customer: buyer, password: buyerPassword },
   })
   expect(registered.status(), await registered.text()).toBe(201)
 }

@@ -101,9 +101,8 @@ describe('AuthFlow', () => {
     expect(await screen.findByText(/procure a lotérica ou o suporte/i)).toBeVisible()
   })
 
-  it('CPF novo preenche cadastro, recebe código e entra', async () => {
+  it('CPF novo preenche cadastro e entra sem código', async () => {
     vi.mocked(accountRepository.identify).mockResolvedValue({ status: 'new' })
-    vi.mocked(accountRepository.requestCode).mockResolvedValue()
     vi.mocked(accountRepository.register).mockResolvedValue({ ...account, cpf: '11144477735' })
     const onAuthenticated = renderFlow()
     await typeCpf('11144477735')
@@ -118,21 +117,12 @@ describe('AuthFlow', () => {
     await userEvent.type(screen.getByLabelText('UF'), 'RN')
     await userEvent.type(screen.getByLabelText('Senha'), 'senha-nova-1')
     await userEvent.type(screen.getByLabelText('Confirmar senha'), 'senha-nova-1')
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar código' }))
-    expect(accountRepository.requestCode).toHaveBeenCalledWith({
-      purpose: 'signup',
-      cpf: '11144477735',
-      email: 'novo@example.com',
+    await userEvent.click(screen.getByRole('button', { name: 'Criar conta e entrar' }))
+    expect(accountRepository.register).toHaveBeenCalledWith({
+      password: 'senha-nova-1',
+      customer: expect.objectContaining({ cpf: '11144477735', email: 'novo@example.com' }),
     })
-    await userEvent.type(await screen.findByLabelText('Código'), '000000')
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar e entrar' }))
-    expect(accountRepository.register).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: '000000',
-        password: 'senha-nova-1',
-        customer: expect.objectContaining({ cpf: '11144477735' }),
-      }),
-    )
+    expect(accountRepository.requestCode).not.toHaveBeenCalled()
     expect(onAuthenticated).toHaveBeenCalled()
   })
 
@@ -197,7 +187,6 @@ describe('AuthFlow', () => {
 
   it('cadastro com CPF que já tem conta volta para o CPF com a mensagem', async () => {
     vi.mocked(accountRepository.identify).mockResolvedValue({ status: 'new' })
-    vi.mocked(accountRepository.requestCode).mockResolvedValue()
     vi.mocked(accountRepository.register).mockRejectedValue(
       new ApiError(
         'Este CPF já tem cadastro. Entre com sua senha ou recupere o acesso.',
@@ -208,9 +197,7 @@ describe('AuthFlow', () => {
     renderFlow()
     await typeCpf('11144477735')
     await fillSignup()
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar código' }))
-    await userEvent.type(await screen.findByLabelText('Código'), '000000')
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar e entrar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Criar conta e entrar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Este CPF já tem cadastro.')
     expect(screen.getByLabelText('CPF', { exact: true })).toHaveValue('111.444.777-35')
   })

@@ -35,7 +35,7 @@ export async function signInAsMaria(page: Page) {
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
 }
 
-// Cadastro novo pelo fluxo de CPF; com e-mail mock, o código é sempre 000000.
+// Cadastro novo pelo fluxo de CPF; já entra sem código de e-mail.
 export async function signUpNewCustomer(page: Page, cpf = randomCpf()) {
   await page.getByLabel('CPF', { exact: true }).fill(cpf)
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -50,8 +50,6 @@ export async function signUpNewCustomer(page: Page, cpf = randomCpf()) {
   await page.getByLabel('UF').fill('RN')
   await page.getByLabel('Senha', { exact: true }).fill('senha-nova-1')
   await page.getByLabel('Confirmar senha').fill('senha-nova-1')
-  await page.getByRole('button', { name: 'Enviar código' }).click()
-  await page.getByLabel('Código').fill('000000')
-  await page.getByRole('button', { name: 'Confirmar e entrar' }).click()
+  await page.getByRole('button', { name: 'Criar conta e entrar' }).click()
   return cpf
 }

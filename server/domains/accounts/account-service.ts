@@ -72,10 +72,6 @@ export class AccountService {
 
   async requestCode(input: RequestCodeInput) {
     const local = this.repository.findAccount(input.cpf)
-    if (input.purpose === 'signup') {
-      if (local || (await this.customers.findByCpf(input.cpf))) throw accountExists()
-      return this.verification.send(input.cpf, 'signup', input.email)
-    }
     if (input.purpose === 'first_access' && local) throw accountExists()
     if (input.purpose === 'reset' && !local) {
       throw new DomainError(
@@ -112,15 +108,6 @@ export class AccountService {
     ) {
       throw accountExists()
     }
-    const code = this.verification.verify(customer.cpf, ['signup'], input.code)
-    if (code.email !== customer.email) {
-      throw new DomainError(
-        'Código inválido ou expirado. Peça um novo código.',
-        400,
-        'INVALID_CODE',
-      )
-    }
-
     await this.customers.register({ ...customer, password })
     const person = await this.customers.findByCpf(customer.cpf)
     if (!person) {
@@ -133,7 +120,6 @@ export class AccountService {
 
     const account: Account = { ...customer, externalId: person.externalId }
     this.repository.saveAccount(account, await hashPassword(password), this.now().toISOString())
-    this.verification.markUsed(code.id)
     return { token: this.createSession(customer.cpf), account }
   }
 

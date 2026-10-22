@@ -28,6 +28,8 @@ export async function registerAccountRoutes(
   const cookieOptions = customerCookieOptions(env)
   const limitIdentify = createRateLimiter(env.ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE, 60_000)
   const limitCodes = createRateLimiter(env.ACCOUNT_CODE_LIMIT_PER_MINUTE, 60_000)
+  // Cadastro não pede código: o mesmo teto por IP dos códigos segura criação em massa na API.
+  const limitRegister = createRateLimiter(env.ACCOUNT_CODE_LIMIT_PER_MINUTE, 60_000)
   const loginFailuresByIp = createFailureLimiter(10, 60_000)
   const loginFailuresByCpf = createFailureLimiter(5, 15 * 60_000)
   const codeFailuresByIp = createFailureLimiter(10, 60_000)
@@ -84,12 +86,8 @@ export async function registerAccountRoutes(
     })
 
     scope.post(`${PREFIX}/register`, async (request, reply) => {
-      codeFailuresByIp.assertAllowed(request.ip)
-      const input = registerInputSchema.parse(request.body)
-      codeFailuresByCpf.assertAllowed(input.customer.cpf)
-      const { token, account } = await accounts
-        .register(input)
-        .catch(recordCodeFailure(request.ip, input.customer.cpf))
+      limitRegister(request.ip)
+      const { token, account } = await accounts.register(registerInputSchema.parse(request.body))
       startSession(reply, token)
       return reply.status(201).send({ account: accounts.toPublic(account) })
     })

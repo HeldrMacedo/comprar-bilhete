@@ -115,7 +115,41 @@ describe('rotas de conta', () => {
     expect(blocked.statusCode).toBe(429)
   })
 
-  it('erros que não são código errado não consomem o limite de /register', async () => {
+  it('cadastro novo entra direto, sem código de e-mail', async () => {
+    const app = await createApp()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/account/register',
+      payload: {
+        customer: {
+          name: 'Cliente Novo',
+          cpf: '11144477735',
+          phone: '84999998888',
+          email: 'novo@example.com',
+          address: {
+            zipCode: '59000000',
+            street: 'RUA A',
+            number: '10',
+            neighborhood: 'CENTRO',
+            city: 'NATAL',
+            state: 'RN',
+          },
+        },
+        password: 'senha-nova-1',
+      },
+    })
+    expect(response.statusCode).toBe(201)
+    const cookie = response.cookies.find((item) => item.name === 'customer_session')
+    expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Strict' })
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/v1/account/me',
+      cookies: { customer_session: cookie?.value ?? '' },
+    })
+    expect(me.json()).toMatchObject({ account: { cpf: '11144477735', complete: true } })
+  })
+
+  it('cadastro de CPF já na API responde 409 até o limite por IP', async () => {
     const app = await createApp()
     const maria = {
       name: 'Maria da Silva',
@@ -131,16 +165,19 @@ describe('rotas de conta', () => {
         state: 'RN',
       },
     }
-    // CPF já cadastrado na API: cada tentativa falha com ACCOUNT_EXISTS, nunca com 429.
-    for (let attempt = 0; attempt < 11; attempt += 1) {
-      const response = await app.inject({
+    const register = () =>
+      app.inject({
         method: 'POST',
         url: '/api/v1/account/register',
-        payload: { customer: maria, password: 'senha-maria-1', code: '111111' },
+        payload: { customer: maria, password: 'senha-maria-1' },
       })
+    // Padrão de ACCOUNT_CODE_LIMIT_PER_MINUTE: 5 cadastros por minuto por IP.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await register()
       expect(response.statusCode).toBe(409)
       expect(response.json()).toMatchObject({ code: 'ACCOUNT_EXISTS' })
     }
+    expect((await register()).statusCode).toBe(429)
   })
 
   it('pedido de código repassa erro de domínio em vez de 202', async () => {

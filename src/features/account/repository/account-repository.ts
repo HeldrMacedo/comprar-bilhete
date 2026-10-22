@@ -98,9 +98,8 @@ const mockRepository: AccountRepository = {
     mockSession = structuredClone(mockMaria)
     return structuredClone(mockSession)
   },
-  async register({ customer, code }) {
+  async register({ customer }) {
     await mockDelay()
-    assertMockCode(code)
     mockSession = { ...customer, complete: true }
     return structuredClone(mockSession)
   },

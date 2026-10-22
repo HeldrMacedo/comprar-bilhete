@@ -23,16 +23,11 @@ export const loginInputSchema = z
   .object({ cpf: cpfSchema, password: z.string().min(1).max(128) })
   .strict()
 export const identifyInputSchema = z.object({ cpf: cpfSchema }).strict()
-export const requestCodeInputSchema = z.discriminatedUnion('purpose', [
-  z.object({ purpose: z.literal('signup'), cpf: cpfSchema, email: emailSchema }).strict(),
-  z.object({ purpose: z.enum(['first_access', 'reset']), cpf: cpfSchema }).strict(),
-])
+export const requestCodeInputSchema = z
+  .object({ purpose: z.enum(['first_access', 'reset']), cpf: cpfSchema })
+  .strict()
 export const registerInputSchema = z
-  .object({
-    customer: profileSchema,
-    password: customerPasswordSchema,
-    code: verificationCodeSchema,
-  })
+  .object({ customer: profileSchema, password: customerPasswordSchema })
   .strict()
 export const setPasswordInputSchema = z
   .object({
