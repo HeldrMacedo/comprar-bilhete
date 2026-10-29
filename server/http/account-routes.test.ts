@@ -149,6 +149,36 @@ describe('rotas de conta', () => {
     expect(me.json()).toMatchObject({ account: { cpf: '11144477735', complete: true } })
   })
 
+  it('cadastro sem e-mail e sem CEP fica completo, mas o endereço continua obrigatório', async () => {
+    const app = await createApp()
+    const customer = {
+      name: 'Cliente Sem Email',
+      cpf: '11144477735',
+      phone: '84999998888',
+      address: {
+        street: 'RUA A',
+        number: '10',
+        neighborhood: 'CENTRO',
+        city: 'NATAL',
+        state: 'RN',
+      },
+    }
+    const register = (payload: Record<string, unknown>) =>
+      app.inject({ method: 'POST', url: '/api/v1/account/register', payload })
+
+    const withoutStreet = await register({
+      customer: { ...customer, address: { ...customer.address, street: '' } },
+      password: 'senha-nova-1',
+    })
+    expect(withoutStreet.statusCode).toBe(400)
+
+    const response = await register({ customer, password: 'senha-nova-1' })
+    expect(response.statusCode).toBe(201)
+    const { account } = response.json<{ account: { address: Record<string, unknown> } }>()
+    expect(account).toMatchObject({ email: null, complete: true })
+    expect(account.address).not.toHaveProperty('zipCode')
+  })
+
   it('cadastro de CPF já na API responde 409 até o limite por IP', async () => {
     const app = await createApp()
     const maria = {

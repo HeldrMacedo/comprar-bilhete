@@ -8,6 +8,7 @@ export const apiRoutes = {
   accountProfile: '/v1/account/profile',
   accountLogout: '/v1/account/logout',
   myOrders: '/v1/orders/mine',
+  zipCode: (zipCode: string) => `/v1/zip-codes/${encodeURIComponent(zipCode)}`,
   activeRaffle: '/v1/raffles/active',
   raffleBanner: (raffleId: string) => `/v1/raffles/${encodeURIComponent(raffleId)}/banner`,
   availableCards: (raffleId: string) =>

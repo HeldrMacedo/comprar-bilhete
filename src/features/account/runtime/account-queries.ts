@@ -79,6 +79,9 @@ export function createAccountHooks(repository: AccountRepository) {
         onSuccess: signedIn,
       })
     },
+    useZipCodeLookup() {
+      return useMutation({ mutationFn: (zipCode: string) => repository.lookupZipCode(zipCode) })
+    },
     useLogout() {
       const queryClient = useQueryClient()
       return useMutation({
@@ -98,4 +101,5 @@ export const {
   useSetPassword,
   useUpdateProfile,
   useLogout,
+  useZipCodeLookup,
 } = createAccountHooks(accountRepository)

@@ -11,11 +11,12 @@ export const codePurposeSchema = z.enum(['signup', 'first_access', 'reset', 'adm
 const emailSchema = z.string().trim().toLowerCase().max(160).pipe(z.email())
 
 // Cadastro completo: exigido no cadastro novo, na edição de perfil e para comprar.
+// E-mail é opcional; sem ele a conta só recupera o acesso pelo código do admin.
 export const profileSchema = z.object({
   name: z.string().trim().min(3).max(120),
   cpf: cpfSchema,
   phone: customerInputSchema.shape.phone,
-  email: emailSchema,
+  email: emailSchema.nullish().transform((email) => email ?? null),
   address: addressSchema,
 })
 

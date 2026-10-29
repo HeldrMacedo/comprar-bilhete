@@ -11,7 +11,7 @@ import {
 } from '../features/account/service/account-forms'
 import { safeAccountRedirect } from '../features/account/service/account-redirect'
 import { AddressFields, TextField } from '../features/account/ui/AddressFields'
-import { formatCpf, formatPhone, onlyDigits } from '../shared/lib/forms'
+import { formatCpf, formatPhone, formatZipCode, onlyDigits } from '../shared/lib/forms'
 import { Spinner } from '../shared/ui/Spinner'
 
 // Fica dentro de RequireAccount: a conta já está carregada quando a página aparece.
@@ -49,7 +49,7 @@ function ProfileFormSection({ account }: { account: Account }) {
       phone: formatPhone(account.phone),
       email: account.email ?? '',
       address: {
-        zipCode: account.address?.zipCode ?? '',
+        zipCode: formatZipCode(account.address?.zipCode ?? ''),
         street: account.address?.street ?? '',
         number: account.address?.number ?? '',
         complement: account.address?.complement ?? '',
@@ -113,7 +113,11 @@ function ProfileFormSection({ account }: { account: Account }) {
           {...register('email')}
         />
       </div>
-      <AddressFields fieldProps={(name) => register(name)} errors={errors.address} />
+      <AddressFields
+        fieldProps={(name) => register(name)}
+        setField={(name, value) => setValue(name, value, { shouldValidate: isSubmitted })}
+        errors={errors.address}
+      />
       <TextField
         id="account-current-password"
         label="Senha atual"

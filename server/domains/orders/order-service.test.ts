@@ -36,6 +36,9 @@ const env: ServerEnv = {
   SMTP_SECURE: false,
   ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: 10,
   ACCOUNT_CODE_LIMIT_PER_MINUTE: 5,
+  ZIP_CODE_PROVIDER: 'mock',
+  BRASIL_API_BASE_URL: 'https://brasilapi.com.br',
+  ZIP_CODE_LIMIT_PER_MINUTE: 30,
   TRUST_PROXY: false,
   ALLOWED_ORIGINS: [],
 }

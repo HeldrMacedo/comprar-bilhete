@@ -29,6 +29,7 @@ export default defineConfig({
         // Todas as requisições do E2E saem de 127.0.0.1; os limites padrão por IP travariam a suíte.
         ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: '1000',
         ACCOUNT_CODE_LIMIT_PER_MINUTE: '1000',
+        ZIP_CODE_LIMIT_PER_MINUTE: '1000',
         PUBLIC_APP_URL: 'http://127.0.0.1:4173',
         PUBLIC_API_URL: 'http://127.0.0.1:3334',
         ADMIN_BOOTSTRAP_LOGIN: 'admin',

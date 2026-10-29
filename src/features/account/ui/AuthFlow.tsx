@@ -336,7 +336,7 @@ function NoEmailStep({
   return (
     <form className="auth-flow__form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <p>
-        Seu cadastro não tem e-mail. Procure a lotérica ou o suporte para incluir, ou informe o
+        Seu cadastro não tem e-mail. Procure o suporte para incluir, ou informe o
         código que recebeu do atendimento.
       </p>
       <TextField
@@ -422,6 +422,7 @@ function SignupStep({
           id="auth-name"
           label="Nome completo"
           autoComplete="name"
+          required
           error={errors.name?.message}
           {...register('name')}
         />
@@ -439,6 +440,7 @@ function SignupStep({
           label="Celular com DDD"
           type="tel"
           autoComplete="tel-national"
+          required
           error={errors.phone?.message}
           {...register('phone')}
           onChange={(event) =>
@@ -455,13 +457,18 @@ function SignupStep({
           {...register('email')}
         />
       </div>
-      <AddressFields fieldProps={(name) => register(name)} errors={errors.address} />
+      <AddressFields
+        fieldProps={(name) => register(name)}
+        setField={(name, value) => setValue(name, value, { shouldValidate: isSubmitted })}
+        errors={errors.address}
+      />
       <div className="form-row">
         <TextField
           id="auth-new-password"
           label="Senha"
           type="password"
           autoComplete="new-password"
+          required
           error={errors.password?.message}
           {...register('password')}
         />
@@ -470,6 +477,7 @@ function SignupStep({
           label="Confirmar senha"
           type="password"
           autoComplete="new-password"
+          required
           error={errors.confirmPassword?.message}
           {...register('confirmPassword')}
         />

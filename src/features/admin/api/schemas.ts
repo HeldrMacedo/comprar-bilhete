@@ -65,7 +65,7 @@ export const customerSummarySchema = z.object({
   phone: z.string(),
   address: z
     .object({
-      zipCode: z.string(),
+      zipCode: z.string().optional(),
       street: z.string(),
       number: z.string(),
       complement: z.string().optional(),

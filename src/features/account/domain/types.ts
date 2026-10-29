@@ -1,5 +1,5 @@
 export type Address = {
-  zipCode: string
+  zipCode?: string
   street: string
   number: string
   complement?: string
@@ -20,7 +20,21 @@ export type IdentifyResult =
   | { status: 'first_access'; maskedEmail: string }
   | { status: 'no_email' }
   | { status: 'new' }
-export type Profile = { name: string; cpf: string; phone: string; email: string; address: Address }
+export type Profile = {
+  name: string
+  cpf: string
+  phone: string
+  email: string | null
+  address: Address
+}
+// Endereço sugerido pelo CEP; campos vazios quando a base não tem o dado.
+export type ZipCodeAddress = {
+  zipCode: string
+  street: string
+  neighborhood: string
+  city: string
+  state: string
+}
 export type CodeRequest = { purpose: 'first_access' | 'reset'; cpf: string }
 export interface AccountRepository {
   getMe(signal?: AbortSignal): Promise<Account | null>
@@ -39,4 +53,5 @@ export interface AccountRepository {
     currentPassword: string
   }): Promise<Account>
   logout(): Promise<void>
+  lookupZipCode(zipCode: string): Promise<ZipCodeAddress | null>
 }

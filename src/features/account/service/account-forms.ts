@@ -5,7 +5,12 @@ import type { Profile } from '../domain/types'
 const upperText = (message: string) => z.string().trim().toUpperCase().min(1, message)
 
 export const addressSchema = z.object({
-  zipCode: z.string().transform(onlyDigits).pipe(z.string().length(8, 'Informe um CEP valido.')),
+  // CEP é opcional: sem ele, o cliente digita o endereço inteiro.
+  zipCode: z
+    .string()
+    .transform(onlyDigits)
+    .pipe(z.union([z.literal(''), z.string().length(8, 'Informe um CEP valido.')]))
+    .transform((value) => value || undefined),
   street: upperText('Informe o endereco.'),
   number: upperText('Informe o numero.'),
   complement: z
@@ -25,6 +30,13 @@ export const addressSchema = z.object({
 
 const passwordField = z.string().min(8, 'A senha precisa ter ao menos 8 caracteres.').max(128)
 const emailField = z.string().trim().toLowerCase().pipe(z.email('Informe um email valido.'))
+// No cadastro e em Meus dados o e-mail é opcional; vazio vira `null`.
+const optionalEmailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.union([z.literal(''), z.email('Informe um email valido.')]))
+  .transform((value) => value || null)
 const phoneField = z
   .string()
   .refine((value) => [10, 11].includes(onlyDigits(value).length), 'Informe um celular com DDD.')
@@ -51,7 +63,7 @@ export const codeField = z.string().regex(/^\d{6}$/, 'Informe o código de 6 dí
 const profileFields = {
   name: z.string().trim().min(3, 'Informe seu nome completo.'),
   phone: phoneField,
-  email: emailField,
+  email: optionalEmailField,
   address: addressSchema,
 }
 

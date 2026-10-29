@@ -15,6 +15,12 @@ export function formatPhone(value: string) {
   return digits.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')
 }
 
+export function formatZipCode(value: string) {
+  return onlyDigits(value)
+    .slice(0, 8)
+    .replace(/^(\d{5})(\d)/, '$1-$2')
+}
+
 export function isValidCpf(value: string) {
   const cpf = onlyDigits(value)
   if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false

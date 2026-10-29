@@ -17,6 +17,7 @@ vi.mock('../repository/account-repository', () => ({
     setPassword: vi.fn(),
     updateProfile: vi.fn(),
     logout: vi.fn(),
+    lookupZipCode: vi.fn(),
   },
 }))
 
@@ -124,6 +125,72 @@ describe('AuthFlow', () => {
     })
     expect(accountRepository.requestCode).not.toHaveBeenCalled()
     expect(onAuthenticated).toHaveBeenCalled()
+  })
+
+  it('CEP preenche o endereço e o cadastro segue sem e-mail', async () => {
+    vi.mocked(accountRepository.identify).mockResolvedValue({ status: 'new' })
+    vi.mocked(accountRepository.lookupZipCode).mockResolvedValue({
+      zipCode: '59062300',
+      street: 'Avenida Lima e Silva',
+      neighborhood: 'Nossa Senhora de Nazaré',
+      city: 'Natal',
+      state: 'RN',
+    })
+    vi.mocked(accountRepository.register).mockResolvedValue({ ...account, cpf: '11144477735' })
+    renderFlow()
+    await typeCpf('11144477735')
+    await userEvent.type(await screen.findByLabelText('Nome completo'), 'Cliente Novo')
+    await userEvent.type(screen.getByLabelText('Celular com DDD'), '84999998888')
+    await userEvent.type(screen.getByLabelText('CEP'), '59062300')
+
+    expect(screen.getByLabelText('CEP')).toHaveValue('59062-300')
+    expect(await screen.findByDisplayValue('AVENIDA LIMA E SILVA')).toBeInTheDocument()
+    expect(screen.getByLabelText('Bairro')).toHaveValue('NOSSA SENHORA DE NAZARÉ')
+    expect(screen.getByLabelText('Cidade')).toHaveValue('NATAL')
+    expect(screen.getByLabelText('UF')).toHaveValue('RN')
+    expect(screen.getByLabelText('Numero')).toHaveFocus()
+    expect(accountRepository.lookupZipCode).toHaveBeenCalledTimes(1)
+
+    await userEvent.type(screen.getByLabelText('Numero'), '129')
+    await userEvent.type(screen.getByLabelText('Senha'), 'senha-nova-1')
+    await userEvent.type(screen.getByLabelText('Confirmar senha'), 'senha-nova-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Criar conta e entrar' }))
+    expect(accountRepository.register).toHaveBeenCalledWith({
+      password: 'senha-nova-1',
+      customer: expect.objectContaining({
+        email: null,
+        address: expect.objectContaining({ zipCode: '59062300', number: '129', city: 'NATAL' }),
+      }),
+    })
+  })
+
+  it('sem CEP o endereço é digitado à mão; CEP não encontrado só avisa', async () => {
+    vi.mocked(accountRepository.identify).mockResolvedValue({ status: 'new' })
+    vi.mocked(accountRepository.lookupZipCode).mockResolvedValue(null)
+    vi.mocked(accountRepository.register).mockResolvedValue({ ...account, cpf: '11144477735' })
+    renderFlow()
+    await typeCpf('11144477735')
+    await userEvent.type(await screen.findByLabelText('CEP'), '99999999')
+    expect(await screen.findByText('CEP não encontrado. Preencha o endereço.')).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('CEP'))
+
+    await userEvent.type(screen.getByLabelText('Nome completo'), 'Cliente Novo')
+    await userEvent.type(screen.getByLabelText('Celular com DDD'), '84999998888')
+    await userEvent.type(screen.getByLabelText('Endereco'), 'Rua A')
+    await userEvent.type(screen.getByLabelText('Numero'), '10')
+    await userEvent.type(screen.getByLabelText('Bairro'), 'Centro')
+    await userEvent.type(screen.getByLabelText('Cidade'), 'Natal')
+    await userEvent.type(screen.getByLabelText('UF'), 'RN')
+    await userEvent.type(screen.getByLabelText('Senha'), 'senha-nova-1')
+    await userEvent.type(screen.getByLabelText('Confirmar senha'), 'senha-nova-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Criar conta e entrar' }))
+    expect(accountRepository.register).toHaveBeenCalledWith({
+      password: 'senha-nova-1',
+      customer: expect.objectContaining({
+        email: null,
+        address: expect.objectContaining({ zipCode: undefined, street: 'RUA A' }),
+      }),
+    })
   })
 
   it('CPF sem e-mail cria senha com o código do atendimento e o e-mail informado', async () => {

@@ -62,7 +62,7 @@ export type CustomerSummary = {
   name: string
   phone: string
   address?: {
-    zipCode: string
+    zipCode?: string
     street: string
     number: string
     complement?: string

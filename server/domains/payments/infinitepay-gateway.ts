@@ -42,7 +42,8 @@ export class InfinitePayGateway implements PaymentGateway {
             email: order.customer.email,
             phone_number: `+55${order.customer.phone}`,
           },
-          address: address
+          // Endereço sem CEP fica de fora: a InfinitePay identifica o endereço pelo CEP.
+          address: address?.zipCode
             ? {
                 cep: address.zipCode,
                 street: address.street,

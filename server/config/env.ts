@@ -82,6 +82,9 @@ const serverEnvSchema = z
     MAIL_FROM: z.preprocess(emptyToUndefined, z.string().min(3).optional()),
     ACCOUNT_IDENTIFY_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
     ACCOUNT_CODE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
+    ZIP_CODE_PROVIDER: z.enum(['mock', 'brasilapi']).default('mock'),
+    BRASIL_API_BASE_URL: z.url().default('https://brasilapi.com.br'),
+    ZIP_CODE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
     TRUST_PROXY: trustProxySchema,
     ALLOWED_ORIGINS: allowedOriginsSchema,
   })

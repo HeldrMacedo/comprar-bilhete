@@ -154,6 +154,30 @@ describe('InfinitePayGateway', () => {
     })
   })
 
+  it('omite o endereço quando o cliente não informou CEP', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ url: 'https://checkout.infinitepay.io/example' }), {
+        status: 200,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const gateway = new InfinitePayGateway(env)
+    const address = {
+      street: 'Avenida Lima e Silva',
+      number: '129',
+      neighborhood: 'Nazare',
+      city: 'Natal',
+      state: 'RN',
+    }
+
+    await gateway.createCheckout(order({ customer: { ...customerWithAddress, address } }))
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body),
+    ) as Record<string, unknown>
+    expect(body.address).toBeUndefined()
+  })
+
   it('rejeita total inconsistente antes da chamada externa', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)

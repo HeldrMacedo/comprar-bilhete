@@ -59,7 +59,7 @@ export class AccountService {
     private readonly customers: CustomerGateway,
     private readonly verification: VerificationService,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) { }
 
   async identify(cpf: string): Promise<IdentifyResult> {
     if (this.repository.findAccount(cpf)) return { status: 'account' }
@@ -85,7 +85,7 @@ export class AccountService {
     const email = person?.email ?? local?.email
     if (!email) {
       throw new DomainError(
-        'Seu cadastro não tem e-mail. Procure a lotérica ou o suporte para incluir.',
+        'Seu cadastro não tem e-mail. Procure o suporte para incluir.',
         409,
         'EMAIL_NOT_REGISTERED',
       )

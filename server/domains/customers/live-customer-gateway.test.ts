@@ -136,6 +136,46 @@ describe('LiveCustomerGateway', () => {
     })
   })
 
+  it('mantém o endereço sem CEP quando a API devolve cep vazio', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json({
+          success: true,
+          data: {
+            pessoas_id: 30237,
+            nome: 'CLIENTE SEM CEP',
+            cpf: '68074900037',
+            fone: '84999999999',
+            email: '',
+            cep: '',
+            endereco: 'RUA TESTE',
+            numero: '1',
+            bairro: 'CENTRO',
+            cidade: 'NATAL',
+            uf: 'RN',
+          },
+        }),
+      ),
+    )
+
+    await expect(
+      new LiveCustomerGateway('https://tickets.test').findByCpf('68074900037'),
+    ).resolves.toEqual({
+      externalId: '30237',
+      name: 'CLIENTE SEM CEP',
+      cpf: '68074900037',
+      phone: '84999999999',
+      address: {
+        street: 'RUA TESTE',
+        number: '1',
+        neighborhood: 'CENTRO',
+        city: 'NATAL',
+        state: 'RN',
+      },
+    })
+  })
+
   it('maps 404 to null and hides a 500 upstream body', async () => {
     const fetchMock = vi
       .fn()

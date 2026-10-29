@@ -66,6 +66,7 @@ describe('troca de conta', () => {
       setPassword: vi.fn(),
       updateProfile: vi.fn(),
       logout: vi.fn(),
+      lookupZipCode: vi.fn(),
     }
     const queryClient = setup()
     const wrapper = ({ children }: { children: ReactNode }) => (

@@ -1,7 +1,11 @@
 import { z } from 'zod'
 
 export const addressSchema = z.object({
-  zipCode: z.string().regex(/^\d{8}$/),
+  // CEP é opcional: a API de bilhetes aceita cadastro sem CEP e devolve `cep: ""`.
+  zipCode: z
+    .string()
+    .regex(/^\d{8}$/)
+    .optional(),
   street: z.string().trim().min(1).max(160),
   number: z.string().trim().min(1).max(20),
   complement: z.string().trim().max(80).optional(),

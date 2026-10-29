@@ -4,6 +4,9 @@ import Fastify from 'fastify'
 import { ZodError } from 'zod'
 import { parseServerEnv, type ServerEnv } from './config/env.js'
 import { AccountRepository } from './domains/accounts/account-repository.js'
+import { BrasilApiZipCodeGateway } from './domains/addresses/brasil-api-zip-code-gateway.js'
+import { MockZipCodeGateway } from './domains/addresses/mock-zip-code-gateway.js'
+import type { ZipCodeGateway } from './domains/addresses/zip-code-gateway.js'
 import { AccountService } from './domains/accounts/account-service.js'
 import type { MailGateway } from './domains/accounts/mail-gateway.js'
 import { MockMailGateway } from './domains/accounts/mock-mail-gateway.js'
@@ -44,6 +47,7 @@ import type { TicketReservationGateway } from './domains/tickets/ticket-reservat
 import { registerAccountRoutes } from './http/account-routes.js'
 import { registerAdminRoutes } from './http/admin-routes.js'
 import { registerRoutes } from './http/routes.js'
+import { registerZipCodeRoutes } from './http/zip-code-routes.js'
 import { createDatabase } from './shared/database.js'
 import { DomainError } from './shared/errors.js'
 
@@ -55,6 +59,7 @@ type AppOptions = {
   reservations?: TicketReservationGateway
   contestAdmin?: ContestAdminGateway
   mail?: MailGateway
+  zipCodes?: ZipCodeGateway
   logger?: boolean
   startWorker?: boolean
   now?: () => Date
@@ -181,6 +186,14 @@ export async function buildApp(options: AppOptions = {}) {
         : new MockTicketGateway())
   await registerRoutes(app, env, service, accounts, siteSettings)
   await registerAccountRoutes(app, env, accounts)
+  await registerZipCodeRoutes(
+    app,
+    env,
+    options.zipCodes ??
+      (env.ZIP_CODE_PROVIDER === 'brasilapi'
+        ? new BrasilApiZipCodeGateway(env.BRASIL_API_BASE_URL)
+        : new MockZipCodeGateway()),
+  )
   await registerAdminRoutes(app, env, {
     auth: adminAuth,
     users: new AdminUserService(adminRepository, now),

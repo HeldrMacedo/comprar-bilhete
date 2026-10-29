@@ -26,6 +26,25 @@ describe('formulários de conta', () => {
     expect(parsed.address.state).toBe('RN')
   })
 
+  it('CEP e e-mail são opcionais; o restante do endereço não', () => {
+    const parsed = signupFormSchema.parse({
+      ...signup,
+      email: ' ',
+      address: { ...signup.address, zipCode: '' },
+    })
+    expect(parsed.email).toBeNull()
+    expect(parsed.address.zipCode).toBeUndefined()
+    expect(parsed.address.street).toBe('AV LIMA')
+    expect(
+      signupFormSchema.safeParse({ ...signup, address: { ...signup.address, zipCode: '5906' } })
+        .success,
+    ).toBe(false)
+    expect(signupFormSchema.safeParse({ ...signup, email: 'novo' }).success).toBe(false)
+    expect(
+      signupFormSchema.safeParse({ ...signup, address: { ...signup.address, street: '' } }).success,
+    ).toBe(false)
+  })
+
   it('exige confirmação igual e senha com 8 caracteres', () => {
     expect(signupFormSchema.safeParse({ ...signup, confirmPassword: 'outra-123' }).success).toBe(
       false,

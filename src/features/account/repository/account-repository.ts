@@ -1,7 +1,12 @@
 import { ApiError, requestJson } from '../../../shared/api/http-client'
 import { apiRoutes } from '../../../shared/config/api-routes'
 import { env } from '../../../shared/config/env'
-import { accountResponseSchema, identifyResultSchema, noContentSchema } from '../api/schemas'
+import {
+  accountResponseSchema,
+  identifyResultSchema,
+  noContentSchema,
+  zipCodeResponseSchema,
+} from '../api/schemas'
 import type { Account, AccountRepository } from '../domain/types'
 
 const liveRepository: AccountRepository = {
@@ -49,6 +54,14 @@ const liveRepository: AccountRepository = {
     ).account,
   async logout() {
     await requestJson(apiRoutes.accountLogout, noContentSchema, { method: 'POST' })
+  },
+  async lookupZipCode(zipCode) {
+    try {
+      return (await requestJson(apiRoutes.zipCode(zipCode), zipCodeResponseSchema)).address
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'ZIP_CODE_NOT_FOUND') return null
+      throw error
+    }
   },
 }
 
@@ -118,6 +131,18 @@ const mockRepository: AccountRepository = {
   },
   async logout() {
     mockSession = null
+  },
+  async lookupZipCode(zipCode) {
+    await mockDelay()
+    return zipCode === mockMaria.address?.zipCode
+      ? {
+          zipCode,
+          street: 'AVENIDA LIMA E SILVA',
+          neighborhood: 'NAZARE',
+          city: 'NATAL',
+          state: 'RN',
+        }
+      : null
   },
 }
 

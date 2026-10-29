@@ -113,7 +113,7 @@ export class LiveCustomerGateway implements CustomerGateway {
 
     const person = parsed.data.data
     const address = addressSchema.safeParse({
-      zipCode: onlyDigits(person.cep ?? ''),
+      zipCode: onlyDigits(person.cep ?? '') || undefined,
       street: person.endereco ?? '',
       number: person.numero ?? '',
       complement: person.complemento?.trim() || undefined,
