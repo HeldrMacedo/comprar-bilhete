@@ -100,4 +100,18 @@ describe('buildTicketCards', () => {
     )
     expect(gift).toMatchObject({ customerName: existingMaria.name, holderName: 'Ana Beneficiária' })
   })
+
+  it('não gera cartela para bilhete não validado', () => {
+    const document = buildTicketCards(
+      order({
+        items: [
+          { ...ticket('card-001'), validationStatus: 'not_validated' },
+          { ...ticket('card-002'), identification: 'X-2' },
+        ],
+      }),
+      'https://soldasorte.example/',
+    )
+    expect(document.cards).toHaveLength(1)
+    expect(document.cards[0]?.title).toBe('BILHETE X-2')
+  })
 })

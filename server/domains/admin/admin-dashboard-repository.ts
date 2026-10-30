@@ -2,6 +2,13 @@ import { z } from 'zod'
 import type { AppDatabase } from '../../shared/database.js'
 import { orderStatusSchema } from '../orders/order-types.js'
 
+const VALID_ITEMS = `(SELECT COUNT(*) FROM json_each(orders.items_json) AS item
+  WHERE json_extract(item.value, '$.validationStatus') IS NULL)`
+const REFUND_DUE = `(SELECT COALESCE(SUM(COALESCE(json_extract(item.value, '$.unitPriceInCents'),
+    orders.unit_price_in_cents)), 0)
+  FROM json_each(orders.items_json) AS item
+  WHERE json_extract(item.value, '$.validationStatus') = 'not_validated')`
+
 // Dias do painel seguem o fuso dos sorteios (America/Fortaleza, UTC-3 sem horário de verão).
 const LOCAL_DAY = (column: string) => `date(${column}, '-3 hours')`
 
@@ -10,6 +17,7 @@ const totalsSchema = z.object({
   paid_orders: z.number(),
   paid_tickets: z.number(),
   revenue_in_cents: z.number(),
+  refund_due_in_cents: z.number(),
   pending_orders: z.number(),
   pending_tickets: z.number(),
   manual_review_orders: z.number(),
@@ -33,9 +41,12 @@ export class AdminDashboardRepository {
         `SELECT
           COUNT(DISTINCT json_extract(customer_json, '$.cpf')) AS customers,
           COALESCE(SUM(status = 'paid'), 0) AS paid_orders,
-          COALESCE(SUM(CASE WHEN status = 'paid' THEN json_array_length(items_json) END), 0)
+          COALESCE(SUM(CASE WHEN status = 'paid' THEN ${VALID_ITEMS} END), 0)
             AS paid_tickets,
-          COALESCE(SUM(CASE WHEN status = 'paid' THEN total_in_cents END), 0) AS revenue_in_cents,
+          COALESCE(SUM(CASE WHEN status = 'paid' THEN total_in_cents - ${REFUND_DUE} END), 0)
+            AS revenue_in_cents,
+          COALESCE(SUM(CASE WHEN status IN ('paid', 'not_validated') THEN ${REFUND_DUE} END), 0)
+            AS refund_due_in_cents,
           COALESCE(SUM(status = 'pending'), 0) AS pending_orders,
           COALESCE(SUM(CASE WHEN status = 'pending' THEN json_array_length(items_json) END), 0)
             AS pending_tickets,
@@ -51,8 +62,8 @@ export class AdminDashboardRepository {
     return this.database
       .prepare(
         `SELECT ${LOCAL_DAY('paid_at')} AS day,
-          SUM(total_in_cents) AS revenue_in_cents,
-          SUM(json_array_length(items_json)) AS tickets
+          SUM(total_in_cents - ${REFUND_DUE}) AS revenue_in_cents,
+          SUM(${VALID_ITEMS}) AS tickets
         FROM orders
         WHERE status = 'paid' AND paid_at IS NOT NULL AND ${LOCAL_DAY('paid_at')} >= ?
         GROUP BY day
@@ -88,6 +99,7 @@ export class AdminDashboardRepository {
             ) AS price
           FROM orders, json_each(orders.items_json) AS item
           WHERE orders.status = 'paid'
+            AND json_extract(item.value, '$.validationStatus') IS NULL
         )
         GROUP BY raffle_key
         ORDER BY tickets DESC, raffle_key`,

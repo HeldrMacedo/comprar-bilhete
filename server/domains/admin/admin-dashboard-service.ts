@@ -76,6 +76,7 @@ export class AdminDashboardService {
         paidTickets: totals.paid_tickets,
         paidOrders: totals.paid_orders,
         revenueInCents: totals.revenue_in_cents,
+        refundDueInCents: totals.refund_due_in_cents,
         pendingTickets: totals.pending_tickets,
         pendingOrders: totals.pending_orders,
         manualReviewOrders: totals.manual_review_orders,

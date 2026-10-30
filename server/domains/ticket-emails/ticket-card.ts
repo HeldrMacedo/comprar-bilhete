@@ -1,4 +1,5 @@
 import type { Order } from '../orders/order-types.js'
+import { validatedItems } from '../orders/sales-deadline.js'
 
 export type TicketCardPrize = { title?: string; first: string[][]; second: string[][] }
 export type TicketCard = {
@@ -69,7 +70,7 @@ export function buildTicketCards(order: Order, appUrl: string): TicketCardDocume
     ...(order.paidAt ? { paidAt: formatDateTime(order.paidAt) } : {}),
     myTicketsUrl: new URL('/minhas-compras', appUrl).toString(),
     orderShortId: order.id.slice(0, 8),
-    cards: order.items.map((item) => {
+    cards: validatedItems(order).map((item) => {
       const first = toRows(item.numbers)
       const second = toRows(item.secondChanceNumbers ?? [])
       const prizes: TicketCardPrize[] = item.prizes?.length
