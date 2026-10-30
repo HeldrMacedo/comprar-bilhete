@@ -16,6 +16,7 @@ const cart: Cart = {
       raffleId: 'raffle-1',
       raffleTitle: 'Sorteio de Quarta',
       priceInCents: 1000,
+      salesEndAt: '2026-09-30T20:00:00.000Z',
       selection: {
         mode: 'manual',
         cards: [{ id: 'card-001', code: '#001', numbers: [1, 2, 3], available: true }],
@@ -120,6 +121,17 @@ describe('CartPage', () => {
       email: 'maria@example.com',
     })
     expect(await screen.findByRole('alert')).toHaveTextContent('parar aqui')
+  })
+
+  it('mostra o prazo de pagamento de cada concurso do carrinho', async () => {
+    renderCart()
+    await screen.findByText('Maria da Silva')
+    const notes = screen.getAllByRole('note')
+    expect(notes).toHaveLength(2)
+    expect(notes[0]).toHaveTextContent(/Sorteio de Quarta/)
+    expect(notes[0]).toHaveTextContent(/Pague até 30\/09\/2026, 17:00/)
+    expect(notes[1]).toHaveTextContent(/Sorteio de Domingo/)
+    expect(notes[1]).toHaveTextContent('Pague antes do fim das vendas do concurso')
   })
 
   it('conta incompleta pede para completar o cadastro', async () => {

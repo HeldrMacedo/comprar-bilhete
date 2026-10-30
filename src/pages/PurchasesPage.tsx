@@ -8,8 +8,10 @@ import {
   describeStatus,
 } from '../features/purchases/service/purchase-labels'
 import { ShareReceiptButton } from '../features/purchases/ui/ShareReceiptButton'
+import { earliestSalesEnd } from '../features/checkout/service/sales-deadline'
 import { formatCurrency } from '../shared/lib/currency'
 import { ErrorState } from '../shared/ui/ErrorState'
+import { SalesDeadlineNotice } from '../shared/ui/SalesDeadlineNotice'
 import { Spinner } from '../shared/ui/Spinner'
 
 function InteractiveTicketNumbers({
@@ -159,7 +161,8 @@ export function PurchasesPage() {
 function PurchaseCard({ purchase }: { purchase: Purchase }) {
   const status = describeStatus(purchase.status)
   const items = purchase.items ?? []
-  const canShare = purchase.status === 'paid' && items.length > 0
+  const shareableItems = items.filter((item) => item.validationStatus !== 'not_validated')
+  const canShare = purchase.status === 'paid' && shareableItems.length > 0
 
   return (
     <article className="surface purchase-card" aria-labelledby={`purchase-${purchase.id}`}>
@@ -191,9 +194,18 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
           <dt>Bilhetes</dt>
           <dd>{items.length}</dd>
         </div>
+        {purchase.refundDueInCents ? (
+          <div>
+            <dt>A estornar</dt>
+            <dd>{formatCurrency(purchase.refundDueInCents)}</dd>
+          </div>
+        ) : null}
       </dl>
 
       {purchase.message ? <p className="purchase-card__message">{purchase.message}</p> : null}
+      {purchase.status === 'pending' ? (
+        <SalesDeadlineNotice salesEndAt={earliestSalesEnd(items)} />
+      ) : null}
 
       <ul className="purchase-card__items">
         {items.map((item) => (
@@ -201,13 +213,16 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
             <div>
               <strong>Bilhete {item.code}</strong>
               <span>{item.raffleTitle}</span>
+              {item.validationStatus === 'not_validated' ? (
+                <span className="status-badge status-badge--warning">Não validado</span>
+              ) : null}
             </div>
             <InteractiveTicketNumbers
               cardCode={item.code}
               numbers={item.numbers}
               secondChanceNumbers={item.secondChanceNumbers}
             />
-            {canShare ? (
+            {canShare && item.validationStatus !== 'not_validated' ? (
               <ShareReceiptButton
                 purchase={purchase}
                 items={[item]}
@@ -225,7 +240,7 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
           {canShare ? (
             <ShareReceiptButton
               purchase={purchase}
-              items={items}
+              items={shareableItems}
               label="Compartilhar no WhatsApp"
             />
           ) : null}

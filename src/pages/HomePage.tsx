@@ -10,6 +10,7 @@ import { DrawCountdown } from '../features/raffle/ui/DrawCountdown'
 import { RaffleCardOption } from '../features/raffle/ui/RaffleCardOption'
 import { DrawVideo } from '../features/site/ui/DrawVideo'
 import { formatCurrency } from '../shared/lib/currency'
+import { SalesDeadlineNotice } from '../shared/ui/SalesDeadlineNotice'
 import { formatDate, formatDrawDate, formatWeekday } from '../shared/lib/date'
 import { Spinner } from '../shared/ui/Spinner'
 
@@ -278,6 +279,7 @@ export function HomePage() {
                       </span>
                     ) : null}
                   </div>
+                  <SalesDeadlineNotice salesEndAt={raffle.salesEndAt} />
                   <div className="raffle-selection__prizes">
                     <h3>Premiação</h3>
                     {raffle.prizes?.length ? (

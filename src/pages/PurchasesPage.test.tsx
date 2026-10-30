@@ -58,6 +58,16 @@ const pending: Purchase = {
   checkoutUrl: 'https://checkout.example/3',
 }
 
+const notValidatedItem = {
+  id: 'card-009',
+  code: '#009',
+  numbers: [3, 6, 9],
+  raffleId: 'quarta',
+  raffleTitle: 'Sorteio de Quarta',
+  unitPriceInCents: 1000,
+  validationStatus: 'not_validated' as const,
+}
+
 function renderApp(initialEntry = '/') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
@@ -121,6 +131,58 @@ describe('PurchasesPage', () => {
       'href',
       'https://checkout.example/3',
     )
+  })
+
+  it('pedido não validado mostra selo, mensagem e valor a estornar sem compartilhar', async () => {
+    const order: Purchase = {
+      ...paid,
+      id: '44444444-0000-4000-8000-000000000004',
+      status: 'not_validated',
+      message: 'Pagamento recebido após o fim das vendas. O valor será estornado.',
+      refundDueInCents: 1000,
+      items: [notValidatedItem],
+    }
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([order])
+    renderApp('/minhas-compras')
+
+    const card = await screen.findByRole('article', { name: '44444444' })
+    expect(within(card).getAllByText('Não validado').length).toBeGreaterThan(0)
+    expect(within(card).getByText(order.message!)).toBeVisible()
+    expect(within(card).getByText('A estornar')).toBeVisible()
+    expect(within(card).getByText('R$ 10,00')).toBeVisible()
+    expect(within(card).queryByRole('button', { name: /compartilhar/i })).not.toBeInTheDocument()
+  })
+
+  it('pedido pago parcial só compartilha o bilhete validado', async () => {
+    const order: Purchase = {
+      ...paid,
+      items: [...paid.items!, notValidatedItem],
+    }
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([order])
+    renderApp('/minhas-compras')
+
+    const card = await screen.findByRole('article', { name: '11111111' })
+    const items = within(card).getAllByRole('listitem')
+    const validated = items.find((li) => within(li).queryByText('Bilhete #001'))!
+    const rejected = items.find((li) => within(li).queryByText('Bilhete #009'))!
+    expect(within(rejected).getByText('Não validado')).toBeVisible()
+    expect(within(rejected).queryByRole('button', { name: /compartilhar/i })).toBeNull()
+    expect(within(validated).getByRole('button', { name: /compartilhar/i })).toBeVisible()
+  })
+
+  it('pedido pendente mostra o aviso de prazo do menor fim de vendas', async () => {
+    const order: Purchase = {
+      ...pending,
+      items: [
+        { ...paid.items![0]!, salesEndAt: '2026-10-04T20:00:00.000Z' },
+        { ...paid.items![0]!, id: 'card-002', salesEndAt: '2026-09-30T20:00:00.000Z' },
+      ],
+    }
+    vi.mocked(purchaseRepository.listMine).mockResolvedValue([order])
+    renderApp('/minhas-compras')
+
+    const card = await screen.findByRole('article', { name: '33333333' })
+    expect(within(card).getByText(/Pague até 30\/09\/2026, 17:00/)).toBeVisible()
   })
 
   it('compartilha no WhatsApp o comprovante de cada bilhete do pedido pago', async () => {

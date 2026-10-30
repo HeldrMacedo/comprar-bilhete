@@ -4,7 +4,10 @@ import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCart } from '../features/cart/runtime/cart-context'
 import { checkoutRepository } from '../features/checkout/repository/checkout-repository'
+import { earliestSalesEnd } from '../features/checkout/service/sales-deadline'
+import { formatCurrency } from '../shared/lib/currency'
 import { ErrorState } from '../shared/ui/ErrorState'
+import { SalesDeadlineNotice } from '../shared/ui/SalesDeadlineNotice'
 
 export function PaymentPage() {
   const [searchParams] = useSearchParams()
@@ -18,6 +21,7 @@ export function PaymentPage() {
       const status = query.state.data?.status
       if (status === 'pending' || status === 'processing') return 2_500
       if (status === 'manual_review') return 10_000
+      // not_validated é estado final: nada a consultar de novo.
       return false
     },
   })
@@ -56,6 +60,18 @@ export function PaymentPage() {
         <p>
           O pedido <strong>{order.id}</strong> foi pago e registrado. Guarde o número para consulta.
         </p>
+        {order.message ? <p className="purchase-card__message">{order.message}</p> : null}
+        {order.items?.some((item) => item.validationStatus === 'not_validated') ? (
+          <ul className="payment-state__not-validated">
+            {order.items
+              .filter((item) => item.validationStatus === 'not_validated')
+              .map((item) => (
+                <li key={`${item.raffleId}-${item.id}`}>
+                  Bilhete {item.code} ({item.raffleTitle}): não validado
+                </li>
+              ))}
+          </ul>
+        ) : null}
         {order.receiptUrl ? (
           <a
             className="button button--secondary"
@@ -71,6 +87,29 @@ export function PaymentPage() {
         </Link>
         <Link className="button button--primary" to="/">
           <House size={18} /> Voltar ao início
+        </Link>
+      </section>
+    )
+  }
+
+  if (order?.status === 'not_validated') {
+    return (
+      <section className="container payment-state page-section">
+        <div className="payment-icon payment-icon--danger">
+          <XCircle size={42} />
+        </div>
+        <span className="eyebrow">
+          <span /> Pagamento fora do prazo
+        </span>
+        <h1>Seus bilhetes não foram validados</h1>
+        <p>{order.message}</p>
+        {order.refundDueInCents ? (
+          <p>
+            Valor a estornar: <strong>{formatCurrency(order.refundDueInCents)}</strong>
+          </p>
+        ) : null}
+        <Link className="button button--secondary" to="/minhas-compras">
+          <ReceiptText size={18} /> Ver minhas compras
         </Link>
       </section>
     )
@@ -112,6 +151,9 @@ export function PaymentPage() {
           ? 'O pagamento foi identificado. A compra só será concluída quando todas os bilhetes forem validadas.'
           : 'Assim que a InfinitePay confirmar o pagamento, esta página será atualizada automaticamente.'}
       </p>
+      {order?.status === 'pending' ? (
+        <SalesDeadlineNotice salesEndAt={earliestSalesEnd(order.items)} />
+      ) : null}
       <div className="order-reference">
         <span>Pedido</span>
         <strong>{orderId}</strong>

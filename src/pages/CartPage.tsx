@@ -26,6 +26,7 @@ import {
 import { formatCurrency } from '../shared/lib/currency'
 import { formatCpf, formatPhone } from '../shared/lib/forms'
 import { ErrorState } from '../shared/ui/ErrorState'
+import { SalesDeadlineNotice } from '../shared/ui/SalesDeadlineNotice'
 import { Spinner } from '../shared/ui/Spinner'
 import { TicketNumbers } from '../shared/ui/TicketNumbers'
 
@@ -307,6 +308,13 @@ export function CartPage() {
             <span>Total</span>
             <strong>{formatCurrency(totalInCents)}</strong>
           </div>
+          {cart.entries.map((entry) => (
+            <SalesDeadlineNotice
+              key={entry.raffleId}
+              title={cart.entries.length > 1 ? entry.raffleTitle : undefined}
+              salesEndAt={entry.salesEndAt}
+            />
+          ))}
           {account.data?.complete ? (
             <button
               className="button button--primary button--full"

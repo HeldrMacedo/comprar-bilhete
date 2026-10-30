@@ -65,6 +65,7 @@ describe('HomePage sem concurso', () => {
         description: 'Sorteio de quarta-feira',
         prize: 'R$ 10.000',
         drawDate: '2026-09-30T21:00:00.000Z',
+        salesEndAt: '2026-09-30T20:00:00.000Z',
         priceInCents: 1000,
         prizes: ['Vale compras 5 mil', 'Vale compras 40 mil'],
         luckySpins: { count: 20, label: 'R$ 500,00' },
@@ -95,6 +96,7 @@ describe('HomePage sem concurso', () => {
     expect(screen.getByText(/20 giros da sorte/i)).toBeVisible()
     expect(screen.getByText('2026040')).toBeVisible()
     expect(screen.getByText('Sim')).toBeVisible()
+    expect(screen.getByText(/Pague até 30\/09\/2026, 17:00/)).toBeVisible()
     const carousel = screen.getByRole('region', { name: 'Concursos ativos' })
     expect(within(carousel).getByText('Vale compras 40 mil')).toBeVisible()
     const nextContest = within(carousel).getByRole('button', { name: 'Próximo concurso' })
