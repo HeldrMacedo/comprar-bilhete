@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-const CURRENT_SCHEMA_VERSION = 9
+const CURRENT_SCHEMA_VERSION = 10
 
 export function migrateDatabase(database: DatabaseSync) {
   const versionRow = database.prepare('PRAGMA user_version').get() as
@@ -29,6 +29,7 @@ export function migrateDatabase(database: DatabaseSync) {
       if (version < 7) migrateToVersion7(database)
       if (version < 8) migrateToVersion8(database)
       if (version < 9) migrateToVersion9(database)
+      if (version < 10) migrateToVersion10(database)
     }
 
     database.exec(`PRAGMA user_version = ${CURRENT_SCHEMA_VERSION}`)
@@ -60,7 +61,8 @@ function createLatestSchema(database: DatabaseSync) {
       last_error TEXT,
       created_at TEXT NOT NULL,
       expires_at TEXT NOT NULL,
-      paid_at TEXT
+      paid_at TEXT,
+      payment_received_at TEXT
     );
 
     CREATE TABLE reservations (
@@ -239,6 +241,12 @@ const ADMIN_SCHEMA = `
 
 function migrateToVersion7(database: DatabaseSync) {
   database.exec(ADMIN_SCHEMA)
+}
+
+function migrateToVersion10(database: DatabaseSync) {
+  if (!tableColumns(database, 'orders').has('payment_received_at')) {
+    database.exec('ALTER TABLE orders ADD COLUMN payment_received_at TEXT')
+  }
 }
 
 function tableColumns(database: DatabaseSync, table: string) {

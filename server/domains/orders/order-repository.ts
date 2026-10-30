@@ -8,6 +8,7 @@ import {
   type PaymentEvent,
   type Ticket,
 } from './order-types.js'
+import { ticketKey } from './sales-deadline.js'
 
 export type OrderRow = Record<string, unknown>
 
@@ -169,6 +170,74 @@ export class OrderRepository {
       )
   }
 
+  findPaymentEventReceivedAt(transactionNsu: string, invoiceSlug: string) {
+    const row = this.database
+      .prepare(
+        'SELECT created_at FROM payment_events WHERE transaction_nsu = ? AND invoice_slug = ?',
+      )
+      .get(transactionNsu, invoiceSlug) as { created_at: string } | undefined
+    return row?.created_at ?? null
+  }
+
+  firstPaymentEventAt(orderId: string) {
+    const row = this.database
+      .prepare('SELECT MIN(created_at) AS created_at FROM payment_events WHERE order_id = ?')
+      .get(orderId) as { created_at: string | null } | undefined
+    return row?.created_at ?? null
+  }
+
+  // Datas ISO em UTC comparam como texto; vale sempre a primeira evidência recebida.
+  recordPaymentReceivedAt(orderId: string, receivedAt: string) {
+    this.database
+      .prepare(
+        `UPDATE orders SET payment_received_at = MIN(COALESCE(payment_received_at, ?), ?)
+         WHERE id = ?`,
+      )
+      .run(receivedAt, receivedAt, orderId)
+    const row = this.database
+      .prepare('SELECT payment_received_at FROM orders WHERE id = ?')
+      .get(orderId) as { payment_received_at: string }
+    return row.payment_received_at
+  }
+
+  markItemsNotValidated(orderId: string, keys: string[]) {
+    if (keys.length === 0) return
+    const wanted = new Set(keys)
+    this.withReservationTransaction(() => {
+      const row = this.database
+        .prepare('SELECT raffle_id, items_json FROM orders WHERE id = ?')
+        .get(orderId) as { raffle_id: string; items_json: string } | undefined
+      if (!row) return
+      const current = mapItems(row.items_json)
+      const items = current.map((item) =>
+        wanted.has(ticketKey({ raffleId: row.raffle_id }, item))
+          ? { ...item, validationStatus: 'not_validated' as const }
+          : item,
+      )
+      this.database
+        .prepare('UPDATE orders SET items_json = ? WHERE id = ?')
+        .run(JSON.stringify(items), orderId)
+      const remove = this.database.prepare(
+        'DELETE FROM reservations WHERE order_id = ? AND ticket_key = ?',
+      )
+      for (const key of wanted) remove.run(orderId, key)
+    })
+  }
+
+  // Dinheiro recebido sem bilhete válido: não é sucesso nem análise; o valor é estornado fora.
+  markNotValidated(orderId: string) {
+    this.withReservationTransaction(() => {
+      this.database
+        .prepare(
+          `UPDATE orders SET status = 'not_validated', paid_at = COALESCE(paid_at, ?),
+             last_error = NULL
+           WHERE id = ? AND status <> 'paid'`,
+        )
+        .run(this.now().toISOString(), orderId)
+      this.database.prepare('DELETE FROM reservations WHERE order_id = ?').run(orderId)
+    })
+  }
+
   tryStartProcessing(orderId: string, expectedReservationCount: number) {
     this.database.exec('BEGIN IMMEDIATE')
     try {
@@ -220,9 +289,10 @@ export class OrderRepository {
       let currentPosition = seq.next_position
       // Nova tentativa (pedido em análise) mantém a posição já atribuída a cada bilhete.
       const updatedItems = items.map((item) =>
-        item.validationBatch === '84734' &&
-        typeof item.batchPosition === 'number' &&
-        item.batchPosition > 0
+        item.validationStatus === 'not_validated' ||
+        (item.validationBatch === '84734' &&
+          typeof item.batchPosition === 'number' &&
+          item.batchPosition > 0)
           ? item
           : { ...item, validationBatch: '84734', batchPosition: currentPosition++ },
       )
@@ -296,9 +366,14 @@ export class OrderRepository {
         )
         .get(orderId) as { raffle_id: string; items_json: string } | undefined
       if (!row) return false
-      const items = JSON.parse(row.items_json) as Array<{ id: string; raffleId?: string }>
+      const items = JSON.parse(row.items_json) as Array<{
+        id: string
+        raffleId?: string
+        validationStatus?: string
+      }>
       const expiresAt = new Date(this.now().getTime() + 15 * 60_000).toISOString()
       for (const item of items) {
+        if (item.validationStatus === 'not_validated') continue
         this.database
           .prepare(
             `INSERT INTO reservations (ticket_key, order_id, expires_at) VALUES (?, ?, ?)
@@ -490,5 +565,10 @@ export function mapOrder(row: OrderRow): Order {
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     paidAt: row.paid_at ?? undefined,
+    paymentReceivedAt: row.payment_received_at ?? undefined,
   })
+}
+
+function mapItems(itemsJson: string) {
+  return orderSchema.shape.items.parse(JSON.parse(itemsJson))
 }

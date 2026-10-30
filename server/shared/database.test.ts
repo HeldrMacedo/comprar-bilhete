@@ -19,10 +19,17 @@ afterEach(() => {
 })
 
 describe('database migrations', () => {
+  it('adiciona payment_received_at aos pedidos', () => {
+    const database = createDatabase(':memory:')
+    const columns = database.prepare('PRAGMA table_info(orders)').all() as Array<{ name: string }>
+    expect(columns.map((column) => column.name)).toContain('payment_received_at')
+    database.close()
+  })
+
   it('creates an empty database at schema version 9', () => {
     const database = createDatabase(':memory:')
 
-    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 9 })
+    expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 10 })
     expect(database.prepare('PRAGMA table_info(orders)').all()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'selection_mode' }),
@@ -111,7 +118,7 @@ describe('database migrations', () => {
 
     const upgraded = createDatabase(path)
 
-    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 9 })
+    expect(upgraded.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 10 })
     expect(upgraded.prepare('SELECT * FROM orders').get()).toMatchObject({
       id: '00000000-0000-4000-8000-000000000001',
       selection_mode: 'manual',
