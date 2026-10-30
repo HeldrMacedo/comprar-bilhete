@@ -18,5 +18,6 @@ export type Raffle = {
   doubleChance?: boolean
   bannerUrl?: string
   purchaseEnabled?: boolean
+  salesEndAt?: string
   cards: RaffleCard[]
 }

@@ -10,6 +10,7 @@ const cartEntrySchema = z.object({
   raffleId: z.string(),
   raffleTitle: z.string(),
   priceInCents: z.number().int().positive(),
+  salesEndAt: z.string().optional(),
   selection: z.discriminatedUnion('mode', [
     z.object({ mode: z.literal('manual'), cards: z.array(raffleCardSchema).min(1) }),
     z.object({ mode: z.literal('random'), quantity: z.number().int().min(1).max(50) }),
@@ -54,6 +55,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             raffleId: raffle.id,
             raffleTitle: raffle.title,
             priceInCents: raffle.priceInCents,
+            ...(raffle.salesEndAt ? { salesEndAt: raffle.salesEndAt } : {}),
             selection,
           })),
         }),

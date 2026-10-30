@@ -4,6 +4,7 @@ export type CartEntry = {
   raffleId: string
   raffleTitle: string
   priceInCents: number
+  salesEndAt?: string
   selection: CartSelection
 }
 

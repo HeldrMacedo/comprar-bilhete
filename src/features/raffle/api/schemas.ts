@@ -19,6 +19,7 @@ export const raffleSchema = z.object({
   luckySpins: z.object({ count: z.number().int().positive(), label: z.string() }).optional(),
   doubleChance: z.boolean().optional(),
   purchaseEnabled: z.boolean().optional(),
+  salesEndAt: z.iso.datetime().optional(),
   cards: z.array(raffleCardSchema),
 })
 

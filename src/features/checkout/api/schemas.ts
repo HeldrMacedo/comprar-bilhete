@@ -2,10 +2,19 @@ import { z } from 'zod'
 
 export const orderSchema = z.object({
   id: z.string().min(1),
-  status: z.enum(['pending', 'processing', 'paid', 'expired', 'cancelled', 'manual_review']),
+  status: z.enum([
+    'pending',
+    'processing',
+    'paid',
+    'expired',
+    'cancelled',
+    'manual_review',
+    'not_validated',
+  ]),
   selectionMode: z.enum(['manual', 'random']).optional(),
   unitPriceInCents: z.number().int().positive().optional(),
   totalInCents: z.number().int().nonnegative(),
+  refundDueInCents: z.number().int().positive().optional(),
   items: z
     .array(
       z.object({
@@ -16,6 +25,8 @@ export const orderSchema = z.object({
         raffleId: z.string().min(1),
         raffleTitle: z.string().min(1),
         unitPriceInCents: z.number().int().positive(),
+        salesEndAt: z.iso.datetime().optional(),
+        validationStatus: z.literal('not_validated').optional(),
       }),
     )
     .optional(),

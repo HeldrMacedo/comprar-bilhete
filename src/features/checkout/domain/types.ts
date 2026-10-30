@@ -11,7 +11,7 @@ export type CreateOrderInput = {
 export type OrderOptions = { beneficiaryName?: string; email?: string }
 
 export type PaymentStatus =
-  'pending' | 'processing' | 'paid' | 'expired' | 'cancelled' | 'manual_review'
+  'pending' | 'processing' | 'paid' | 'expired' | 'cancelled' | 'manual_review' | 'not_validated'
 
 export type Order = {
   id: string
@@ -19,6 +19,7 @@ export type Order = {
   selectionMode?: 'manual' | 'random'
   unitPriceInCents?: number
   totalInCents: number
+  refundDueInCents?: number
   items?: Array<{
     id: string
     code: string
@@ -27,6 +28,8 @@ export type Order = {
     raffleId: string
     raffleTitle: string
     unitPriceInCents: number
+    salesEndAt?: string
+    validationStatus?: 'not_validated'
   }>
   receiptUrl?: string
   expiresAt?: string
