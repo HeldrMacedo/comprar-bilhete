@@ -23,6 +23,9 @@ export const ticketSchema = z.object({
   unitPriceInCents: z.number().int().positive().optional(),
   validationBatch: z.string().optional(),
   batchPosition: z.number().int().nonnegative().optional(),
+  // Fim das vendas do concurso, copiado na criação. Pagamento recebido a partir dele não valida.
+  salesEndAt: z.iso.datetime().optional(),
+  validationStatus: z.literal('not_validated').optional(),
 })
 
 export const orderStatusSchema = z.enum([
@@ -32,6 +35,7 @@ export const orderStatusSchema = z.enum([
   'expired',
   'cancelled',
   'manual_review',
+  'not_validated',
 ])
 
 export const orderSchema = z.object({
@@ -54,6 +58,7 @@ export const orderSchema = z.object({
   createdAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   paidAt: z.iso.datetime().optional(),
+  paymentReceivedAt: z.iso.datetime().optional(),
 })
 
 export const orderDraftSchema = orderSchema.omit({ items: true })

@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<Order['status'], string> = {
   expired: 'Expirado',
   cancelled: 'Cancelado',
   manual_review: 'Em análise',
+  not_validated: 'Não validado',
 }
 
 const EXPORT_LIMIT = 20_000

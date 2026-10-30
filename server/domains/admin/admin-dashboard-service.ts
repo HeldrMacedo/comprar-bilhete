@@ -12,6 +12,7 @@ const STATUSES: Array<Order['status']> = [
   'manual_review',
   'expired',
   'cancelled',
+  'not_validated',
 ]
 
 function localDay(date: Date) {
