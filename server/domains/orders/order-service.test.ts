@@ -728,3 +728,244 @@ async function createPaymentHarness(
     },
   }
 }
+
+// Concurso com fim de vendas: o mock padrão não tem `salesEndAt`.
+class DeadlineTicketGateway extends MockTicketGateway {
+  constructor(private readonly salesEndAt: Record<string, string>) {
+    super()
+  }
+  override async getActiveRaffles() {
+    return (await super.getActiveRaffles()).map((raffle) => ({
+      ...raffle,
+      salesEndAt: this.salesEndAt[raffle.id],
+    }))
+  }
+  override async getActiveRaffle() {
+    const [first] = await this.getActiveRaffles()
+    return first!
+  }
+}
+
+// Confirma só NSU `mock-*`, com o total gravado no pedido.
+function confirmingPayments(repository: OrderRepository): PaymentGateway {
+  return {
+    createCheckout: async (order) => `https://checkout.example/${order.id}`,
+    verifyPayment: async (reference) => ({
+      paid: reference.transactionNsu.startsWith('mock-'),
+      amountInCents: repository.get(reference.orderId)?.totalInCents ?? 0,
+      captureMethod: 'pix',
+    }),
+  }
+}
+
+function createDeadlineService(salesEndAt: Record<string, string>) {
+  let currentTime = new Date('2026-09-23T10:00:00.000Z')
+  const now = () => currentTime
+  const database = createDatabase(':memory:')
+  const tickets = new DeadlineTicketGateway(salesEndAt)
+  const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
+  const repository = new OrderRepository(database, now)
+  const service = new OrderService(
+    repository,
+    tickets,
+    confirmingPayments(repository),
+    new CustomerService(new MockCustomerGateway()),
+    new TicketReservationCoordinator(
+      new MockTicketReservationGateway(30 * 60_000, now),
+      new RemoteReservationRepository(database, now),
+    ),
+    env,
+    now,
+  )
+  return {
+    service,
+    repository,
+    fulfillOrder,
+    setTime: (iso: string) => {
+      currentTime = new Date(iso)
+    },
+    close: () => database.close(),
+  }
+}
+
+function webhookFor(orderId: string, amount: number, nsu = `mock-${orderId}`) {
+  return {
+    invoice_slug: nsu,
+    amount,
+    paid_amount: amount,
+    installments: 1,
+    capture_method: 'pix',
+    transaction_nsu: nsu,
+    order_nsu: orderId,
+    receipt_url: 'https://example.com/comprovante',
+    items: [],
+  }
+}
+
+const singleRaffle = (cardId: string) => ({
+  raffleId: 'sorteio-setembro',
+  selection: { mode: 'manual' as const, cardIds: [cardId] },
+  customer: existingCustomer,
+})
+
+const bothRaffles = {
+  raffles: [
+    { raffleId: 'sorteio-setembro', selection: { mode: 'manual' as const, cardIds: ['card-001'] } },
+    { raffleId: 'sorteio-domingo', selection: { mode: 'manual' as const, cardIds: ['card-002'] } },
+  ],
+  customer: existingCustomer,
+}
+
+describe('fim das vendas', () => {
+  const capEnd = '2026-09-23T10:10:00.000Z'
+  const espEnd = '2026-09-24T10:00:00.000Z'
+
+  it('valida pagamento recebido antes do fim das vendas', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.setTime('2026-09-23T10:09:59.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000))
+    h.setTime('2026-09-23T10:09:59.500Z')
+    await h.service.processNextPaymentEvent()
+
+    expect(h.repository.get(created.id)?.status).toBe('paid')
+    expect(h.fulfillOrder).toHaveBeenCalledTimes(1)
+    h.close()
+  })
+
+  it('não valida pagamento recebido no instante do fim das vendas', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.setTime(capEnd)
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000))
+    await h.service.processNextPaymentEvent()
+
+    const order = h.repository.get(created.id)
+    expect(order?.status).toBe('not_validated')
+    expect(order?.items[0]?.validationStatus).toBe('not_validated')
+    expect(h.repository.isReserved('sorteio-setembro:card-020')).toBe(false)
+    expect(h.fulfillOrder).not.toHaveBeenCalled()
+    h.close()
+  })
+
+  it('pagamento depois do fim das vendas vira não validado, não análise', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.setTime('2026-09-25T08:00:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000))
+    await h.service.processNextPaymentEvent()
+
+    expect(h.repository.get(created.id)?.status).toBe('not_validated')
+    expect(h.fulfillOrder).not.toHaveBeenCalled()
+    h.close()
+  })
+
+  it('webhook com NSU não confirmado não antecipa o horário', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.setTime('2026-09-23T10:05:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000, 'fake-1'))
+    await h.service.processNextPaymentEvent()
+    expect(h.repository.get(created.id)?.status).toBe('pending')
+
+    h.setTime('2026-09-23T10:12:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000))
+    await h.service.processNextPaymentEvent()
+
+    expect(h.repository.get(created.id)?.status).toBe('not_validated')
+    h.close()
+  })
+
+  it('redirect usa a chegada do webhook do mesmo NSU quando ela é anterior', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.setTime('2026-09-23T10:03:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000))
+    h.setTime('2026-09-23T10:05:00.000Z')
+
+    await h.service.reconcileRedirect(created.id, `mock-${created.id}`, `mock-${created.id}`)
+
+    expect(h.repository.get(created.id)).toMatchObject({
+      status: 'paid',
+      paymentReceivedAt: '2026-09-23T10:03:00.000Z',
+    })
+    h.close()
+  })
+
+  it('pedido agrupado pago depois do fim do CAP marca o CAP e manda o restante para análise', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd, 'sorteio-domingo': espEnd })
+    const created = await h.service.createOrder(bothRaffles)
+    // O pedido agrupado expira no menor fim de vendas; o domingo perde a reserva local.
+    h.setTime('2026-09-23T10:20:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1600))
+    await h.service.processNextPaymentEvent()
+
+    const order = h.repository.get(created.id)
+    expect(order?.status).toBe('manual_review')
+    expect(order?.items.map((item) => item.validationStatus)).toEqual(['not_validated', undefined])
+    h.close()
+  })
+
+  it('reprocessamento do pedido em análise valida só o bilhete no prazo', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd, 'sorteio-domingo': espEnd })
+    const created = await h.service.createOrder(bothRaffles)
+    h.setTime('2026-09-23T10:20:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1600))
+    await h.service.processNextPaymentEvent()
+
+    const retried = await h.service.retryManualReview(created.id)
+
+    expect(retried.status).toBe('paid')
+    expect(retried.items.map((item) => item.validationStatus)).toEqual(['not_validated', undefined])
+    expect(h.fulfillOrder.mock.calls[0]?.[0].items.map((item) => item.id)).toEqual(['card-002'])
+    h.close()
+  })
+
+  it('reprocessamento de pedido antigo sem hora gravada usa o primeiro webhook', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd, 'sorteio-domingo': capEnd })
+    const created = await h.service.createOrder(bothRaffles)
+    h.setTime('2026-09-23T10:20:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1600))
+    // Simula pedido em análise gravado antes da v10: sem payment_received_at.
+    h.repository.markManualReview(created.id, 'Pagamento confirmado sem reserva ativa.')
+
+    const retried = await h.service.retryManualReview(created.id)
+
+    expect(retried.status).toBe('not_validated')
+    expect(h.fulfillOrder).not.toHaveBeenCalled()
+    h.close()
+  })
+
+  it('baixa manual no instante do fim do CAP valida só o domingo', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd, 'sorteio-domingo': espEnd })
+    const created = await h.service.createOrder(bothRaffles)
+    h.setTime(capEnd)
+
+    const approved = await h.service.approvePending(created.id)
+
+    expect(approved.status).toBe('paid')
+    expect(approved.paymentReceivedAt).toBe(capEnd)
+    expect(approved.items.map((item) => item.validationStatus)).toEqual([
+      'not_validated',
+      undefined,
+    ])
+    expect(h.fulfillOrder.mock.calls[0]?.[0].items.map((item) => item.id)).toEqual(['card-002'])
+    h.close()
+  })
+
+  it('baixa manual depois do fim das vendas é recusada porque o pedido expirou', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.setTime('2026-09-23T10:11:00.000Z')
+
+    await expect(h.service.approvePending(created.id)).rejects.toMatchObject({ statusCode: 409 })
+    h.close()
+  })
+
+  it('pedido de concurso único expira no fim das vendas', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': '2026-09-23T10:05:00.000Z' })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    expect(created.expiresAt).toBe('2026-09-23T10:05:00.000Z')
+    h.close()
+  })
+})

@@ -8,6 +8,7 @@ import type { ResolvedCustomer } from '../customers/customer-types.js'
 import type { PaymentGateway } from '../payments/payment-gateway.js'
 import type { Raffle, TicketGateway } from '../tickets/ticket-gateway.js'
 import { OrderRepository, type PreparedOrderGroup } from './order-repository.js'
+import { lateTicketKeys, validatedItems } from './sales-deadline.js'
 import type { CreateOrderInput, Order, OrderDraft, PaymentEvent, Ticket } from './order-types.js'
 import type { TicketReservationCoordinator } from './ticket-reservation-coordinator.js'
 
@@ -53,6 +54,13 @@ export class OrderService {
     }
 
     const now = this.now()
+    const expiresAtMs = Math.min(
+      now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000,
+      ...(raffle.salesEndAt ? [Date.parse(raffle.salesEndAt)] : []),
+    )
+    if (expiresAtMs <= now.getTime()) {
+      throw new DomainError('O sorteio informado nao esta ativo.', 409)
+    }
     const quantity =
       input.selection.mode === 'manual' ? input.selection.cardIds.length : input.selection.quantity
     const draft: OrderDraft = {
@@ -65,7 +73,7 @@ export class OrderService {
       totalInCents: raffle.priceInCents * quantity,
       customer,
       createdAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000).toISOString(),
+      expiresAt: new Date(expiresAtMs).toISOString(),
     }
 
     if (input.selection.mode === 'random') {
@@ -266,7 +274,7 @@ export class OrderService {
 
   private async reconcile(event: PaymentEvent) {
     const order = this.requireOrder(event.order_nsu)
-    if (['paid', 'processing', 'manual_review'].includes(order.status)) return
+    if (['paid', 'processing', 'manual_review', 'not_validated'].includes(order.status)) return
     const verification = await this.payments.verifyPayment({
       orderId: order.id,
       transactionNsu: event.transaction_nsu,
@@ -275,12 +283,20 @@ export class OrderService {
     if (!verification.paid) return
     const verifiedEvent = { ...event, capture_method: verification.captureMethod }
     this.repository.recordPaymentEvidence(verifiedEvent)
+    // Webhook do mesmo NSU guardado antes vale mais que a hora do redirect.
+    const receivedAt = this.repository.recordPaymentReceivedAt(
+      order.id,
+      this.repository.findPaymentEventReceivedAt(event.transaction_nsu, event.invoice_slug) ??
+        this.now().toISOString(),
+    )
     if (verification.amountInCents !== order.totalInCents) {
       this.repository.markManualReview(order.id, 'Pagamento confirmado com valor divergente.')
       return
     }
+    if ((await this.applySalesDeadline(order.id, receivedAt)) === 'none_valid') return
 
-    if (!this.repository.tryStartProcessing(order.id, order.items.length)) {
+    const pending = validatedItems(this.requireOrder(order.id)).length
+    if (!this.repository.tryStartProcessing(order.id, pending)) {
       const current = this.requireOrder(order.id)
       if (current.status === 'expired' || current.status === 'cancelled') {
         this.repository.markManualReview(
@@ -294,6 +310,19 @@ export class OrderService {
     await this.fulfill(order.id)
   }
 
+  // Bilhete pago a partir do fim das vendas não é validado: o código Pix vale 72 h e o cliente
+  // poderia pagar depois de ver o sorteio. A hora é sempre do servidor.
+  private async applySalesDeadline(orderId: string, receivedAt: string) {
+    const order = this.requireOrder(orderId)
+    const late = lateTicketKeys(order, receivedAt)
+    if (late.length === 0) return 'continue' as const
+    this.repository.markItemsNotValidated(orderId, late)
+    await this.reservations.releaseTickets(orderId, late)
+    if (late.length < order.items.length) return 'continue' as const
+    this.repository.markNotValidated(orderId)
+    return 'none_valid' as const
+  }
+
   // Aprovação manual de pedido pendente: o administrador confirma o pagamento recebido fora
   // do fluxo automático; a entrega segue o mesmo caminho do webhook.
   async approvePending(orderId: string) {
@@ -301,13 +330,21 @@ export class OrderService {
     if (order.status !== 'pending') {
       throw new DomainError('Somente pedidos pendentes podem receber baixa manual.', 409)
     }
-    if (!this.repository.tryStartProcessing(order.id, order.items.length)) {
+    const receivedAt = this.now().toISOString()
+    if ((await this.applySalesDeadline(order.id, receivedAt)) === 'none_valid') {
+      this.repository.recordPaymentReceivedAt(order.id, receivedAt)
+      this.repository.recordManualPayment(order.id)
+      return this.requireOrder(order.id)
+    }
+    const pending = validatedItems(this.requireOrder(order.id)).length
+    if (!this.repository.tryStartProcessing(order.id, pending)) {
       throw new DomainError(
         'A reserva deste pedido expirou ou foi cancelada; ele não pode mais ser aprovado.',
         409,
         'ORDER_RESERVATION_LOST',
       )
     }
+    this.repository.recordPaymentReceivedAt(order.id, receivedAt)
     this.repository.recordManualPayment(order.id)
     await this.fulfill(order.id)
     return this.requireOrder(order.id)
@@ -320,9 +357,16 @@ export class OrderService {
     if (order.status !== 'manual_review') {
       throw new DomainError('Somente pedidos em análise podem ser reprocessados.', 409)
     }
-    for (const item of order.items) {
+    // Pedido anterior à migração v10 usa a chegada do primeiro webhook; baixa manual antiga não
+    // tem evento e não é checada.
+    const receivedAt = order.paymentReceivedAt ?? this.repository.firstPaymentEventAt(order.id)
+    if (receivedAt && (await this.applySalesDeadline(order.id, receivedAt)) === 'none_valid') {
+      return this.requireOrder(order.id)
+    }
+    const current = this.requireOrder(order.id)
+    for (const item of validatedItems(current)) {
       const available = await this.tickets.getAvailableTicket(
-        item.raffleId ?? order.raffleId,
+        item.raffleId ?? current.raffleId,
         item.id,
       )
       if (!available) {
@@ -336,7 +380,7 @@ export class OrderService {
     if (!this.repository.claimManualReviewRetry(order.id)) {
       throw new DomainError('O pedido mudou de status. Atualize a lista e tente novamente.', 409)
     }
-    if (!order.captureMethod) this.repository.recordManualPayment(order.id)
+    if (!current.captureMethod) this.repository.recordManualPayment(order.id)
     await this.fulfill(order.id)
     return this.requireOrder(order.id)
   }
@@ -369,7 +413,12 @@ export class OrderService {
       }
       const updatedOrder = this.requireOrder(orderId)
       const customer = await this.customers.ensureRegistered(updatedOrder.customer)
-      await this.tickets.fulfillOrder({ ...updatedOrder, customer, status: 'processing' })
+      await this.tickets.fulfillOrder({
+        ...updatedOrder,
+        items: validatedItems(updatedOrder),
+        customer,
+        status: 'processing',
+      })
       this.repository.markPaid(orderId)
       this.reservations.markValidated(orderId)
     } catch (error) {
@@ -403,6 +452,7 @@ function withRaffleDetails(ticket: Ticket, raffle: Raffle): Ticket {
   return {
     ...ticket,
     drawDate: raffle.drawDate,
+    ...(raffle.salesEndAt ? { salesEndAt: raffle.salesEndAt } : {}),
     ...(raffle.prizes?.length ? { prizes: raffle.prizes } : {}),
     ...(raffle.luckySpins ? { luckySpins: raffle.luckySpins } : {}),
   }
