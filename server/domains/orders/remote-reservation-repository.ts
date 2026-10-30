@@ -23,6 +23,14 @@ const heldRowsSchema = z.array(
     })),
 )
 
+// Reserva de bilhete marcado como não validado no próprio pedido.
+const NOT_VALIDATED_TICKET = `EXISTS (
+  SELECT 1 FROM json_each(o.items_json) AS item
+  WHERE json_extract(item.value, '$.id') = r.ticket_number
+    AND COALESCE(json_extract(item.value, '$.raffleId'), o.raffle_id) = r.raffle_id
+    AND json_extract(item.value, '$.validationStatus') = 'not_validated'
+)`
+
 // held: trava remota ativa; released/lost: trava liberada ou tomada por outro canal;
 // validated: bilhete validado após pagamento confirmado.
 export class RemoteReservationRepository {
@@ -71,7 +79,8 @@ export class RemoteReservationRepository {
           `
           SELECT r.order_id, r.raffle_id, r.ticket_number, r.token
           FROM remote_reservations r JOIN orders o ON o.id = r.order_id
-          WHERE r.status = 'held' AND o.status IN ('expired', 'cancelled')
+          WHERE r.status = 'held'
+            AND (o.status IN ('expired', 'cancelled', 'not_validated') OR ${NOT_VALIDATED_TICKET})
           ORDER BY r.updated_at LIMIT ?
         `,
         )
@@ -117,8 +126,11 @@ export class RemoteReservationRepository {
     this.database
       .prepare(
         `
-        UPDATE remote_reservations SET status = 'validated', updated_at = ?
-        WHERE order_id = ? AND status = 'held'
+        UPDATE remote_reservations AS r SET status = 'validated', updated_at = ?
+        WHERE r.order_id = ? AND r.status = 'held'
+          AND NOT EXISTS (
+            SELECT 1 FROM orders AS o WHERE o.id = r.order_id AND ${NOT_VALIDATED_TICKET}
+          )
       `,
       )
       .run(this.now().toISOString(), orderId)

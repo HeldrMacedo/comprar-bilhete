@@ -34,6 +34,27 @@ describe('TicketReservationCoordinator', () => {
     database.close()
   })
 
+  it('libera só os bilhetes informados', async () => {
+    const { database, gateway, coordinator, pending } = setup()
+    await coordinator.acquire(pending)
+
+    await coordinator.releaseTickets(pending.id, ['sorteio-setembro:card-001'])
+
+    expect(await gateway.inspect(key('card-001'))).toMatchObject({ reserved: false })
+    expect(await gateway.inspect(key('card-002'))).toMatchObject({ reserved: true })
+    database.close()
+  })
+
+  it('confirma a posse olhando só os bilhetes validados', async () => {
+    const { database, orders, coordinator, pending } = setup()
+    await coordinator.acquire(pending)
+    orders.markItemsNotValidated(pending.id, ['sorteio-setembro:card-001'])
+    await coordinator.releaseTickets(pending.id, ['sorteio-setembro:card-001'])
+
+    expect(await coordinator.confirmOwnership(orders.get(pending.id)!)).toBe(true)
+    database.close()
+  })
+
   it('desfaz a reserva parcial quando outro canal já reservou um bilhete', async () => {
     const { database, store, gateway, coordinator, pending } = setup()
     gateway.reserveFromAnotherChannel(key('card-002'))

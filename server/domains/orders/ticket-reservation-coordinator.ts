@@ -7,6 +7,7 @@ import type {
   HeldReservation,
   RemoteReservationRepository,
 } from './remote-reservation-repository.js'
+import { ticketKey, validatedItems } from './sales-deadline.js'
 
 export class TicketReservationCoordinator {
   constructor(
@@ -30,10 +31,13 @@ export class TicketReservationCoordinator {
   }
 
   async confirmOwnership(order: Order) {
-    const held = this.store.listHeld(order.id)
+    const expected = new Set(validatedItems(order).map((item) => ticketKey(order, item)))
+    const held = this.store
+      .listHeld(order.id)
+      .filter((reservation) => expected.has(keyOf(reservation)))
     // Pedido criado antes da reserva externa: segue o fluxo anterior.
     if (held.length === 0 && !this.store.hasAny(order.id)) return true
-    if (held.length !== order.items.length) return false
+    if (held.length !== expected.size) return false
     for (const reservation of held) {
       const snapshot = await this.gateway.inspect(reservation.key)
       if (!snapshot?.reserved || snapshot.validated || snapshot.token !== reservation.token) {
@@ -49,6 +53,13 @@ export class TicketReservationCoordinator {
 
   async releaseOrder(orderId: string) {
     for (const reservation of this.store.listHeld(orderId)) await this.release(reservation)
+  }
+
+  async releaseTickets(orderId: string, keys: string[]) {
+    const wanted = new Set(keys)
+    for (const reservation of this.store.listHeld(orderId)) {
+      if (wanted.has(keyOf(reservation))) await this.release(reservation)
+    }
   }
 
   async releaseAbandoned(limit = 20) {
@@ -80,4 +91,8 @@ function reservationKeys(order: Order): TicketReservationKey[] {
         left.raffleId.localeCompare(right.raffleId) ||
         left.ticketNumber.localeCompare(right.ticketNumber),
     )
+}
+
+function keyOf(reservation: HeldReservation) {
+  return `${reservation.key.raffleId}:${reservation.key.ticketNumber}`
 }

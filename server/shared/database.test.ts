@@ -297,4 +297,31 @@ describe('RemoteReservationRepository', () => {
     expect(remote.hasAny(paid.id)).toBe(true)
     database.close()
   })
+
+  it('lista para liberação a reserva de bilhete não validado e não a marca como validada', () => {
+    const database = createDatabase(':memory:')
+    const orders = new OrderRepository(database, reservationTime)
+    const remote = new RemoteReservationRepository(database, reservationTime)
+    const partial = order({ items: [ticket('card-004'), ticket('card-005')], totalInCents: 2000 })
+    const refused = order({
+      id: '00000000-0000-4000-8000-000000000002',
+      items: [ticket('card-006')],
+    })
+    orders.createManual(partial)
+    orders.createManual(refused)
+    remote.recordHeld(partial.id, key('card-004'), 't4')
+    remote.recordHeld(partial.id, key('card-005'), 't5')
+    remote.recordHeld(refused.id, key('card-006'), 't6')
+
+    orders.markItemsNotValidated(partial.id, ['sorteio-setembro:card-004'])
+    orders.markItemsNotValidated(refused.id, ['sorteio-setembro:card-006'])
+    orders.markNotValidated(refused.id)
+    remote.markOrderValidated(partial.id)
+
+    expect(remote.listAbandoned(10)).toEqual([
+      { orderId: partial.id, key: key('card-004'), token: 't4' },
+      { orderId: refused.id, key: key('card-006'), token: 't6' },
+    ])
+    database.close()
+  })
 })
