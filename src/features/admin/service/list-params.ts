@@ -9,6 +9,7 @@ const statuses: OrderStatus[] = [
   'expired',
   'cancelled',
   'manual_review',
+  'not_validated',
 ]
 const isoDate = /^\d{4}-\d{2}-\d{2}$/
 

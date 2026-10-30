@@ -298,6 +298,30 @@ describe('AdminSalesPage', () => {
     expect(await screen.findByText('Pedido aprovado e bilhetes validados.')).toBeInTheDocument()
   })
 
+  it('marca bilhete não validado e mostra o valor a estornar sem ações de aprovação', async () => {
+    const late: AdminOrder = {
+      ...pendingOrder,
+      status: 'not_validated',
+      refundDueInCents: 1600,
+      items: pendingOrder.items.map((item, index) =>
+        index === 0 ? { ...item, validationStatus: 'not_validated' } : item,
+      ),
+    }
+    repository.listOrders.mockResolvedValue({ page: 1, pageSize: 20, total: 1, orders: [late] })
+    renderAdmin('/admin/vendas')
+
+    const table = await screen.findByRole('table')
+    expect(within(table).getByText('Não validado')).toBeInTheDocument()
+    expect(within(table).getByText(/#001 \(não validado\)/)).toBeInTheDocument()
+    expect(within(table).getByText('A estornar: R$ 16,00')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Aprovar pedido de Maria da Silva' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Cancelar pedido de Maria da Silva' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('never shows manual review as paid and explains a failed delivery', async () => {
     const inReview: AdminOrder = {
       ...pendingOrder,
@@ -445,6 +469,7 @@ const summary: DashboardSummary = {
     pendingTickets: 4,
     pendingOrders: 2,
     manualReviewOrders: 1,
+    refundDueInCents: 0,
   },
   dailySales: Array.from({ length: 30 }, (_, index) => ({
     day: `2026-09-${String(index + 1).padStart(2, '0')}`,
@@ -473,6 +498,20 @@ const summary: DashboardSummary = {
 }
 
 describe('AdminHomePage', () => {
+  it('avisa o valor recebido após o fim das vendas que aguarda estorno', async () => {
+    repository.getDashboard.mockResolvedValue({
+      ...summary,
+      totals: { ...summary.totals, refundDueInCents: 3200 },
+    })
+    renderAdmin('/admin')
+
+    expect(
+      await screen.findByRole('link', {
+        name: /R\$\s32,00 recebidos após o fim das vendas aguardam estorno/,
+      }),
+    ).toHaveAttribute('href', '/admin/vendas?status=not_validated')
+  })
+
   it('shows indicators, upcoming raffles, charts and the manual review alert', async () => {
     repository.getDashboard.mockResolvedValue(summary)
     renderAdmin('/admin')

@@ -14,7 +14,7 @@ export type CreateAdminUserInput = { login: string; name: string; password: stri
 export type UpdateAdminUserInput = Partial<CreateAdminUserInput & { active: boolean }>
 
 export type OrderStatus =
-  'pending' | 'processing' | 'paid' | 'expired' | 'cancelled' | 'manual_review'
+  'pending' | 'processing' | 'paid' | 'expired' | 'cancelled' | 'manual_review' | 'not_validated'
 
 export type EmailStatus = 'pending' | 'sent' | 'failed' | 'no_recipient'
 
@@ -29,6 +29,7 @@ export type AdminOrder = {
   captureMethod?: string
   lastError?: string
   emailStatus?: EmailStatus
+  refundDueInCents?: number
   customer: { name: string; cpf: string; phone: string; beneficiaryName?: string }
   items: Array<{
     id: string
@@ -36,6 +37,7 @@ export type AdminOrder = {
     raffleId: string
     raffleTitle: string
     unitPriceInCents: number
+    validationStatus?: 'not_validated'
   }>
 }
 
@@ -92,6 +94,7 @@ export type DashboardSummary = {
     pendingTickets: number
     pendingOrders: number
     manualReviewOrders: number
+    refundDueInCents: number
   }
   dailySales: Array<{ day: string; revenueInCents: number; tickets: number }>
   ordersByStatus: Array<{ status: OrderStatus; orders: number }>

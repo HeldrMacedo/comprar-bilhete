@@ -20,6 +20,7 @@ const orderStatusSchema = z.enum([
   'expired',
   'cancelled',
   'manual_review',
+  'not_validated',
 ])
 
 export const adminOrderSchema = z.object({
@@ -33,6 +34,7 @@ export const adminOrderSchema = z.object({
   captureMethod: z.string().optional(),
   lastError: z.string().optional(),
   emailStatus: z.enum(['pending', 'sent', 'failed', 'no_recipient']).optional(),
+  refundDueInCents: z.number().int().positive().optional(),
   customer: z.object({
     name: z.string(),
     cpf: z.string(),
@@ -46,6 +48,7 @@ export const adminOrderSchema = z.object({
       raffleId: z.string(),
       raffleTitle: z.string(),
       unitPriceInCents: z.number().int(),
+      validationStatus: z.literal('not_validated').optional(),
     }),
   ),
 })
@@ -102,6 +105,7 @@ export const dashboardSummarySchema = z.object({
     pendingTickets: z.number().int(),
     pendingOrders: z.number().int(),
     manualReviewOrders: z.number().int(),
+    refundDueInCents: z.number().int(),
   }),
   dailySales: z.array(
     z.object({

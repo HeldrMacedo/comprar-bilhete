@@ -108,7 +108,11 @@ export function AdminSalesPage() {
               {title}:{' '}
               {order.items
                 .filter((item) => item.raffleTitle === title)
-                .map((item) => item.code)
+                .map((item) =>
+                  item.validationStatus === 'not_validated'
+                    ? `${item.code} (não validado)`
+                    : item.code,
+                )
                 .join(', ')}
             </span>
           ))}
@@ -131,6 +135,11 @@ export function AdminSalesPage() {
           </StatusBadge>
           {order.status === 'paid' ? (
             <span>{describeCaptureMethod(order.captureMethod)}</span>
+          ) : null}
+          {order.refundDueInCents ? (
+            <span className="admin-cell-error">
+              A estornar: {formatCurrency(order.refundDueInCents)}
+            </span>
           ) : null}
           {order.lastError && order.status === 'manual_review' ? (
             <span className="admin-cell-error">{order.lastError}</span>

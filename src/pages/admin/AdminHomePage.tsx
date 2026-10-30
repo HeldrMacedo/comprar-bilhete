@@ -52,6 +52,14 @@ export function AdminHomePage() {
         </Link>
       ) : null}
 
+      {totals.refundDueInCents > 0 ? (
+        <Link className="admin-alert" to="/admin/vendas?status=not_validated">
+          <AlertTriangle size={18} aria-hidden="true" />
+          {formatCurrency(totals.refundDueInCents)} recebidos após o fim das vendas aguardam
+          estorno. Ver pedidos
+        </Link>
+      ) : null}
+
       <div className="admin-stats">
         <StatCard
           label="Clientes"

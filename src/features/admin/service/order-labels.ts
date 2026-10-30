@@ -7,6 +7,7 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   expired: 'Expirado',
   cancelled: 'Cancelado',
   manual_review: 'Em análise',
+  not_validated: 'Não validado',
 }
 
 export type BadgeTone = 'success' | 'warning' | 'danger' | 'neutral' | 'info'
@@ -19,6 +20,7 @@ export const orderStatusTones: Record<OrderStatus, BadgeTone> = {
   expired: 'neutral',
   cancelled: 'neutral',
   manual_review: 'danger',
+  not_validated: 'warning',
 }
 
 export function canApprove(order: AdminOrder) {
