@@ -29,8 +29,11 @@ valor dele é estornado fora do sistema. A comparação usa sempre o relógio do
   - `validationStatus` (opcional, só `'not_validated'`): ausente significa fluxo normal.
 - `orderStatusSchema` ganha `not_validated`.
 - Migração v10 adiciona `orders.payment_received_at TEXT` (nulo até haver pagamento confirmado).
-- Bilhete gravado antes da mudança, sem `salesEndAt`, usa `drawDate` como limite; sem nenhum
-  dos dois, não há checagem (comportamento atual).
+- Bilhete sem `salesEndAt` não passa pela checagem (comportamento atual). No modo live todo
+  concurso traz `data_fim_*`, então todo pedido novo tem o campo; ficam de fora só pedidos
+  gravados antes da mudança e os concursos do provider mock, que não têm fim de vendas. Usar
+  `drawDate` como reserva foi descartado: os concursos mock têm datas fixas já passadas e o E2E
+  roda com o relógio real, o que marcaria todo pagamento de teste como atrasado.
 
 ## Hora do pagamento
 
@@ -98,6 +101,9 @@ Texto do aviso, com data e hora do servidor formatadas em `America/Fortaleza`:
 > horas, mas pagamento recebido depois do fim das vendas do concurso não valida o bilhete: ele
 > fica como não validado e o valor é estornado.
 
+Sem `salesEndAt` (concurso mock), a primeira frase vira "Pague antes do fim das vendas do
+concurso."
+
 - `HomePage` (escolha de bilhetes): aviso curto com o prazo de cada concurso exibido.
 - `CartPage` (carrinho/checkout): aviso completo por concurso, próximo ao botão de pagar.
 - `PaymentPage`: estado `not_validated` com a mensagem do backend; em pedido parcial, lista
@@ -118,7 +124,9 @@ Texto do aviso, com data e hora do servidor formatadas em `America/Fortaleza`:
 - Presenter: dados pessoais só em itens validados; `refundDueInCents`.
 - Repositório do painel: receita e contagens sem bilhetes não validados.
 - UI: `HomePage.test`, `CartPage.test` e `PurchasesPage.test` com aviso e selo.
-- E2E: jornada com pagamento mock recebido após o fim das vendas.
+- E2E: aviso de prazo no carrinho e jornadas atuais sem regressão. O pagamento após o prazo é
+  coberto nos testes do serviço com relógio controlado, porque o backend do E2E usa o relógio
+  real e concursos mock sem fim de vendas.
 
 ## Documentação
 
