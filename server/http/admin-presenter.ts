@@ -4,7 +4,9 @@ import type { TicketEmailStatus } from '../domains/ticket-emails/ticket-email-re
 
 // Visão administrativa: inclui dados pessoais completos; servida só com sessão de admin.
 export function presentAdminOrder(order: Order, emailStatus?: TicketEmailStatus) {
-  const refundDue = refundDueInCents(order)
+  // Estorno só existe para pedido pago ou não validado; em análise o admin ainda decide.
+  const refundDue =
+    order.status === 'paid' || order.status === 'not_validated' ? refundDueInCents(order) : 0
   return {
     id: order.id,
     status: order.status,

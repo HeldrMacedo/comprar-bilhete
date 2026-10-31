@@ -322,6 +322,32 @@ describe('AdminSalesPage', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('explica o estorno quando a aprovação termina em pedido não validado', async () => {
+    repository.listOrders.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      orders: [pendingOrder],
+    })
+    repository.runOrderAction.mockResolvedValue({
+      ...pendingOrder,
+      status: 'not_validated',
+      refundDueInCents: 1600,
+    })
+    renderAdmin('/admin/vendas')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Aprovar pedido de Maria da Silva' }),
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Aprovar pagamento manualmente' })
+    await userEvent.type(within(dialog).getByLabelText('Motivo'), 'Pix recebido na conta')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Aprovar' }))
+
+    expect(
+      await screen.findByText(/Pagamento recebido após o fim das vendas.*Estorne R\$\s16,00\./),
+    ).toBeInTheDocument()
+  })
+
   it('never shows manual review as paid and explains a failed delivery', async () => {
     const inReview: AdminOrder = {
       ...pendingOrder,

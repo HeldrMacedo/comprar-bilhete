@@ -70,6 +70,15 @@ describe('OrderRepository e prazo de vendas', () => {
     expect(repository.isReserved('sorteio-setembro:card-002')).toBe(false)
   })
 
+  it('não altera pedido em processamento ao marcar como não validado', () => {
+    const { repository, created } = setup()
+    expect(repository.tryStartProcessing(created.id, 2)).toBe(true)
+    repository.markNotValidated(created.id)
+    expect(repository.get(created.id)?.status).toBe('processing')
+    expect(repository.isReserved('sorteio-setembro:card-001')).toBe(true)
+    expect(repository.isReserved('sorteio-setembro:card-002')).toBe(true)
+  })
+
   it('não atribui posição de lote a bilhete não validado', () => {
     const { repository, created } = setup()
     repository.markItemsNotValidated(created.id, ['sorteio-setembro:card-001'])

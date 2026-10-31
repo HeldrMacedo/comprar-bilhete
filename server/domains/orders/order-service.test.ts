@@ -765,21 +765,24 @@ function createDeadlineService(salesEndAt: Record<string, string>) {
   const tickets = new DeadlineTicketGateway(salesEndAt)
   const fulfillOrder = vi.spyOn(tickets, 'fulfillOrder')
   const repository = new OrderRepository(database, now)
+  const reservations = new TicketReservationCoordinator(
+    new MockTicketReservationGateway(30 * 60_000, now),
+    new RemoteReservationRepository(database, now),
+  )
   const service = new OrderService(
     repository,
     tickets,
     confirmingPayments(repository),
     new CustomerService(new MockCustomerGateway()),
-    new TicketReservationCoordinator(
-      new MockTicketReservationGateway(30 * 60_000, now),
-      new RemoteReservationRepository(database, now),
-    ),
+    reservations,
     env,
     now,
   )
   return {
     service,
     repository,
+    reservations,
+    now,
     fulfillOrder,
     setTime: (iso: string) => {
       currentTime = new Date(iso)
@@ -873,6 +876,50 @@ describe('fim das vendas', () => {
     await h.service.processNextPaymentEvent()
 
     expect(h.repository.get(created.id)?.status).toBe('not_validated')
+    h.close()
+  })
+
+  it('não processa pedido cujos itens já foram marcados como não validados', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    h.repository.markItemsNotValidated(created.id, ['sorteio-setembro:card-020'])
+    h.setTime('2026-09-23T10:05:00.000Z')
+    h.repository.enqueuePaymentEvent(webhookFor(created.id, 1000))
+    await h.service.processNextPaymentEvent()
+
+    expect(h.repository.get(created.id)?.status).toBe('not_validated')
+    expect(h.fulfillOrder).not.toHaveBeenCalled()
+    h.close()
+  })
+
+  it('redirect mantém a hora de chegada mesmo se a verificação cruzar o fim das vendas', async () => {
+    const h = createDeadlineService({ 'sorteio-setembro': capEnd })
+    const created = await h.service.createOrder(singleRaffle('card-020'))
+    const service = new OrderService(
+      h.repository,
+      new DeadlineTicketGateway({ 'sorteio-setembro': capEnd }),
+      {
+        createCheckout: async (order) => `https://checkout.example/${order.id}`,
+        verifyPayment: async () => {
+          h.setTime('2026-09-23T10:11:00.000Z')
+          return { paid: true, amountInCents: 1000, captureMethod: 'pix' }
+        },
+      },
+      new CustomerService(new MockCustomerGateway()),
+      h.reservations,
+      env,
+      h.now,
+    )
+    h.setTime('2026-09-23T10:09:00.000Z')
+    await service.reconcileRedirect(created.id, `mock-${created.id}`, `mock-${created.id}`)
+
+    // O pedido expira junto com o fim das vendas, então a reserva já caiu: vai para análise
+    // (pago no prazo), nunca para não validado.
+    expect(h.repository.get(created.id)).toMatchObject({
+      status: 'manual_review',
+      paymentReceivedAt: '2026-09-23T10:09:00.000Z',
+    })
+    expect(h.repository.get(created.id)?.items[0]?.validationStatus).toBeUndefined()
     h.close()
   })
 

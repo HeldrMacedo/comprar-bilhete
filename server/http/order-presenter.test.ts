@@ -58,4 +58,13 @@ describe('presenters e bilhete não validado', () => {
     expect(presented.items[0]).toMatchObject({ validationStatus: 'not_validated' })
     expect(presented.items[1]).not.toHaveProperty('validationStatus')
   })
+
+  it.each(['manual_review', 'cancelled'] as const)(
+    'pedido %s com bilhete não validado não traz valor a estornar',
+    (status) => {
+      const current = order({ status, items: [notValidated, valid], totalInCents: 2000 })
+      expect(presentAdminOrder(current)).not.toHaveProperty('refundDueInCents')
+      expect(presentPurchase(current)).not.toHaveProperty('refundDueInCents')
+    },
+  )
 })

@@ -227,14 +227,16 @@ export class OrderRepository {
   // Dinheiro recebido sem bilhete válido: não é sucesso nem análise; o valor é estornado fora.
   markNotValidated(orderId: string) {
     this.withReservationTransaction(() => {
-      this.database
+      const result = this.database
         .prepare(
           `UPDATE orders SET status = 'not_validated', paid_at = COALESCE(paid_at, ?),
              last_error = NULL
-           WHERE id = ? AND status <> 'paid'`,
+           WHERE id = ? AND status IN ('pending', 'expired', 'cancelled', 'manual_review')`,
         )
         .run(this.now().toISOString(), orderId)
-      this.database.prepare('DELETE FROM reservations WHERE order_id = ?').run(orderId)
+      if (result.changes > 0) {
+        this.database.prepare('DELETE FROM reservations WHERE order_id = ?').run(orderId)
+      }
     })
   }
 

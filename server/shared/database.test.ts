@@ -26,7 +26,7 @@ describe('database migrations', () => {
     database.close()
   })
 
-  it('creates an empty database at schema version 9', () => {
+  it('creates an empty database at schema version 10', () => {
     const database = createDatabase(':memory:')
 
     expect(database.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 10 })

@@ -38,6 +38,13 @@ function describeOutcome(order: AdminOrder, action: OrderAction) {
     return { tone: 'success' as const, text: 'Pedido aprovado e bilhetes validados.' }
   }
   if (order.status === 'cancelled') return { tone: 'success' as const, text: 'Pedido cancelado.' }
+  if (order.status === 'not_validated') {
+    const refund = order.refundDueInCents ?? order.paidAmountInCents ?? order.totalInCents
+    return {
+      tone: 'success' as const,
+      text: `Pagamento recebido após o fim das vendas; bilhetes não validados. Estorne ${formatCurrency(refund)}.`,
+    }
+  }
   return {
     tone: 'error' as const,
     text: `A entrega dos bilhetes falhou e o pedido continua em análise${

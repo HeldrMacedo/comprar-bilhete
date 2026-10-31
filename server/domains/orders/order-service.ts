@@ -58,7 +58,7 @@ export class OrderService {
       now.getTime() + this.env.ORDER_EXPIRATION_MINUTES * 60_000,
       ...(raffle.salesEndAt ? [Date.parse(raffle.salesEndAt)] : []),
     )
-    if (expiresAtMs <= now.getTime()) {
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= now.getTime()) {
       throw new DomainError('O sorteio informado nao esta ativo.', 409)
     }
     const quantity =
@@ -239,6 +239,8 @@ export class OrderService {
   }
 
   async reconcileRedirect(orderId: string, transactionNsu: string, invoiceSlug: string) {
+    // Hora de chegada do redirect, capturada antes de qualquer chamada externa lenta.
+    const arrivedAt = this.now().toISOString()
     const order = this.requireOrder(orderId)
     if (order.status !== 'pending') return order
     const event: PaymentEvent = {
@@ -252,7 +254,7 @@ export class OrderService {
       receipt_url: `${this.env.PUBLIC_APP_URL}/pagamento?order_nsu=${order.id}`,
       items: [],
     }
-    await this.reconcile(event)
+    await this.reconcile(event, arrivedAt)
     return this.requireOrder(orderId)
   }
 
@@ -272,7 +274,7 @@ export class OrderService {
     return true
   }
 
-  private async reconcile(event: PaymentEvent) {
+  private async reconcile(event: PaymentEvent, redirectArrivedAt?: string) {
     const order = this.requireOrder(event.order_nsu)
     if (['paid', 'processing', 'manual_review', 'not_validated'].includes(order.status)) return
     const verification = await this.payments.verifyPayment({
@@ -287,6 +289,7 @@ export class OrderService {
     const receivedAt = this.repository.recordPaymentReceivedAt(
       order.id,
       this.repository.findPaymentEventReceivedAt(event.transaction_nsu, event.invoice_slug) ??
+        redirectArrivedAt ??
         this.now().toISOString(),
     )
     if (verification.amountInCents !== order.totalInCents) {
@@ -315,10 +318,12 @@ export class OrderService {
   private async applySalesDeadline(orderId: string, receivedAt: string) {
     const order = this.requireOrder(orderId)
     const late = lateTicketKeys(order, receivedAt)
-    if (late.length === 0) return 'continue' as const
-    this.repository.markItemsNotValidated(orderId, late)
-    await this.reservations.releaseTickets(orderId, late)
-    if (late.length < order.items.length) return 'continue' as const
+    if (late.length > 0) {
+      this.repository.markItemsNotValidated(orderId, late)
+      await this.reservations.releaseTickets(orderId, late)
+    }
+    // Relê o pedido: outro caminho pode já ter marcado itens, e o que decide é o que sobrou.
+    if (validatedItems(this.requireOrder(orderId)).length > 0) return 'continue' as const
     this.repository.markNotValidated(orderId)
     return 'none_valid' as const
   }
@@ -357,7 +362,8 @@ export class OrderService {
     if (order.status !== 'manual_review') {
       throw new DomainError('Somente pedidos em análise podem ser reprocessados.', 409)
     }
-    // Pedido anterior à migração v10 usa a chegada do primeiro webhook; baixa manual antiga não
+    // Pedido anterior à migração v10 não tem salesEndAt nos itens, então o fallback quase nunca
+    // decide nada; ele pode incluir eventos não confirmados. Usa a chegada do primeiro webhook; baixa manual antiga não
     // tem evento e não é checada.
     const receivedAt = order.paymentReceivedAt ?? this.repository.firstPaymentEventAt(order.id)
     if (receivedAt && (await this.applySalesDeadline(order.id, receivedAt)) === 'none_valid') {
