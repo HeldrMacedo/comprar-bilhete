@@ -27,7 +27,7 @@ server/
 └── shared/              SQLite, HTTP externo e erros
 ```
 
-Providers permitem testar toda a jornada sem efeitos externos. Em live, o pagamento é reconciliado antes da venda e falhas de entrega entram em `manual_review`.
+Providers permitem testar toda a jornada sem efeitos externos. Em live, o pagamento é reconciliado antes da venda e falhas de entrega entram em `manual_review`. Pagamento recebido após o fim das vendas do concurso (`salesEndAt`) não valida o bilhete e leva o pedido a `not_validated`, com estorno manual fora do sistema.
 
 O worker de e-mail dos bilhetes roda a cada 5 s, com até 10 envios por rodada e um único laço por vez no processo. Cada item reivindicado fica reservado por 10 min, então rodadas de outras instâncias não duplicam o envio.
 

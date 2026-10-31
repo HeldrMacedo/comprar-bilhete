@@ -9,7 +9,7 @@ O React usa apenas `/api`, encaminhado pelo Vite ao Fastify local.
 - `GET /api/v1/raffles/:id/banner` — repassa a imagem do banner de um concurso ativo (`Cache-Control: public, max-age=300`), evitando bloqueio de conteúdo misto HTTP em página HTTPS; `404` quando o concurso não tem banner. A Home mostra a imagem no carrossel e volta aos textos se ela não carregar. `prize` é o último prêmio preenchido de `prizes`, ou `Prêmios a confirmar` quando a lista estiver vazia.
 - `GET /api/v1/raffles/{id}/cards` — bilhetes disponíveis normalizadas.
 - `POST /api/v1/orders` — exige sessão de cliente; cria pedido e reserva localmente os bilhetes. O comprador vem da conta (nome, CPF, celular, e-mail e endereço); o corpo traz apenas `raffles` (ou o formato de um concurso), `beneficiaryName` e `email` do pedido (padrão: e-mail da conta). Campo `customer` no corpo é ignorado. Sem sessão: `401 UNAUTHENTICATED`; conta sem cadastro completo: `400 PROFILE_INCOMPLETE`.
-- `GET /api/v1/orders/mine` — "Minhas compras": exige sessão de cliente, sem corpo nem CPF na requisição, `Cache-Control: no-store`, e devolve `{ "orders": [...] }` com até 20 pedidos do CPF da conta, do mais recente ao mais antigo. Cada pedido traz os campos públicos do pedido mais `createdAt`, `paidAt`, `paymentMethod` (`capture_method` da InfinitePay, por exemplo `pix`) e `checkoutUrl` apenas quando `pending`. Só pedido `paid` traz, para o comprovante, `customer` (`name` do titular, que é `beneficiaryName` quando houver, `city`, `phone` e `cpf`) e, em cada item, `identification`, `drawDate`, `prizes`, `luckySpins`, `validationBatch` e `batchPosition`. Os demais status nunca devolvem dados pessoais. Sem sessão: `401 UNAUTHENTICATED`.
+- `GET /api/v1/orders/mine` — "Minhas compras": exige sessão de cliente, sem corpo nem CPF na requisição, `Cache-Control: no-store`, e devolve `{ "orders": [...] }` com até 20 pedidos do CPF da conta, do mais recente ao mais antigo. Cada pedido traz os campos públicos do pedido mais `createdAt`, `paidAt`, `paymentMethod` (`capture_method` da InfinitePay, por exemplo `pix`) e `checkoutUrl` apenas quando `pending`. Só pedido `paid` traz, para o comprovante, `customer` (`name` do titular, que é `beneficiaryName` quando houver, `city`, `phone` e `cpf`) e, em cada item validado, `identification`, `drawDate`, `prizes`, `luckySpins`, `validationBatch` e `batchPosition`; item `not_validated` não traz esses dados. Os demais status nunca devolvem dados pessoais. Sem sessão: `401 UNAUTHENTICATED`.
 - `POST /api/v1/orders/{id}/checkout` — cria ou reutiliza o link InfinitePay.
 - `GET /api/v1/orders/{id}` — consulta status seguro do pedido.
 - `GET /api/v1/orders/{id}?transaction_nsu=&slug=` — reconcilia o redirect na InfinitePay.
@@ -44,7 +44,7 @@ Todas as rotas abaixo respondem com `Cache-Control: no-store`. Métodos de escri
 - `PATCH /api/v1/admin/users/{id}` — campos opcionais `login`, `name`, `password`, `active`. Não permite desativar a si mesmo nem o último ativo (`409`). Trocar senha encerra as outras sessões do usuário; desativar encerra todas.
 - `DELETE /api/v1/admin/users/{id}` — `204`; não exclui a si mesmo nem o último ativo (`409`).
 
-- `GET /api/v1/admin/dashboard` — `totals` (`customers`: CPFs distintos com pedido; `paidTickets`, `paidOrders` e `revenueInCents` de pedidos `paid`; `pendingTickets` e `pendingOrders` de pedidos `pending` não expirados; `manualReviewOrders`), `dailySales` (30 dias até hoje no fuso `America/Fortaleza`, pela data de pagamento, dias sem venda com zero), `ordersByStatus`, `ticketsByRaffle` (bilhetes pagos e receita por concurso de cada bilhete) e `upcomingRaffles` (concursos ativos do gateway, com bilhetes vendidos no site). Se a API de bilhetes falhar, `upcomingRaffles` é `null` e `upcomingRafflesError` explica; os indicadores locais continuam.
+- `GET /api/v1/admin/dashboard` — `totals` (`customers`: CPFs distintos com pedido; `paidTickets`, `paidOrders` e `revenueInCents` de pedidos `paid`, sem contar bilhetes não validados; `pendingTickets` e `pendingOrders` de pedidos `pending` não expirados; `manualReviewOrders`; `refundDueInCents`, o valor a estornar manualmente), `dailySales` (30 dias até hoje no fuso `America/Fortaleza`, pela data de pagamento, dias sem venda com zero), `ordersByStatus`, `ticketsByRaffle` (bilhetes pagos e receita por concurso de cada bilhete) e `upcomingRaffles` (concursos ativos do gateway, com bilhetes vendidos no site). Se a API de bilhetes falhar, `upcomingRaffles` é `null` e `upcomingRafflesError` explica; os indicadores locais continuam.
 - `GET /api/v1/admin/orders?q=&status=&from=&to=&page=&pageSize=` — `{ page, pageSize, total, orders }`, do mais recente ao mais antigo; `pageSize` até 100 (padrão 20). `q` busca por nome (comprador ou terceiro), CPF ou celular (a partir de 3 dígitos), início do ID do pedido, código, ID ou identificação do bilhete. `from`/`to` (`AAAA-MM-DD`) são dias no fuso `America/Fortaleza`, ambos inclusivos. Cada pedido traz `customer` com nome, CPF, celular e `beneficiaryName`, além de `captureMethod` (`manual` para baixa no painel), `lastError` e `emailStatus` opcional (`pending | sent | failed | no_recipient`, estado do e-mail dos bilhetes; ausente em pedido nunca pago e em pedido pago antes da fila existir, anterior à migração v9).
 - `GET /api/v1/admin/orders/export` — mesmos filtros, sem paginação; CSV (`;`, UTF-8 com BOM, CRLF, valores com vírgula decimal, células iniciadas por `=`, `+`, `-` ou `@` prefixadas com `'`). Mais de 20.000 linhas: `413 EXPORT_TOO_LARGE`. Cada exportação é auditada com os filtros.
 - `POST /api/v1/admin/orders/{id}/approve` — `{ "reason" }` (5 a 500 caracteres). `pending` com reserva ativa: registra `captureMethod = manual` e entrega pelo mesmo fluxo do webhook, resultando em `paid` ou `manual_review`. `manual_review`: confere se cada bilhete continua disponível na API (`409 TICKET_UNAVAILABLE` se não), reocupa a reserva local e tenta a entrega de novo, mantendo as posições de lote já atribuídas. Outros status ou reserva perdida: `409`. Devolve `{ "order" }`.
@@ -91,7 +91,30 @@ reservas de ambos os concursos são criadas em uma transação e resultam em um 
 um checkout. Cada item da resposta inclui `raffleId`, `raffleTitle` e `unitPriceInCents`.
 A resposta pública inclui `items`, `selectionMode`, `unitPriceInCents`, `totalInCents`
 e `expiresAt`; metadados internos de validação dos bilhetes não são expostos. Status
-públicos: `pending`, `processing`, `paid`, `expired`, `cancelled` e `manual_review`.
+públicos: `pending`, `processing`, `paid`, `expired`, `cancelled`, `manual_review` e
+`not_validated`.
+
+### Pagamento após o fim das vendas
+
+O código Pix da InfinitePay vale 72 horas, então o pagamento pode chegar depois do fim
+das vendas do concurso (`salesEndAt`, de `data_fim_sorteiocap`/`data_fim_sorteioesp`;
+exposto em concursos e itens do pedido). Bilhete cujo pagamento chegou ao servidor em
+`payment_received_at >= salesEndAt` não é validado: fica com `validationStatus:
+'not_validated'`, a reserva é liberada e ele não vai para `PUT /bilhete/validar`, e-mail
+nem PDF. Bilhete sem `salesEndAt` (pedidos antigos, concursos mock) não é checado.
+
+- A hora é a do servidor, nunca a do navegador: o menor entre o `payment_events.created_at`
+  do mesmo `transaction_nsu` + `invoice_slug` confirmado por `payment_check` e a chegada do
+  redirect; gravada uma vez em `orders.payment_received_at`. Baixa manual usa o horário do clique.
+  Retry de `manual_review` antigo sem horário usa o menor `payment_events.created_at`; sem evento, não há checagem.
+- Todos atrasados: pedido `not_validated` (não `manual_review`), sem e-mail.
+- Parcial: pedido `paid`, só os bilhetes válidos entregues; os atrasados ficam `not_validated`.
+- Pedido expirado/cancelado pago dentro do prazo continua `manual_review`.
+- Pedido de um concurso expira no máximo em `salesEndAt` (o agrupado já fazia isso).
+- O pedido traz `refundDueInCents` quando maior que 0 e `message` para `not_validated` e parcial.
+- Admin: filtro de status `not_validated`; itens com `validationStatus`; CSV com coluna
+  "A estornar (R$)"; receita, `paidTickets`, `dailySales` e `ticketsByRaffle` não contam bilhetes
+  não validados. Admin não aprova nem cancela pedido `not_validated`.
 
 ## InfinitePay
 
@@ -139,3 +162,4 @@ O valor do bilhete chega em reais e é convertido para centavos. Em 25/09/2026, 
 - Não havia concurso/bilhete ativo em 25/09/2026 para validar o formato dos itens.
 - A reserva externa em `bilhete.reservado` está implementada no backend e desligada (`TICKET_RESERVATION_PROVIDER=none`) até a API de bilhetes publicar os endpoints. Não há venda atômica de várias bilhetes; o backend compensa reservas parciais.
 - Uma falha após pagamento coloca o pedido em `manual_review`; operação precisa reconciliar entrega ou estorno.
+- O estorno de bilhete `not_validated` é manual, fora do sistema; o sistema só informa `refundDueInCents`.

@@ -8,6 +8,7 @@ test('cliente existente finaliza compra demonstrativa', async ({ page }) => {
   await page.getByRole('button', { name: /adicionar ao carrinho/i }).click()
   await signInAsMaria(page)
   await expect(page.getByText('Maria da Silva')).toBeVisible()
+  await expect(page.getByRole('note').first()).toContainText('O código Pix vale por 72 horas')
   await page.getByRole('button', { name: /continuar para o pix/i }).click()
   await expect(page).toHaveURL(/order_nsu=/)
   expect(new URL(page.url()).searchParams.get('order_nsu')).toMatch(

@@ -1599,7 +1599,15 @@ Ver tabela da spec. Acrescentado no plano:
 ## Progresso
 
 - 2026-10-30: spec aprovada e plano escrito.
+- 2026-10-30: Tarefa 1 (regras de prazo por bilhete) `29dc743`; Tarefa 2 (migração v10 e marcação de não validados) `c005a6e`; Tarefa 3 (libera reserva externa) `c44d2d4`; Tarefa 4 (não valida bilhete após o fim das vendas) `7f40a40`; Tarefa 5 (API pública expõe não validado e valor a estornar) `567e903`; Tarefa 6 (tipos e aviso de prazo no front) `5540fb6`; Tarefa 7 (telas do cliente) `71c348e`; Tarefa 8 (admin) `c441098`; Tarefa 9 (E2E, documentação e verificação): commit `docs: status não validado e regra do fim das vendas`.
 
 ## Validação
 
-Pendente.
+Em 2026-10-30 (`npm run check` não roda inteiro: o `format` falha por arquivos fora desta feature, então cada etapa foi executada separadamente):
+
+- `npm run lint`: verde.
+- `npx prettier --check .`: só acusa arquivos fora desta feature (`infinitepay-gateway.ts` com alteração local não commitada, `account-service.ts`, `AuthFlow.tsx` e `infinity,.md`); docs, `CLAUDE.md`, `ARCHITECTURE.md` e `tests/` estão limpos.
+- `npm run validate:architecture` e `npm run validate:docs`: verdes.
+- `npm test`: 396 passam e 2 falham, ambas já falhavam antes da feature (`infinitepay-gateway.test.ts` e `AuthFlow.test.tsx`).
+- `npm run build`: verde.
+- `npm run test:e2e`: 40 testes verdes (chromium e mobile).

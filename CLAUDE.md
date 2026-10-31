@@ -29,7 +29,7 @@ Full-stack no mesmo repositório: React (`src/`) conversa apenas com o backend F
 
 **Backend**: `server/domains/{orders,payments,tickets}` usam porta + providers (mock/live), selecionados por `TICKET_PROVIDER` e `PAYMENT_PROVIDER`. `server/config/env.ts` valida o ambiente; `server/http/` tem rotas e presenters; `server/shared/` tem banco, migrações, `fetch-json` e erros.
 
-**Estados do pedido**: `pending → processing → paid`, ou `expired`/`cancelled`. `manual_review` significa dinheiro recebido com entrega pendente de intervenção e nunca deve aparecer como sucesso. Contratos e estados em [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md).
+**Estados do pedido**: `pending → processing → paid`, ou `expired`/`cancelled`. `manual_review` significa dinheiro recebido com entrega pendente de intervenção e nunca deve aparecer como sucesso. `not_validated` significa dinheiro recebido após o fim das vendas (bilhete não validado); nunca é sucesso e o estorno é feito fora do sistema. Contratos e estados em [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md).
 
 ## Modos e ambiente
 
