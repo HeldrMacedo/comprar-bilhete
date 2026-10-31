@@ -99,7 +99,7 @@ describe('AuthFlow', () => {
     vi.mocked(accountRepository.identify).mockResolvedValue({ status: 'no_email' })
     renderFlow()
     await typeCpf('39053344705')
-    expect(await screen.findByText(/procure a lotérica ou o suporte/i)).toBeVisible()
+    expect(await screen.findByText(/procure o suporte para incluir/i)).toBeVisible()
   })
 
   it('CPF novo preenche cadastro e entra sem código', async () => {

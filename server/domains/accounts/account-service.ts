@@ -59,7 +59,7 @@ export class AccountService {
     private readonly customers: CustomerGateway,
     private readonly verification: VerificationService,
     private readonly now: () => Date = () => new Date(),
-  ) { }
+  ) {}
 
   async identify(cpf: string): Promise<IdentifyResult> {
     if (this.repository.findAccount(cpf)) return { status: 'account' }

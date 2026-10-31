@@ -1,13 +1,7 @@
 import { z } from 'zod'
 import type { AppDatabase } from '../../shared/database.js'
 import { orderStatusSchema } from '../orders/order-types.js'
-
-const VALID_ITEMS = `(SELECT COUNT(*) FROM json_each(orders.items_json) AS item
-  WHERE json_extract(item.value, '$.validationStatus') IS NULL)`
-const REFUND_DUE = `(SELECT COALESCE(SUM(COALESCE(json_extract(item.value, '$.unitPriceInCents'),
-    orders.unit_price_in_cents)), 0)
-  FROM json_each(orders.items_json) AS item
-  WHERE json_extract(item.value, '$.validationStatus') = 'not_validated')`
+import { REFUND_DUE, VALID_ITEMS } from './order-items-sql.js'
 
 // Dias do painel seguem o fuso dos sorteios (America/Fortaleza, UTC-3 sem horário de verão).
 const LOCAL_DAY = (column: string) => `date(${column}, '-3 hours')`

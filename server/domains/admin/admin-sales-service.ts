@@ -3,7 +3,7 @@ import { DomainError } from '../../shared/errors.js'
 import type { OrderRepository } from '../orders/order-repository.js'
 import type { OrderService } from '../orders/order-service.js'
 import type { Order } from '../orders/order-types.js'
-import { refundDueInCents } from '../orders/sales-deadline.js'
+import { pendingRefundInCents } from '../orders/sales-deadline.js'
 import type { TicketEmailService } from '../ticket-emails/ticket-email-service.js'
 import type { AdminRepository } from './admin-repository.js'
 import type { AdminSession } from './admin-auth-service.js'
@@ -110,7 +110,7 @@ export class AdminSalesService {
         String(order.items.length),
         formatCentsForCsv(order.totalInCents),
         formatCentsForCsv(order.paidAmountInCents),
-        formatCentsForCsv(refundDueInCents(order)),
+        formatCentsForCsv(pendingRefundInCents(order)),
         order.captureMethod ?? '',
         formatDateForCsv(order.paidAt),
         order.lastError ?? '',

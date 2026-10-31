@@ -1601,6 +1601,9 @@ Ver tabela da spec. Acrescentado no plano:
 - 2026-10-30: spec aprovada e plano escrito.
 - 2026-10-30: Tarefa 1 (regras de prazo por bilhete) `29dc743`; Tarefa 2 (migração v10 e marcação de não validados) `c005a6e`; Tarefa 3 (libera reserva externa) `c44d2d4`; Tarefa 4 (não valida bilhete após o fim das vendas) `7f40a40`; Tarefa 5 (API pública expõe não validado e valor a estornar) `567e903`; Tarefa 6 (tipos e aviso de prazo no front) `5540fb6`; Tarefa 7 (telas do cliente) `71c348e`; Tarefa 8 (admin) `c441098`; Tarefa 9 (E2E, documentação e verificação): commit `docs: status não validado e regra do fim das vendas`.
 
+- 2026-10-30: correções da revisão final `f1b8308` (guarda de status no fim das vendas, estorno exibido só em pedido pago ou não validado, mensagem do admin, hora de chegada do redirect).
+- 2026-10-30: pendências fechadas: coluna "A estornar (R$)" do CSV e totais da lista de clientes seguem a mesma regra do painel; teste do `AuthFlow` alinhado ao texto atual; `account-service.ts` e `AuthFlow.tsx` formatados; plano movido para `completed/`.
+
 ## Validação
 
 Em 2026-10-30 (`npm run check` não roda inteiro: o `format` falha por arquivos fora desta feature, então cada etapa foi executada separadamente):
@@ -1611,3 +1614,5 @@ Em 2026-10-30 (`npm run check` não roda inteiro: o `format` falha por arquivos 
 - `npm test`: 396 passam e 2 falham, ambas já falhavam antes da feature (`infinitepay-gateway.test.ts` e `AuthFlow.test.tsx`).
 - `npm run build`: verde.
 - `npm run test:e2e`: 40 testes verdes (chromium e mobile).
+
+Após as pendências (2026-10-30): `npm run lint`, `validate:architecture`, `validate:docs` e `build` verdes; `npm test` com 405 testes verdes e 1 falha (`infinitepay-gateway.test.ts`, causada pela alteração local não commitada em `infinitepay-gateway.ts`); `npx prettier --check .` acusa só `infinitepay-gateway.ts` e o arquivo local não versionado `infinity,.md`; `npm run test:e2e` com 40 testes verdes.

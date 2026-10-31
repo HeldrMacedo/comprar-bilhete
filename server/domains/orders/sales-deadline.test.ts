@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { order, ticket } from './order-test-fixtures.js'
-import { lateTicketKeys, refundDueInCents, ticketKey, validatedItems } from './sales-deadline.js'
+import {
+  lateTicketKeys,
+  pendingRefundInCents,
+  refundDueInCents,
+  ticketKey,
+  validatedItems,
+} from './sales-deadline.js'
 
 const deadline = '2026-09-27T22:00:00.000Z'
 
@@ -43,5 +49,13 @@ describe('prazo de vendas', () => {
     expect(refundDueInCents(partial)).toBe(1000)
     expect(validatedItems(partial).map((item) => item.id)).toEqual(['card-002'])
     expect(ticketKey(partial, ticket('card-002'))).toBe('sorteio-setembro:card-002')
+  })
+
+  it('só considera estorno pendente em pedido pago ou não validado', () => {
+    const items = [{ ...ticket('card-001'), validationStatus: 'not_validated' as const }]
+    expect(pendingRefundInCents(order({ status: 'paid', items }))).toBe(1000)
+    expect(pendingRefundInCents(order({ status: 'not_validated', items }))).toBe(1000)
+    expect(pendingRefundInCents(order({ status: 'manual_review', items }))).toBe(0)
+    expect(pendingRefundInCents(order({ status: 'cancelled', items }))).toBe(0)
   })
 })

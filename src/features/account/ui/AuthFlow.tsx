@@ -336,8 +336,8 @@ function NoEmailStep({
   return (
     <form className="auth-flow__form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <p>
-        Seu cadastro não tem e-mail. Procure o suporte para incluir, ou informe o
-        código que recebeu do atendimento.
+        Seu cadastro não tem e-mail. Procure o suporte para incluir, ou informe o código que recebeu
+        do atendimento.
       </p>
       <TextField
         id="auth-code"

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { AppDatabase } from '../../shared/database.js'
 import { mapOrder, type OrderRow } from '../orders/order-repository.js'
 import { orderStatusSchema } from '../orders/order-types.js'
+import { REFUND_DUE, VALID_ITEMS } from './order-items-sql.js'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.')
 
@@ -196,9 +197,9 @@ export class AdminSalesRepository {
               ORDER BY latest.created_at DESC LIMIT 1) AS customer_json,
             COUNT(*) AS order_count,
             SUM(status = 'paid') AS paid_order_count,
-            COALESCE(SUM(CASE WHEN status = 'paid' THEN total_in_cents END), 0) AS paid_total_in_cents,
-            COALESCE(SUM(CASE WHEN status = 'paid' THEN json_array_length(items_json) END), 0)
-              AS ticket_count,
+            COALESCE(SUM(CASE WHEN status = 'paid' THEN total_in_cents - ${REFUND_DUE} END), 0)
+              AS paid_total_in_cents,
+            COALESCE(SUM(CASE WHEN status = 'paid' THEN ${VALID_ITEMS} END), 0) AS ticket_count,
             MIN(created_at) AS first_order_at,
             MAX(created_at) AS last_order_at
           FROM orders

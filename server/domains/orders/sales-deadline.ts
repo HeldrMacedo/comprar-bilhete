@@ -26,3 +26,9 @@ export function refundDueInCents(order: Order) {
     .filter(isNotValidated)
     .reduce((sum, item) => sum + (item.unitPriceInCents ?? order.unitPriceInCents), 0)
 }
+
+// Estorno pelo prazo só vale em pedido pago ou não validado: em análise ainda aguarda decisão do
+// admin, e cancelado é estornado por inteiro fora do sistema.
+export function pendingRefundInCents(order: Order) {
+  return order.status === 'paid' || order.status === 'not_validated' ? refundDueInCents(order) : 0
+}
