@@ -120,7 +120,7 @@ nem PDF. Bilhete sem `salesEndAt` (pedidos antigos, concursos mock) não é chec
 
 ### Criar checkout
 
-`POST https://api.checkout.infinitepay.io/links` com `handle`, `order_nsu`, `redirect_url`, `webhook_url`, cliente e itens em centavos. Resposta validada: `{ "url": "https://checkout.infinitepay.com.br/..." }`.
+`POST https://api.checkout.infinitepay.io/links` com `handle`, `order_nsu`, `redirect_url`, `webhook_url`, cliente (nome, e-mail e celular; o endereço não é enviado, porque na InfinitePay ele é endereço de entrega) e itens em centavos. Referência da API em [references/infinitepay-checkout.md](references/infinitepay-checkout.md). Resposta validada: `{ "url": "https://checkout.infinitepay.com.br/..." }`.
 
 ### Confirmar pagamento
 

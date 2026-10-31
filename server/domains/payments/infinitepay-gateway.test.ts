@@ -126,7 +126,9 @@ describe('InfinitePayGateway', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.checkout.infinitepay.io/payment_check')
   })
 
-  it('envia centavos inteiros e endereco normalizado', async () => {
+  // O endereço do cadastro não vai para o checkout: na InfinitePay ele é endereço de entrega,
+  // e bilhete não tem entrega física.
+  it('envia centavos inteiros e não envia endereço', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ url: 'https://checkout.infinitepay.io/example' }), {
         status: 200,
@@ -139,42 +141,15 @@ describe('InfinitePayGateway', () => {
 
     const request = fetchMock.mock.calls[0]
     expect(request).toBeDefined()
-    const body = JSON.parse(String((request?.[1] as RequestInit | undefined)?.body)) as unknown
+    const body = JSON.parse(String((request?.[1] as RequestInit | undefined)?.body)) as Record<
+      string,
+      unknown
+    >
     expect(body).toMatchObject({
       handle: 'helder-macedo',
       customer: { name: 'Maria da Silva', phone_number: '+5584999855367' },
       items: [{ quantity: 1, price: 1000 }],
-      address: {
-        cep: '59062300',
-        street: 'Avenida Lima e Silva',
-        neighborhood: 'Nazare',
-        number: '129',
-        complement: 'Casa',
-      },
     })
-  })
-
-  it('omite o endereço quando o cliente não informou CEP', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ url: 'https://checkout.infinitepay.io/example' }), {
-        status: 200,
-      }),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-    const gateway = new InfinitePayGateway(env)
-    const address = {
-      street: 'Avenida Lima e Silva',
-      number: '129',
-      neighborhood: 'Nazare',
-      city: 'Natal',
-      state: 'RN',
-    }
-
-    await gateway.createCheckout(order({ customer: { ...customerWithAddress, address } }))
-
-    const body = JSON.parse(
-      String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body),
-    ) as Record<string, unknown>
     expect(body.address).toBeUndefined()
   })
 

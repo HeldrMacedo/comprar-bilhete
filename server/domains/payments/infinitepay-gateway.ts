@@ -25,7 +25,6 @@ export class InfinitePayGateway implements PaymentGateway {
       throw new DomainError('Total do pedido inconsistente.', 500, 'INVALID_ORDER_TOTAL')
     }
 
-    const address = order.customer.address
     const response = await fetchJson(
       `${this.env.INFINITEPAY_API_BASE_URL}/links`,
       checkoutResponseSchema,
@@ -42,16 +41,6 @@ export class InfinitePayGateway implements PaymentGateway {
             email: order.customer.email,
             phone_number: `+55${order.customer.phone}`,
           },
-          // Endereço sem CEP fica de fora: a InfinitePay identifica o endereço pelo CEP.
-          address: address?.zipCode
-            ? {
-                cep: address.zipCode,
-                street: address.street,
-                neighborhood: address.neighborhood,
-                number: address.number,
-                complement: address.complement,
-              }
-            : undefined,
           items: order.items.map((item) => ({
             quantity: 1,
             price: item.unitPriceInCents ?? order.unitPriceInCents,

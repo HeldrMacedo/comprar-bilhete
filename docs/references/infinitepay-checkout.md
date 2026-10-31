@@ -38,11 +38,11 @@ Adicione os produtos ou serviços que o cliente está comprando. É obrigatório
 
 Exemplo
 "itens": [
-  {
-    "quantity": 1,
-    "price": 123,
-    "description": "exemplo de descrição"
-  }
+{
+"quantity": 1,
+"price": 123,
+"description": "exemplo de descrição"
+}
 ]
 Preste atenção ao valor do produto
 O valor do produto deve ser colocado em centavos, então R$ 10,00 = 1000 centavos
@@ -84,21 +84,21 @@ Corpo da requisição:
 
 Exemplo
 {
-  "handle": "sua_infinite_tag",
-  "order_nsu": "123456",
-  "transaction_nsu": "UUID-que-recebeu",
-  "slug": "codigo-da-fatura"
+"handle": "sua_infinite_tag",
+"order_nsu": "123456",
+"transaction_nsu": "UUID-que-recebeu",
+"slug": "codigo-da-fatura"
 }
 Resposta:
 
 Exemplo
 {
-  "success": true,
-  "paid": true,
-  "amount": 1500,
-  "paid_amount": 1510,
-  "installments": 1,
-  "capture_method": "pix"
+"success": true,
+"paid": true,
+"amount": 1500,
+"paid_amount": 1510,
+"installments": 1,
+"capture_method": "pix"
 }
 Incluir URL de redirecionamento
 Webhook URL (Opcional)
@@ -118,15 +118,15 @@ O corpo da mensagem que você receberá no webhook, quando o pagamento for aprov
 
 Exemplo
 {
-  "invoice_slug": "abc123",
-  "amount": 1000,
-  "paid_amount": 1010,
-  "installments": 1,
-  "capture_method": "credit_card",
-  "transaction_nsu": "UUID",
-  "order_nsu": "UUID-do-pedido",
-  "receipt_url": "https://comprovante.com/123",
-  "items": [...]
+"invoice_slug": "abc123",
+"amount": 1000,
+"paid_amount": 1010,
+"installments": 1,
+"capture_method": "credit_card",
+"transaction_nsu": "UUID",
+"order_nsu": "UUID-do-pedido",
+"receipt_url": "https://comprovante.com/123",
+"items": [...]
 }
 Incluir URL do webhook
 Dados do Cliente (Opcional)
@@ -134,9 +134,9 @@ Se você já tiver o nome, e-mail e telefone do comprador, pode enviá-los para 
 
 Exemplo
 "customer": {
-  "name": "João Silva",
-  "email": "joao@email.com",
-  "phone_number": "+5511999887766"
+"name": "João Silva",
+"email": "joao@email.com",
+"phone_number": "+5511999887766"
 }
 Incluir dados do cliente
 Nome
@@ -150,11 +150,11 @@ Se o seu produto precisa ser entregue em mãos, você pode incluir o endereço.
 
 Exemplo
 "address": {
-  "cep": "12345678",
-  "street": "Rua das Flores",
-  "neighborhood": "Centro",
-  "number": "123",
-  "complement": "Apto 45"
+"cep": "12345678",
+"street": "Rua das Flores",
+"neighborhood": "Centro",
+"number": "123",
+"complement": "Apto 45"
 }
 Incluir endereço de entrega
 Opções avançadas (com API Key)
@@ -170,27 +170,27 @@ Para experimentar aqui, escolha as opções e clique em Testar API. O botão cri
 Veja um exemplo
 Veja um exemplo
 {
-  "options": {
-    "assured_installments": 3,
-    "require_delivery_address": true,
-    "single_payment": true,
-    "valid_until": "2026-11-25T23:38:15.670Z",
-    "payment_methods_enabled": [
-      "credit_card",
-      "pix"
-    ],
-    "discounts": {
-      "pix": 5,
-      "credit_card": 2.5
-    }
-  }
+"options": {
+"assured_installments": 3,
+"require_delivery_address": true,
+"single_payment": true,
+"valid_until": "2026-11-25T23:38:15.670Z",
+"payment_methods_enabled": [
+"credit_card",
+"pix"
+],
+"discounts": {
+"pix": 5,
+"credit_card": 2.5
+}
+}
 }
 Assumir parcelas
 Escolha em quantas parcelas você paga as taxas pelo cliente, de 0 a 12. Por exemplo, com 3, ele pode pagar em até 3x sem essas taxas. Use 0 para repassar as taxas em todas as parcelas.
 
 Exemplo
 {
-  "assured_installments": 3
+"assured_installments": 3
 }
 Personalizar: Assumir parcelas
 Pedir endereço de entrega
@@ -198,7 +198,7 @@ Peça o endereço de entrega do cliente na hora do pagamento.
 
 Exemplo
 {
-  "require_delivery_address": true
+"require_delivery_address": true
 }
 Personalizar: Pedir endereço de entrega
 Pagamento único
@@ -206,7 +206,7 @@ Permita apenas um pagamento por link. Depois de pago, ele não pode ser usado no
 
 Exemplo
 {
-  "single_payment": true
+"single_payment": true
 }
 Personalizar: Pagamento único
 Ativar: Pagamento único: Sim
@@ -215,7 +215,7 @@ Escolha até quando o link pode ser pago. A data deve estar no futuro, dentro de
 
 Exemplo
 {
-  "valid_until": "2026-11-25T23:38:15.670Z"
+"valid_until": "2026-11-25T23:38:15.670Z"
 }
 Personalizar: Validade
 Validade
@@ -226,10 +226,10 @@ O cartão de crédito fica sempre disponível. Escolha se o link também aceita 
 
 Exemplo
 {
-  "payment_methods_enabled": [
-    "credit_card",
-    "pix"
-  ]
+"payment_methods_enabled": [
+"credit_card",
+"pix"
+]
 }
 Personalizar: Formas de pagamento
 cartão de crédito
@@ -239,10 +239,10 @@ Ofereça um desconto para quem pagar com Pix ou cartão de crédito. Informe uma
 
 Exemplo
 {
-  "discounts": {
-    "pix": 5,
-    "credit_card": 2.5
-  }
+"discounts": {
+"pix": 5,
+"credit_card": 2.5
+}
 }
 Personalizar: Descontos
 Dicas práticas
